@@ -17,6 +17,7 @@ Internal German employee time tracker for one company. Product truth lives in
 - `app/actions.ts` — all mutations (server actions). `app/providers.tsx` — Theme + i18n provider.
 - `lib/db.ts` — schema + `getDb()` (SQLite at `data/medarbeiter.db`, WAL). Migrations are versioned via `PRAGMA user_version` + an append-only `MIGRATIONS` array — never edit a shipped migration (the baseline stays idempotent). `lib/settings.ts` — key-value settings with defaults (`mergeWindowMin()` etc.).
 - `lib/time.ts` — domain logic (DB-bound). `lib/format.ts` — pure date/format helpers, safe for client imports. Never import `lib/time.ts` or `lib/db.ts` from a client component.
+- `lib/arbzg.ts` — ArbZG rules (pure): break duty, 10 h cap, 11 h rest, Feierabend prognosis. `lib/feiertage.ts` — German public holidays, computed per Bundesland (pure). `lib/daytypes.ts` — day types + how each meets the Soll. `lib/attention.ts` — which past days need a human (`dayIssues` pure, `attentionIssues` DB-bound).
 - `lib/auth.ts` — session cookie auth; `requireUser()` / `requireVerwaltung()` guards in server components.
 - `components/` — UI. The timeline grammar lives in `day-timeline.tsx` (vertical, signature surface) and `mini-timeline.tsx` (horizontal team rows).
 - `theme/medarbeiterTheme.ts` — the design tokens SOURCE. After editing run `bunx astryx theme build theme/medarbeiterTheme.ts -o theme/medarbeiter.css` (regenerates css/js/d.ts). Never hand-edit the generated files.
@@ -27,7 +28,8 @@ Internal German employee time tracker for one company. Product truth lives in
 
 - Segments are `arbeit | pause`, one calendar date + minutes-from-midnight, never crossing midnight. `end_min IS NULL` = running (today) or forgotten clock-out (past day = anomaly). One exception to "never auto-close": a segment still open from *exactly yesterday* within 12h elapsed is a running night shift — the next stamp action splits it at midnight. Anything older is never auto-closed and is fixed by manual correction.
 - Stamp fumbling never fragments the record: re-clock-in within the merge window (settings, default 2 min) reopens the previous segment; a sub-window pause between two work blocks is absorbed; Ausstempeln is undoable for 30 s (`undoStamp`, DB-derived, no token).
-- Zeitkonto counts ONLY recorded days (worked − Soll per day with entries), so absences don't drag the balance. Say "aus erfassten Tagen" wherever the balance is shown.
+- Zeitkonto: a day counts when it has entries or a day type. Urlaub/Krank/Feiertag set the effective Soll to 0 (balance-neutral), Fortbildung counts as having worked the Soll, Freizeitausgleich spends the Soll from the balance. A past day with an unfinished entry is *uncountable* — never counted as zero — and a working day with neither entry nor day type is excluded and reported. `zeitkontoSummary()` returns all of that so the figure needs no footnote.
+- Nothing before `firstRecordedDate(userId)` may be called a missing day.
 - Per-employee weekly Sollzeit (`users.weekly_minutes`) spread over Mo–Fr.
 - Locked months (`month_locks`) are read-only for everyone; Verwaltung must unlock to edit. Locking requires no open segments and a completed month.
 - Corrections record `edited_by` — the audit trail payroll relies on.
@@ -37,7 +39,7 @@ Internal German employee time tracker for one company. Product truth lives in
 
 - **German only.** Every user-visible string. Astryx `FieldLabel` hardcodes English "Required"/"Optional", so `isRequired`/`isOptional` props stay UNUSED; validate server-side with German messages.
 - **Gold discipline.** Brand gold `#e1b025` means work/primary action; text/icon gold is bronze (`--color-text-accent` #7c5f05, `--color-icon-accent` #8f6e06) because raw gold fails contrast on white; on-accent ink is dark, never white. Warnings are ORANGE (never yellow — it would impersonate the brand). One primary button per view.
-- **Contrast floors.** Text ≥4.5:1; non-text UI (timeline fills, focus rings, ticks) ≥3:1 — mini-timeline pause fill is `#8b8474` for this reason. Compute, don't eyeball.
+- **Contrast floors.** Text ≥4.5:1; non-text UI ≥3:1. Computed in `tests/kontrast.test.ts` — add every new pairing there. Brand gold cannot reach 3:1 on a light ground, so meaning-carrying gold surfaces wear a 1px `--color-icon-accent` hairline (`.arbeit-flaeche`); the boundary carries the contrast, not the fill. Pause fill is `#8b8474` for the same reason.
 - **A11y.** DOM order = visual order at every breakpoint (mobile stamp card is a separate `.nur-mobil` instance, not a CSS reorder). No `role="img"` on containers with interactive children. Focus rings via `--color-icon-accent`. Respect `prefers-reduced-motion` for any animation.
 - **Motion.** One authored moment per surface (currently the breathing live tip, gated `isOpen && isToday`); transitions use `--duration-*`/`--ease-standard` tokens.
 - **Fonts are self-hosted** via `next/font` (variables `--font-poppins`/`--font-figtree`); never add Google Fonts `<link>` tags.

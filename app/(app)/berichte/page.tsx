@@ -149,7 +149,7 @@ export default async function BerichtePage({searchParams}: PageProps) {
       </VStack>
 
       <Text type="supporting" color="secondary">
-        „Ist/Soll“ zählen nur erfasste Tage; das Zeitkonto läuft über alle erfassten Tage bis {month === monthOf(today) ? 'gestern' : 'Monatsende'}. Die CSV-Datei enthält alle Tageswerte je Mitarbeiter.
+        „Ist/Soll“ zählen erfasste Tage und Tage mit Tagesart; Urlaub, Krankheit und Feiertage setzen das Soll auf null, Tage ohne Ende bleiben unzählbar. Das Zeitkonto läuft bis {month === monthOf(today) ? 'gestern' : 'Monatsende'}. Die CSV-Datei enthält alle Tageswerte je Mitarbeiter.
       </Text>
     </VStack>
   );
