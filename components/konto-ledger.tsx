@@ -44,7 +44,8 @@ export function KontoLedger({rows, balanceMin}: KontoLedgerProps) {
                 Monatssaldo {fmtDurationSigned(monthSum)} Std.
               </Text>
             </HStack>
-            <Card padding={0}>
+            <VStack className="tabelle-scroll">
+              <Card padding={0}>
               <VStack gap={0}>
                 <HStack gap={4} vAlign="center" paddingInline={4} paddingBlock={1.5}>
                   <span style={{inlineSize: 110, flexShrink: 0}}>
@@ -119,7 +120,8 @@ export function KontoLedger({rows, balanceMin}: KontoLedgerProps) {
                   </VStack>
                 ))}
               </VStack>
-            </Card>
+              </Card>
+            </VStack>
           </VStack>
         );
       })}

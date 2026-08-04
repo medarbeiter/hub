@@ -52,7 +52,8 @@ export default async function TeamPage({searchParams}: PageProps) {
         <DaySwitcher basePath="/team" date={date} />
       </HStack>
 
-      <Card padding={0}>
+      <VStack className="tabelle-scroll">
+        <Card padding={0}>
         <VStack gap={0}>
           {groups.map((group) => (
             <VStack key={group.title} gap={0}>
@@ -146,7 +147,8 @@ export default async function TeamPage({searchParams}: PageProps) {
             <span style={{inlineSize: 16, flexShrink: 0}} />
           </HStack>
         </VStack>
-      </Card>
+        </Card>
+      </VStack>
 
       <Text type="supporting" color="secondary">
         Zeile anklicken, um Zeiten einzusehen und zu korrigieren. Goldene Balken sind Arbeitszeit, graue Pausen.

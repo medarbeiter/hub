@@ -20,6 +20,51 @@
   border-block-end: var(--border-width) solid var(--color-border);
 }
 
+/* Touch targets: 44px is the floor for a control used at the door, in a hurry,
+   with one thumb. Applies to every viewport — a mouse loses nothing by it. */
+.stempel-leiste button {
+  min-block-size: 44px;
+}
+
+@media (max-width: 920px) {
+  /* On a phone the clock moves to the bottom edge: always in reach of the
+     thumb, and clear of the app shell's own sticky header at the top. */
+  .stempel-leiste {
+    position: fixed;
+    inset-block-start: auto;
+    inset-block-end: 0;
+    inset-inline: 0;
+    border-block-end: none;
+    border-block-start: var(--border-width) solid var(--color-border);
+    padding-block-end: max(var(--spacing-2), env(safe-area-inset-bottom));
+    box-shadow: var(--shadow-med);
+  }
+  .stempel-leiste button {
+    flex: 1 1 auto;
+  }
+  /* Room for the bar so it never covers the last row of content. */
+  .astryx-app-shell {
+    padding-block-end: 132px;
+  }
+}
+
+/* Entry rows are the edit affordance: the whole row, not a small button. */
+.eintrag-zeile {
+  all: unset;
+  display: block;
+  inline-size: 100%;
+  cursor: pointer;
+  min-block-size: 44px;
+}
+.eintrag-zeile:hover {
+  background-color: var(--color-overlay-hover);
+}
+
+/* Wide, dense tables scroll inside themselves rather than pushing the page. */
+.tabelle-scroll {
+  overflow-x: auto;
+}
+
 /* Interactive rows (team, day list): hover and keyboard focus must be visible. */
 .zeile-interaktiv:hover {
   background-color: var(--color-overlay-hover);
@@ -40,6 +85,12 @@
 .zeitleiste-eintrag:hover .zeitleiste-stift,
 .zeitleiste-eintrag:focus-visible .zeitleiste-stift {
   opacity: 1;
+}
+/* Touch has no hover: the affordance must be there before the tap. */
+@media (hover: none) {
+  .zeitleiste-eintrag .zeitleiste-stift {
+    opacity: 0.7;
+  }
 }
 .zeitleiste-eintrag:hover .zeitleiste-block {
   /* !important: the block's resting shadow is an inline style (state-dependent). */

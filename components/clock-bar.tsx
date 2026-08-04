@@ -52,12 +52,14 @@ export function ClockBar() {
           {fmtTime(clock.since)}
         </Text>
       )}
+      {/* No separator characters: the bar wraps to two or three rows on a
+          phone, and a leading "·" at the start of a line reads as debris. */}
       <Text type="supporting" color="secondary" hasTabularNumbers>
-        · {fmtDuration(clock.summary.workedMin)} Std. heute
+        {fmtDuration(clock.summary.workedMin)} Std. heute
       </Text>
       {clock.prognose && (
         <Text type="supporting" color="secondary" hasTabularNumbers>
-          · Feierabend ca. {fmtTime(clock.prognose.atMin)}
+          Feierabend ca. {fmtTime(clock.prognose.atMin)}
           {clock.prognose.outstandingBreakMin > 0 && (
             <> (inkl. {clock.prognose.outstandingBreakMin} Min. Pause)</>
           )}
@@ -66,7 +68,7 @@ export function ClockBar() {
       {/* Advisory, never blocking: the record stays whatever actually happened. */}
       {breakHint && (
         <Text type="supporting" color="inherit" hasTabularNumbers>
-          <span style={{color: 'var(--color-warning)'}}>· {breakHint}</span>
+          <span style={{color: 'var(--color-warning)'}}>{breakHint}</span>
         </Text>
       )}
       {error && (

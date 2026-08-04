@@ -58,7 +58,8 @@ export default async function BerichtePage({searchParams}: PageProps) {
         </HStack>
       </HStack>
 
-      <Card padding={0}>
+      <VStack className="tabelle-scroll">
+        <Card padding={0}>
         <VStack gap={0}>
           <HStack gap={4} vAlign="center" paddingInline={4} paddingBlock={2}>
             <span style={{inlineSize: 200, flexShrink: 0}}>
@@ -144,10 +145,11 @@ export default async function BerichtePage({searchParams}: PageProps) {
             );
           })}
         </VStack>
-      </Card>
+        </Card>
+      </VStack>
 
       <Text type="supporting" color="secondary">
-        „Ist/Soll" zählen nur erfasste Tage; das Zeitkonto läuft über alle erfassten Tage bis {month === monthOf(today) ? 'gestern' : 'Monatsende'}. Die CSV-Datei enthält alle Tageswerte je Mitarbeiter.
+        „Ist/Soll“ zählen nur erfasste Tage; das Zeitkonto läuft über alle erfassten Tage bis {month === monthOf(today) ? 'gestern' : 'Monatsende'}. Die CSV-Datei enthält alle Tageswerte je Mitarbeiter.
       </Text>
     </VStack>
   );

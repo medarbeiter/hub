@@ -59,7 +59,8 @@ export default async function AbschlussPage({searchParams}: PageProps) {
         />
       )}
 
-      <Card padding={0}>
+      <VStack className="tabelle-scroll">
+        <Card padding={0}>
         <VStack gap={0}>
           <HStack gap={4} vAlign="center" paddingInline={4} paddingBlock={2}>
             <span style={{inlineSize: 200, flexShrink: 0}}>
@@ -162,7 +163,8 @@ export default async function AbschlussPage({searchParams}: PageProps) {
             );
           })}
         </VStack>
-      </Card>
+        </Card>
+      </VStack>
 
       <Text type="supporting" color="secondary">
         Abgeschlossene Monate sind schreibgeschützt und bilden die Grundlage für die Lohnabrechnung.
