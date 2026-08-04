@@ -1,22 +1,23 @@
-/* Responsive composition the component layer can't express: on narrow
-   viewports the stamp card (primary action) is a separate DOM instance above
-   the timeline, so visual order and focus order stay identical. */
-.nur-mobil {
-  display: none;
-}
-.nur-desktop {
-  display: block;
-}
+/* Responsive composition the component layer can't express: the fixed right
+   rail goes full-width on narrow viewports. The clock action needs no mobile
+   duplicate anymore — the sticky .stempel-leiste is first in DOM and viewport
+   on every breakpoint, so visual order and focus order stay identical. */
 @media (max-width: 920px) {
-  .nur-mobil {
-    display: block;
-  }
-  .nur-desktop {
-    display: none;
-  }
   .heute-rail {
     width: 100% !important;
   }
+}
+
+/* The persistent clock strip — the one place stamping lives, on every route.
+   Sticky works against the document scroller (AppShell height="auto" has no
+   inner overflow container); no topNav, so the offset is 0. */
+.stempel-leiste {
+  position: sticky;
+  top: 0;
+  /* Above cards, rows, and timeline pills; dialogs/toasts live in the top layer. */
+  z-index: 50;
+  background: var(--color-background-surface);
+  border-block-end: var(--border-width) solid var(--color-border);
 }
 
 /* Interactive rows (team, day list): hover and keyboard focus must be visible. */
