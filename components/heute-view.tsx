@@ -1,15 +1,16 @@
 'use client';
 
-import {Banner, Button, Card, Heading, HStack, StackItem, StatusDot, Text, VStack} from '@astryxdesign/core';
+import {Banner, Button, Card, Heading, HStack, StackItem, Text, VStack} from '@astryxdesign/core';
 import Link from 'next/link';
 import {useState, useTransition} from 'react';
 import {useRouter} from 'next/navigation';
-import {segmentResizeAction} from '@/app/actions';
-import {fmtDate, fmtDateLong} from '@/lib/format';
+import {fmtDate, fmtDateLong, fmtDuration, fmtDurationSigned, fmtTime} from '@/lib/format';
 import {AddEntryButton} from './add-entry-button';
 import {REMINDER_MIN, useClock} from './clock-provider';
+import {DayStrip} from './day-strip';
+import type {TimelineSegment} from './day-timeline';
+import {EntryList} from './entry-list';
 import {PeriodSwitcher} from './period-switcher';
-import {DayTimeline, type TimelineSegment} from './day-timeline';
 import {SegmentEditor} from './segment-editor';
 import {WeekStrip, ZeitkontoCard, type WeekDay} from './week-strip';
 
@@ -24,47 +25,38 @@ interface HeuteViewProps {
 }
 
 /**
- * The Heute surface: live day timeline (left), week + Zeitkonto (right rail).
- * Clock state and stamping live in the ClockProvider/ClockBar — this view
- * only reads from that shared state.
+ * The Heute surface, built for the three-second visit: today's total and the
+ * Feierabend prognosis in the primary reading position, the day as a compact
+ * horizontal strip, entries as dense editable rows. Stamping lives in the
+ * sticky ClockBar; this view only reads the shared clock state.
  */
 export function HeuteView(props: HeuteViewProps) {
   const clock = useClock();
   const [editing, setEditing] = useState<TimelineSegment | null>(null);
   const [isEditorOpen, setEditorOpen] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [, startTransition] = useTransition();
   const router = useRouter();
 
-  const {segments, status, since, summary, nowMin, today} = clock;
+  const {segments, status, summary, nowMin, today, sollMin} = clock;
   const lateBanner = status !== 'aus' && nowMin >= REMINDER_MIN;
 
-  const onSegmentResize = (segment: TimelineSegment, startMin: number, endMin: number) => {
-    startTransition(async () => {
-      setActionError(null);
-      const result = await segmentResizeAction(segment.id, startMin, endMin);
-      if (result.error) setActionError(result.error);
-      router.refresh();
-    });
-  };
-
-  const remaining = clock.sollMin - summary.workedMin;
+  const remaining = sollMin - summary.workedMin;
   const feierabendMin = status !== 'aus' && remaining > 0 && nowMin + remaining < 1440 ? nowMin + remaining : null;
-
-  const statusDot =
-    status === 'arbeit' ? (
-      <StatusDot variant="accent" label="Eingestempelt" isPulsing />
-    ) : status === 'pause' ? (
-      <StatusDot variant="warning" label="Pause" isPulsing />
-    ) : (
-      <StatusDot variant="neutral" label="Ausgestempelt" />
-    );
 
   const openEditor = (segment: TimelineSegment | null) => {
     if (segment && segment.id < 0) return; // optimistic placeholder, not yet saved
     setEditing(segment);
     setEditorOpen(true);
   };
+
+  // One sentence under the big figure: what matters next, never a deficit.
+  const prognose =
+    status === 'aus' && segments.length === 0
+      ? 'Noch nicht eingestempelt.'
+      : remaining <= 0
+        ? `${fmtDurationSigned(-remaining)} Std. über Soll`
+        : feierabendMin != null
+          ? `noch ${fmtDuration(remaining)} Std. · Feierabend ca. ${fmtTime(feierabendMin)}`
+          : `noch ${fmtDuration(remaining)} Std. bis zum Soll`;
 
   return (
     <VStack gap={5} padding={5}>
@@ -100,7 +92,7 @@ export function HeuteView(props: HeuteViewProps) {
         <Banner
           status="info"
           title="Willkommen bei der Zeiterfassung"
-          description={`So funktioniert's: Einstempeln startet Ihren Arbeitstag auf der Zeitleiste. Pausen erfassen Sie mit „Pause starten“, den Feierabend mit „Ausstempeln“. Vertippt? Jeder Eintrag lässt sich anklicken und korrigieren – alle Tage finden Sie unter „Meine Zeiten“.`}
+          description={`So funktioniert's: „Einstempeln“ oben in der Leiste startet Ihren Arbeitstag. Pausen erfassen Sie mit „Pause starten“, den Feierabend mit „Ausstempeln“. Vertippt? Jeder Eintrag lässt sich anklicken und korrigieren.`}
         />
       )}
 
@@ -109,31 +101,45 @@ export function HeuteView(props: HeuteViewProps) {
       <HStack gap={5} wrap="wrap" align="start">
         <StackItem size="fill">
           <VStack gap={4} minHeight={0}>
-            <HStack justify="between" vAlign="center" gap={3}>
-              <VStack gap={0.5}>
-                <Heading level={1}>Guten Tag, {props.firstName}</Heading>
-                <HStack gap={2} vAlign="center">
-                  {statusDot}
+            <HStack justify="between" vAlign="end" gap={3} wrap="wrap">
+              <VStack gap={1}>
+                <Text type="supporting" color="secondary">
+                  Guten Tag, {props.firstName} · {fmtDateLong(today)}
+                </Text>
+                <HStack vAlign="end" gap={2}>
+                  <Heading level={1} type="display-3" accessibilityLevel={1}>
+                    {fmtDuration(summary.workedMin)}
+                  </Heading>
                   <Text type="supporting" color="secondary">
-                    {fmtDateLong(today)}
+                    von {fmtDuration(sollMin)} Std.
                   </Text>
                 </HStack>
+                <Text type="supporting" color="secondary" hasTabularNumbers>
+                  {summary.pauseMin > 0 && <>Pausen {fmtDuration(summary.pauseMin)} Std. · </>}
+                  {prognose}
+                </Text>
               </VStack>
               <AddEntryButton onClick={() => openEditor(null)} />
             </HStack>
-            {actionError && <Banner status="error" title={actionError} />}
+
             <Card padding={4}>
-              <DayTimeline
+              <DayStrip
                 segments={segments}
-                date={today}
                 isToday
                 nowMin={nowMin}
                 onSegmentClick={(s) => openEditor(s)}
-                onSegmentResize={onSegmentResize}
                 feierabendMin={feierabendMin}
                 usualStartMin={props.usualStartMin}
               />
             </Card>
+
+            <EntryList segments={segments} canEdit onEdit={openEditor} />
+            {segments.length === 0 && (
+              <Text type="body" color="secondary">
+                Noch keine Zeiten heute – stempeln Sie sich oben in der Leiste ein.
+                {props.usualStartMin != null && <> Meistens starten Sie gegen {fmtTime(props.usualStartMin)}.</>}
+              </Text>
+            )}
           </VStack>
         </StackItem>
 

@@ -73,8 +73,16 @@ export function DayTimeline({
     ...(feierabendMin != null ? [feierabendMin] : []),
     ...(usualStartMin != null && segments.length === 0 && isToday ? [usualStartMin, usualStartMin + 60] : []),
   ];
-  const minHour = Math.min(7, ...starts.map((m) => Math.floor(m / 60)), ...extra.map((m) => Math.floor(m / 60)));
-  const maxHour = Math.max(18, ...ends.map((m) => Math.ceil(m / 60) + 1), ...extra.map((m) => Math.ceil(m / 60) + 1));
+  // The window derives from the day's actual content ± padding — an empty
+  // afternoon is not rendered. Six hours minimum so the day keeps its shape.
+  const points = [...starts, ...ends, ...extra];
+  let minHour = points.length ? Math.max(0, Math.floor((Math.min(...points) - 30) / 60)) : 8;
+  let maxHour = points.length ? Math.min(24, Math.ceil((Math.max(...points) + 30) / 60)) : 17;
+  while (maxHour - minHour < 6) {
+    if (maxHour < 24) maxHour++;
+    else if (minHour > 0) minHour--;
+    else break;
+  }
   const startMin = minHour * 60;
   const totalMin = (maxHour - minHour) * 60;
   const height = (maxHour - minHour) * hourPx;

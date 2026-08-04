@@ -29,19 +29,21 @@ export default function RootLayout({children}: {children: ReactNode}) {
           hidden
           dangerouslySetInnerHTML={{
             __html: `<!--
-THESIS: The workday itself is the interface: a live day-timeline the employee
-stamps onto, refusing the category default of a form beside a stats grid.
-Clocking is one glance, one click.
+THESIS: The workday itself is the interface: a live stamped day the employee
+reads at a glance, refusing the category default of a form beside a stats
+grid. Clocking is one glance, one click, from every page.
 OWN-WORLD: Astryx components, MedArbeiter theme: white/warm-paper ground,
 brand gold #e1b025 as work-segments and primary action, bronze text-gold,
 warm stone neutrals, Poppins headings, orange warnings.
-STORY: An employee sees their day as segments, stamps in or out with the one
-state-coupled button, trusts the record; Verwaltung scans team rows of the
-same timelines, corrects inline, locks months for payroll.
-FIRST VIEWPORT: Sidebar nav left; center: today's vertical timeline with
-growing gold segment; right rail: state card with primary stamp action, week
-Soll/Ist strip, Zeitkonto.
-FORM: Tages-Timeline, candidate 3 of 7, seed 63a37dc5.
+STORY: An employee stamps in the persistent clock strip, sees today's total
+and the Feierabend prognosis first, the day as a gold-striped band beneath;
+Verwaltung scans team rows of the same grammar, corrects inline, locks months
+for payroll.
+FIRST VIEWPORT: Sticky clock strip on top (status, elapsed, stamp action);
+sidebar nav left; center: today's total + prognosis over a compact horizontal
+day-strip and the entry rows; right rail: week Soll/Ist strip, Zeitkonto.
+FORM: Der gestempelte Tag, horizontal-strip evolution of seed 63a37dc5
+(2026-08 hierarchy refactor: 3-second visit first, depth behind tabs).
 FINISH: unreviewed and undocumented is unfinished; this build ends with the
 finish review, the verdict, and DESIGN.md.
 -->`,

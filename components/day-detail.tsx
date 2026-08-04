@@ -1,12 +1,13 @@
 'use client';
 
-import {Badge, Banner, Button, Card, Divider, Heading, HStack, Text, VStack} from '@astryxdesign/core';
+import {Banner, Card, Heading, HStack, Text, VStack} from '@astryxdesign/core';
 import {useRouter} from 'next/navigation';
 import {useState, useTransition} from 'react';
 import {segmentResizeAction} from '@/app/actions';
-import {fmtDateLong, fmtDuration, fmtTime} from '@/lib/format';
+import {fmtDateLong, fmtDuration} from '@/lib/format';
 import {AddEntryButton} from './add-entry-button';
 import {DayTimeline, type TimelineSegment} from './day-timeline';
+import {EntryList} from './entry-list';
 import {SegmentEditor} from './segment-editor';
 
 interface DayDetailProps {
@@ -82,48 +83,7 @@ export function DayDetail(props: DayDetailProps) {
         />
       </Card>
 
-      {props.segments.length > 0 && (
-        <Card padding={0}>
-          <VStack gap={0}>
-            {props.segments.map((s, i) => {
-              const isOpen = s.end_min === null;
-              return (
-                <VStack key={s.id} gap={0}>
-                  {i > 0 && <Divider />}
-                  <HStack gap={3} vAlign="center" paddingInline={4} paddingBlock={2}>
-                    <span style={{inlineSize: 110, flexShrink: 0}}>
-                      <Text type="body" hasTabularNumbers weight="medium">
-                        {fmtTime(s.start_min)}–{isOpen ? '…' : fmtTime(s.end_min!)}
-                      </Text>
-                    </span>
-                    <Badge
-                      variant={s.kind === 'arbeit' ? 'yellow' : 'neutral'}
-                      label={s.kind === 'arbeit' ? 'Arbeit' : 'Pause'}
-                    />
-                    {isOpen ? (
-                      <Badge variant="warning" label="offen" />
-                    ) : (
-                      <Text type="supporting" color="secondary" hasTabularNumbers>
-                        {fmtDuration(s.end_min! - s.start_min)} Std.
-                      </Text>
-                    )}
-                    {s.note && (
-                      <Text type="supporting" color="secondary" maxLines={1}>
-                        {s.note}
-                      </Text>
-                    )}
-                    <span style={{marginInlineStart: 'auto'}}>
-                      {props.canEdit && (
-                        <Button label="Bearbeiten" variant="ghost" size="sm" onClick={() => openEditor(s)} />
-                      )}
-                    </span>
-                  </HStack>
-                </VStack>
-              );
-            })}
-          </VStack>
-        </Card>
-      )}
+      <EntryList segments={props.segments} canEdit={props.canEdit} onEdit={openEditor} />
 
       {/* A running day is framed forward ("noch …"), never as a deficit —
           the signed delta appears only once the day is over or Soll is met. */}

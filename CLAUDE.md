@@ -13,9 +13,9 @@ Internal German employee time tracker for one company. Product truth lives in
 
 ## Project map
 
-- `app/` — Next.js App Router. `(app)/` = authenticated shell (Heute `/`, `/zeiten`, manager-only `/team`, `/abschluss`, `/berichte`), `login/`, `druck/[monat]/` (print sheet, no shell), `api/export/` (CSV).
+- `app/` — Next.js App Router. `(app)/` = authenticated shell: `/` = "Meine Zeit" (URL-driven zooms `?ansicht=heute|woche|monat`, `?monat`, `?tag`; `/zeiten` redirects here, `/zeiten/konto` stays), manager-only `/team`, `/abschluss`, `/berichte`, `/mitarbeiter`; `login/`, `druck/[monat]/` (print sheet, no shell), `api/export/` (CSV). The `(app)` layout mounts `ClockProvider` + sticky `ClockBar` — the ONLY home of stamp actions, on every route.
 - `app/actions.ts` — all mutations (server actions). `app/providers.tsx` — Theme + i18n provider.
-- `lib/db.ts` — schema + `getDb()` (SQLite at `data/medarbeiter.db`, WAL, auto-migrated).
+- `lib/db.ts` — schema + `getDb()` (SQLite at `data/medarbeiter.db`, WAL). Migrations are versioned via `PRAGMA user_version` + an append-only `MIGRATIONS` array — never edit a shipped migration (the baseline stays idempotent). `lib/settings.ts` — key-value settings with defaults (`mergeWindowMin()` etc.).
 - `lib/time.ts` — domain logic (DB-bound). `lib/format.ts` — pure date/format helpers, safe for client imports. Never import `lib/time.ts` or `lib/db.ts` from a client component.
 - `lib/auth.ts` — session cookie auth; `requireUser()` / `requireVerwaltung()` guards in server components.
 - `components/` — UI. The timeline grammar lives in `day-timeline.tsx` (vertical, signature surface) and `mini-timeline.tsx` (horizontal team rows).
@@ -25,7 +25,8 @@ Internal German employee time tracker for one company. Product truth lives in
 
 ## Domain invariants (do not break)
 
-- Segments are `arbeit | pause`, one calendar date + minutes-from-midnight, never crossing midnight. `end_min IS NULL` = running (today) or forgotten clock-out (past day = anomaly). Anomalies are never auto-closed — they surface as warnings and are fixed by manual correction.
+- Segments are `arbeit | pause`, one calendar date + minutes-from-midnight, never crossing midnight. `end_min IS NULL` = running (today) or forgotten clock-out (past day = anomaly). One exception to "never auto-close": a segment still open from *exactly yesterday* within 12h elapsed is a running night shift — the next stamp action splits it at midnight. Anything older is never auto-closed and is fixed by manual correction.
+- Stamp fumbling never fragments the record: re-clock-in within the merge window (settings, default 2 min) reopens the previous segment; a sub-window pause between two work blocks is absorbed; Ausstempeln is undoable for 30 s (`undoStamp`, DB-derived, no token).
 - Zeitkonto counts ONLY recorded days (worked − Soll per day with entries), so absences don't drag the balance. Say "aus erfassten Tagen" wherever the balance is shown.
 - Per-employee weekly Sollzeit (`users.weekly_minutes`) spread over Mo–Fr.
 - Locked months (`month_locks`) are read-only for everyone; Verwaltung must unlock to edit. Locking requires no open segments and a completed month.

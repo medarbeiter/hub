@@ -29,7 +29,8 @@ An internal employee time-tracking tool (Arbeitszeiterfassung) for one organizat
 
 Confirmed scope (built 2026-08-04):
 
-- **Live clock in/out** — one state-coupled control (Einstempeln / Pause / Ausstempeln) writing onto a live day timeline.
+- **Live clock in/out** — one state-coupled control (Einstempeln / Pause / Ausstempeln) in a persistent sticky clock strip on every authenticated page, writing onto the live stamped day. Mis-click protection: clock-out is undoable for 30 s; re-clock-in within the merge window (default 2 min, settings table) continues the previous entry; micro-pauses below the window are absorbed. Night shifts split at midnight on the next stamp action.
+- **"Meine Zeit"** — one page with URL-driven zooms Heute / Woche / Monat (`/?ansicht=…`); Heute is optimized for the three-second visit (total + Feierabend prognosis + compact day-strip + entry rows).
 - **Manual time entries** — enter or correct segments after the fact (date, start, end, Art, Notiz); corrections record who edited (`edited_by`) for payroll traceability.
 - **Approvals & corrections** — both modes: per-entry corrections anytime plus a formal **Monatsabschluss** lock per employee per month; locked months are read-only until Verwaltung unlocks.
 - **Reports & export** — monthly summaries, Zeitkonto balances, semicolon-CSV (UTF-8 BOM, Excel-ready) and a print-optimized monthly sheet ("Als PDF speichern", one page per employee with signature lines).
@@ -40,7 +41,7 @@ Decided model facts:
 - Auth: email/password with hashed passwords (argon2 via `Bun.password`) and 30-day session cookies.
 - Sollzeit: per-employee weekly minutes (`users.weekly_minutes`), spread over Mo–Fr.
 - **Zeitkonto counts only recorded days** (worked − Soll on days with entries), so untracked absences don't distort the balance; every display of the balance says "aus erfassten Tagen".
-- Forgotten clock-outs stay open as **anomalies** (never auto-closed); they block Monatsabschluss and surface as warnings until manually corrected.
+- Forgotten clock-outs stay open as **anomalies**; they block Monatsabschluss and surface as warnings until manually corrected. One exception: a segment still open from exactly yesterday within 12 h elapsed counts as a running night shift and is split at midnight on the next stamp action — anything older is never auto-closed.
 - Segments never cross midnight; times are server-local (Europe/Berlin deployment).
 - Language: German only. Astryx built-ins are localized via `locales/de.json`; the English-hardcoded Required/Optional field indicators are deliberately unused.
 
