@@ -38,6 +38,7 @@ export function EntryList({segments, canEdit, onEdit}: EntryListProps) {
                     {fmtDuration(s.end_min! - s.start_min)} Std.
                   </Text>
                 )}
+                {s.auto_closed === 1 && <Badge variant="warning" label="automatisch beendet" />}
                 {s.note && (
                   <Text type="supporting" color="secondary" maxLines={1}>
                     {s.note}

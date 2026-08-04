@@ -375,23 +375,18 @@ export function weekRecords(user: User, anchorISO: string): DayRecord[] {
 }
 
 /**
- * Zeitkonto balance: Σ (worked − soll) over recorded days up to and including
- * `through`. Only days that have at least one segment count, so absences
- * (Urlaub, Krankheit) don't drag the balance negative — the app records
- * working time only.
+ * Zeitkonto balance: Σ (worked − soll) over countable days up to and including
+ * `through`.
+ *
+ * Two kinds of day are left out, for opposite reasons. Days with no entry at
+ * all are absences (Urlaub, Krankheit) the app does not track, so counting
+ * them as −Soll would invent a deficit. Days with an unfinished entry are
+ * *uncountable*: their worked time is unknown, and counting the known part
+ * would understate it. Both are surfaced elsewhere as needing correction —
+ * silence is what would corrupt the balance.
  */
 export function zeitkontoBalance(user: User, throughISO: string): number {
-  const rows = getDb()
-    .query<{date: string}, [number, string]>(
-      'SELECT DISTINCT date FROM segments WHERE user_id = ? AND date <= ? ORDER BY date',
-    )
-    .all(user.id, throughISO);
-  let balance = 0;
-  for (const {date} of rows) {
-    const summary = daySummary(segmentsForDay(user.id, date), date);
-    balance += summary.workedMin - dailySollMinutes(user, date);
-  }
-  return balance;
+  return zeitkontoLedger(user, throughISO).reduce((sum, row) => sum + row.diffMin, 0);
 }
 
 export interface MonthRecord {
@@ -401,6 +396,13 @@ export interface MonthRecord {
   sollMin: number;
   locked: boolean;
   openSegments: number;
+  /** Past days whose entry was never closed — their hours are unknown. */
+  uncountableDays: number;
+}
+
+/** A past day with an unfinished entry: its worked time cannot be totalled. */
+function isUncountable(day: DayRecord, today: string): boolean {
+  return day.date < today && day.summary.hasOpen;
 }
 
 export function monthRecord(user: User, month: string): MonthRecord {
@@ -408,14 +410,15 @@ export function monthRecord(user: User, month: string): MonthRecord {
   const days = daysInMonth(month)
     .filter((d) => d <= today)
     .map((d) => dayRecord(user, d));
-  const recorded = days.filter((d) => d.segments.length > 0);
+  const countable = days.filter((d) => d.segments.length > 0 && !isUncountable(d, today));
   return {
     month,
     days,
-    workedMin: recorded.reduce((sum, d) => sum + d.summary.workedMin, 0),
-    sollMin: recorded.reduce((sum, d) => sum + d.sollMin, 0),
+    workedMin: countable.reduce((sum, d) => sum + d.summary.workedMin, 0),
+    sollMin: countable.reduce((sum, d) => sum + d.sollMin, 0),
     locked: isMonthLocked(user.id, month),
     openSegments: days.reduce((sum, d) => sum + d.segments.filter((s) => s.end_min === null).length, 0),
+    uncountableDays: days.filter((d) => isUncountable(d, today)).length,
   };
 }
 
@@ -476,13 +479,16 @@ export function zeitkontoLedger(user: User, throughISO: string): LedgerRow[] {
     )
     .all(user.id, throughISO);
   let running = 0;
-  return rows.map(({date}) => {
+  const ledger: LedgerRow[] = [];
+  for (const {date} of rows) {
     const summary = daySummary(segmentsForDay(user.id, date), date);
+    if (summary.hasOpen) continue; // uncountable until the missing end is entered
     const soll = dailySollMinutes(user, date);
     const diff = summary.workedMin - soll;
     running += diff;
-    return {date, workedMin: summary.workedMin, sollMin: soll, diffMin: diff, runningMin: running};
-  });
+    ledger.push({date, workedMin: summary.workedMin, sollMin: soll, diffMin: diff, runningMin: running});
+  }
+  return ledger;
 }
 
 // ---------------------------------------------------------------------------

@@ -1,10 +1,9 @@
 'use client';
 
-import {Banner, Button, Card, Heading, HStack, StackItem, Text, VStack} from '@astryxdesign/core';
+import {Banner, Card, Heading, HStack, StackItem, Text, VStack} from '@astryxdesign/core';
 import Link from 'next/link';
-import {useState, useTransition} from 'react';
-import {useRouter} from 'next/navigation';
-import {fmtDate, fmtDateLong, fmtDuration, fmtDurationSigned, fmtTime} from '@/lib/format';
+import {useState} from 'react';
+import {fmtDateLong, fmtDuration, fmtDurationSigned, fmtTime} from '@/lib/format';
 import {AddEntryButton} from './add-entry-button';
 import {REMINDER_MIN, useClock} from './clock-provider';
 import {DayStrip} from './day-strip';
@@ -19,7 +18,6 @@ interface HeuteViewProps {
   firstName: string;
   week: WeekDay[];
   zeitkontoMin: number;
-  anomalies: Array<{id: number; date: string; start_min: number}>;
   usualStartMin: number | null;
   hasHistory: boolean;
 }
@@ -34,7 +32,6 @@ export function HeuteView(props: HeuteViewProps) {
   const clock = useClock();
   const [editing, setEditing] = useState<TimelineSegment | null>(null);
   const [isEditorOpen, setEditorOpen] = useState(false);
-  const router = useRouter();
 
   const {segments, status, summary, nowMin, today, sollMin} = clock;
   const lateBanner = status !== 'aus' && nowMin >= REMINDER_MIN;
@@ -60,26 +57,8 @@ export function HeuteView(props: HeuteViewProps) {
 
   return (
     <VStack gap={5} padding={5}>
-      {props.anomalies.length > 0 && (
-        <Banner
-          status="warning"
-          title={
-            props.anomalies.length === 1
-              ? `Offener Eintrag vom ${fmtDate(props.anomalies[0]!.date)} – Ausstempeln wurde vergessen.`
-              : `${props.anomalies.length} offene Einträge an vergangenen Tagen.`
-          }
-          description="Bitte korrigieren Sie die Einträge, damit der Monat abgeschlossen werden kann."
-          endContent={
-            <Button
-              label="Jetzt korrigieren"
-              variant="secondary"
-              size="sm"
-              onClick={() => router.push(`/?ansicht=monat&tag=${props.anomalies[0]!.date}`)}
-            />
-          }
-        />
-      )}
-
+      {/* Past days needing correction are announced once, app-wide, by the
+          AttentionBanner in the layout — not again here. */}
       {lateBanner && (
         <Banner
           status="warning"

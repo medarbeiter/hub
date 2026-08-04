@@ -8,6 +8,8 @@ import {fmtDuration, fmtTime, type SegmentLike} from '@/lib/format';
 export interface TimelineSegment extends SegmentLike {
   id: number;
   note?: string | null;
+  /** 1 = provisionally closed by the cutoff sweep, awaiting confirmation. */
+  auto_closed?: number;
 }
 
 interface DayTimelineProps {
@@ -171,9 +173,13 @@ export function DayTimeline({
       <ol style={{listStyle: 'none', margin: 0, padding: 0}}>
         {segments.map((s) => {
           const isOpen = s.end_min === null;
+          // An entry left open on a past day has no known end: draw it running
+          // off the bottom of the window rather than as a one-minute sliver.
+          const isUnbounded = isOpen && !isToday;
           const preview = previewFor(s);
           const segStart = preview?.start ?? s.start_min;
-          const segEnd = preview?.end ?? s.end_min ?? (isToday ? Math.max(nowMin, s.start_min + 1) : s.start_min + 1);
+          const segEnd =
+            preview?.end ?? s.end_min ?? (isToday ? Math.max(nowMin, s.start_min + 1) : maxHour * 60);
           const top = y(segStart);
           // Flush neighbours get a visible seam so each entry reads as its own block.
           const hasAdjacentNext = s.end_min !== null && segments.some((o) => o.start_min === s.end_min);
@@ -196,12 +202,19 @@ export function DayTimeline({
                 gap: 'var(--spacing-2)',
                 padding: showLabel ? 'var(--spacing-1-5) var(--spacing-3)' : '0 var(--spacing-3)',
                 borderRadius: 'var(--radius-element)',
-                background: isArbeit
-                  ? isOpen
-                    ? 'linear-gradient(180deg, var(--color-accent) 0%, color-mix(in srgb, var(--color-accent) 78%, white) 100%)'
-                    : 'var(--color-accent)'
-                  : 'var(--color-background-muted)',
-                border: isArbeit ? 'none' : 'var(--border-width) dashed var(--color-border-emphasized)',
+                background: isUnbounded
+                  ? // Hatched: the hours are recorded but their extent is not.
+                    'repeating-linear-gradient(135deg, var(--color-accent) 0 10px, var(--color-accent-muted) 10px 20px)'
+                  : isArbeit
+                    ? isOpen
+                      ? 'linear-gradient(180deg, var(--color-accent) 0%, color-mix(in srgb, var(--color-accent) 78%, white) 100%)'
+                      : 'var(--color-accent)'
+                    : 'var(--color-background-muted)',
+                border: isUnbounded
+                  ? 'var(--border-width) dashed var(--color-icon-accent)'
+                  : isArbeit
+                    ? 'none'
+                    : 'var(--border-width) dashed var(--color-border-emphasized)',
                 boxShadow: isDragging ? 'var(--shadow-med)' : isArbeit ? 'var(--shadow-low)' : 'none',
                 overflow: 'hidden',
               }}
@@ -210,11 +223,17 @@ export function DayTimeline({
               {showLabel && (
                 <>
                   <Text type="label" size="sm" weight="semibold" hasTabularNumbers color="inherit">
-                    {fmtTime(segStart)}–{isOpen ? '…' : fmtTime(segEnd)}
+                    {fmtTime(segStart)}–{isUnbounded ? '?' : isOpen ? '…' : fmtTime(segEnd)}
                   </Text>
                   <span style={{display: 'flex', alignItems: 'center', gap: 'var(--spacing-1-5)'}}>
                     <Text type="supporting" size="sm" color="inherit" hasTabularNumbers>
-                      {isArbeit ? (isOpen ? `läuft · ${fmtDuration(dur)}` : fmtDuration(dur)) : `Pause ${fmtDuration(dur)}`}
+                      {isUnbounded
+                        ? 'kein Ende erfasst'
+                        : isArbeit
+                          ? isOpen
+                            ? `läuft · ${fmtDuration(dur)}`
+                            : fmtDuration(dur)
+                          : `Pause ${fmtDuration(dur)}`}
                     </Text>
                     {onSegmentClick && <Pencil className="zeitleiste-stift" size={14} strokeWidth={2} aria-hidden />}
                   </span>

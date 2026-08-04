@@ -8,6 +8,8 @@ import {
   stamp,
   undoStamp,
   updateSegment,
+  zeitkontoBalance,
+  zeitkontoLedger,
 } from '../lib/time';
 import {setSetting} from '../lib/settings';
 
@@ -247,5 +249,31 @@ describe('auto-close of forgotten entries', () => {
     const row = segments(OLD)[0]!;
     expect(row.end_min).toBe(16 * 60);
     expect(row.auto_closed).toBe(0);
+  });
+});
+
+describe('uncountable days (open entry on a past day)', () => {
+  const PAST = '2026-08-03';
+
+  test('an unfinished past day is left out of the Zeitkonto, not counted as zero', () => {
+    db.query("INSERT INTO segments (user_id, date, kind, start_min) VALUES (?, ?, 'arbeit', 480)").run(userId, PAST);
+    const user = db
+      .query<User, []>('SELECT id, email, name, role, weekly_minutes, active, created_at FROM users')
+      .get()!;
+    // Without the exclusion this would read −8:00 for a day nobody can total.
+    expect(zeitkontoBalance(user, PAST)).toBe(0);
+    expect(zeitkontoLedger(user, PAST)).toEqual([]);
+  });
+
+  test('a finished day still counts normally', () => {
+    db.query("INSERT INTO segments (user_id, date, kind, start_min, end_min) VALUES (?, ?, 'arbeit', 480, 960)").run(
+      userId,
+      PAST,
+    );
+    const user = db
+      .query<User, []>('SELECT id, email, name, role, weekly_minutes, active, created_at FROM users')
+      .get()!;
+    expect(zeitkontoBalance(user, PAST)).toBe(0); // 8 h worked, 8 h Soll
+    expect(zeitkontoLedger(user, PAST)).toHaveLength(1);
   });
 });

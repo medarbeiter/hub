@@ -1,5 +1,5 @@
 import {requireUser} from '@/lib/auth';
-import {hasAnyRecords, stalePastOpenSegments, todayISO, usualStartMin, weekRecords, zeitkontoBalance} from '@/lib/time';
+import {hasAnyRecords, todayISO, usualStartMin, weekRecords, zeitkontoBalance} from '@/lib/time';
 import {addDays, monthOf} from '@/lib/format';
 import {HeuteView} from '@/components/heute-view';
 import {MonatView, WocheView} from '@/components/monat-view';
@@ -35,7 +35,6 @@ export default async function MeineZeitPage({searchParams}: PageProps) {
   }
 
   const week = weekRecords(user, today);
-  const anomalies = stalePastOpenSegments(user.id);
   return (
     <HeuteView
       userId={user.id}
@@ -47,7 +46,6 @@ export default async function MeineZeitPage({searchParams}: PageProps) {
         hasSegments: d.segments.length > 0,
       }))}
       zeitkontoMin={zeitkontoBalance(user, addDays(today, -1))}
-      anomalies={anomalies.map((s) => ({id: s.id, date: s.date, start_min: s.start_min}))}
       usualStartMin={usualStartMin(user.id)}
       hasHistory={hasAnyRecords(user.id)}
     />
