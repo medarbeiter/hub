@@ -53,6 +53,7 @@ export function MiniTimeline({segments, isToday, nowMin, fromHour = 6, toHour = 
           <span
             key={i}
             aria-hidden
+            className={s.kind === 'arbeit' ? 'arbeit-flaeche' : undefined}
             style={{
               position: 'absolute',
               top: 0,

@@ -144,7 +144,7 @@ export function DayDetail(props: DayDetailProps) {
         />
       </Card>
 
-      <EntryList segments={props.segments} canEdit={props.canEdit} onEdit={openEditor} />
+      <EntryList segments={props.segments} canEdit={props.canEdit} onEdit={openEditor} isToday={props.isToday} />
 
       {/* A running day is framed forward ("noch …"), never as a deficit —
           the signed delta appears only once the day is over or Soll is met.

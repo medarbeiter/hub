@@ -215,7 +215,12 @@ export function DayTimeline({
                   : isArbeit
                     ? 'none'
                     : 'var(--border-width) dashed var(--color-border-emphasized)',
-                boxShadow: isDragging ? 'var(--shadow-med)' : isArbeit ? 'var(--shadow-low)' : 'none',
+                // Gold cannot carry 3:1 on its own; the bronze hairline does.
+                boxShadow: isDragging
+                  ? 'var(--shadow-med)'
+                  : isArbeit
+                    ? 'inset 0 0 0 1px var(--color-icon-accent), var(--shadow-low)'
+                    : 'none',
                 overflow: 'hidden',
               }}
             >

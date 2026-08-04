@@ -61,6 +61,7 @@ export function WeekStrip({days, today}: WeekStripProps) {
                     />
                   )}
                   <span
+                    className={d.workedMin > 0 ? 'arbeit-flaeche' : undefined}
                     style={{
                       position: 'absolute',
                       insetBlock: 0,
@@ -103,8 +104,10 @@ export function ZeitkontoCard({balanceMin}: ZeitkontoCardProps) {
             {fmtDurationSigned(balanceMin)} Std.
           </span>
         </Text>
+        {/* No footnote defending the number: the Zeitkonto page shows how it
+            is made, day by day, including what was left out and why. */}
         <Text type="supporting" color="secondary">
-          Überstunden bis gestern, aus erfassten Tagen · Details ansehen
+          Überstunden bis gestern · Herleitung ansehen
         </Text>
       </VStack>
     </Card>

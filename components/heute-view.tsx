@@ -112,10 +112,13 @@ export function HeuteView(props: HeuteViewProps) {
               />
             </Card>
 
-            <EntryList segments={segments} canEdit onEdit={openEditor} />
+            <EntryList segments={segments} canEdit onEdit={openEditor} isToday />
+            {/* The most common first-open state of the day. It names the one
+                thing to do, without pointing at a position the clock bar does
+                not keep (top on desktop, bottom on a phone). */}
             {segments.length === 0 && (
               <Text type="body" color="secondary">
-                Noch keine Zeiten heute – stempeln Sie sich oben in der Leiste ein.
+                Noch keine Zeiten heute – mit „Einstempeln“ in der Stempelleiste beginnt Ihr Arbeitstag.
                 {props.usualStartMin != null && <> Meistens starten Sie gegen {fmtTime(props.usualStartMin)}.</>}
               </Text>
             )}

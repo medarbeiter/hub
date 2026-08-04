@@ -9,13 +9,15 @@ interface EntryListProps {
   segments: TimelineSegment[];
   canEdit: boolean;
   onEdit: (segment: TimelineSegment) => void;
+  /** A running entry today means "läuft"; on a past day it means "ohne Ende". */
+  isToday?: boolean;
 }
 
 /**
  * The day's entries as dense rows. The whole row is the edit affordance —
  * a comfortable touch target, and no separate button to overflow a phone.
  */
-export function EntryList({segments, canEdit, onEdit}: EntryListProps) {
+export function EntryList({segments, canEdit, onEdit, isToday = false}: EntryListProps) {
   if (segments.length === 0) return null;
   return (
     <Card padding={0}>
@@ -36,14 +38,21 @@ export function EntryList({segments, canEdit, onEdit}: EntryListProps) {
                 variant={s.kind === 'arbeit' ? 'yellow' : 'neutral'}
                 label={s.kind === 'arbeit' ? 'Arbeit' : 'Pause'}
               />
+              {/* "läuft" and "offen" are different states and must not look
+                  alike: one is today's clock still running, the other is a day
+                  that was never closed. */}
               {isOpen ? (
-                <Badge variant="warning" label="offen" />
+                isToday ? (
+                  <Badge variant="info" label="läuft" />
+                ) : (
+                  <Badge variant="error" label="ohne Ende" />
+                )
               ) : (
                 <Text type="supporting" color="secondary" hasTabularNumbers>
                   {fmtDuration(s.end_min! - s.start_min)} Std.
                 </Text>
               )}
-              {s.auto_closed === 1 && <Badge variant="warning" label="automatisch beendet" />}
+              {s.auto_closed === 1 && <Badge variant="warning" label="bitte bestätigen" />}
               {s.note && (
                 <Text type="supporting" color="secondary" maxLines={1}>
                   {s.note}

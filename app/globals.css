@@ -48,6 +48,15 @@
   }
 }
 
+/* Brand gold #e1b025 reaches only ~2:1 against white and ~1.8:1 against the
+   parchment tracks it sits on, so a gold fill alone cannot identify a work
+   block. It never will — the brand colour is fixed. What carries the 3:1 is
+   the boundary: a hairline in icon-accent bronze (#8f6e06 ≈ 4.8:1 on white,
+   4.3:1 on parchment). Applied as an inset shadow so nothing changes size. */
+.arbeit-flaeche {
+  box-shadow: inset 0 0 0 1px var(--color-icon-accent);
+}
+
 /* Entry rows are the edit affordance: the whole row, not a small button. */
 .eintrag-zeile {
   all: unset;

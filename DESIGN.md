@@ -6,7 +6,7 @@ colors:
   on-gold-ink: "#231a02"
   bronze-text-gold: "#7c5f05"
   gold-icon: "#8f6e06"
-  selected-gold: "#b9900e"
+  selected-gold: "#7c5f05"
   gold-wash: "#f7edd2"
   warm-ink: "#1c1917"
   stone-secondary: "#67625a"
@@ -17,7 +17,7 @@ colors:
   pause-stone: "#8b8474"
   border-hairline: "#1c191714"
   border-emphasized: "#d8d2c6"
-  warning-orange: "#e97a00"
+  warning-orange: "#dd7200"
   warning-text: "#6e3500"
   error-red: "#e33f4a"
   error-text: "#a50c25"
@@ -89,7 +89,7 @@ A single warm gold voice over a warm-paper neutral spine, with status colors del
 - **On-Gold Ink** (#231a02): the only text/icon color allowed on gold surfaces — white on gold fails AA.
 - **Bronze Text-Gold** (#7c5f05): gold demoted to text grade; clears 6:1 on white. Used for accent text, links, the positive Zeitkonto figure, and the now-line + now-pill on the timeline.
 - **Gold Icon** (#8f6e06): accent-colored icons.
-- **Selected Gold** (#b9900e): focus rings and selected insets — darker than brand gold so a 2px ring clears 3:1 on white.
+- **Selected Gold** (#7c5f05): focus rings and selected insets. The former #b9900e reached only 2.98:1 on white and 2.55:1 on the gold wash it sits on, so the audit replaced it with the bronze that clears both.
 - **Gold Wash** (#f7edd2): the accent's pastel surface tint (`--color-accent-muted`).
 
 ### Neutral
@@ -102,7 +102,7 @@ A single warm gold voice over a warm-paper neutral spine, with status colors del
 - **Border Hairline** (#1c191714): default borders — warm ink at 8% alpha. **Border Emphasized** (#d8d2c6): dashed pause outlines, switch/progress tracks.
 
 ### Status (never gold)
-- **Warning Orange** (#e97a00 filled, #6e3500 text, #fad0b5 wash): warnings live in the orange family so status never impersonates brand gold. Warning badges/dots use dark ink #171717 on the orange fill.
+- **Warning Orange** (#dd7200 filled, #6e3500 text, #fad0b5 wash): warnings live in the orange family so status never impersonates brand gold. Warning badges/dots use dark ink #171717 on the orange fill. The fill was darkened from #e97a00 in the contrast audit — as a graphical object it has to clear 3:1 on white (now 3.24:1) while keeping dark ink above 4.5:1 (5.5:1).
 - **Error Red** (#e33f4a filled, #a50c25 text, #facecb wash): errors, negative Zeitkonto, destructive actions.
 - **Success Green** (#198100 filled with white text): success badges, dots, progress.
 - **Info Blue** (#0074e2 filled with white text): info banners/badges only — the StatusDot "accent" variant is redirected to brand gold instead, so a clocked-in dot speaks the same color as the segments it summarizes.
@@ -112,7 +112,9 @@ A single warm gold voice over a warm-paper neutral spine, with status colors del
 
 **The Dark-Ink-On-Gold Rule.** Text or icons on a gold surface are always #231a02. White on gold fails AA and is forbidden.
 
-**The Three-Golds Rule.** Gold degrades by duty, not by taste: fill #e1b025, text/now-line bronze #7c5f05 (icons #8f6e06), focus/selected #b9900e. Never use fill-gold at text size or bronze as a fill.
+**The Three-Golds Rule.** Gold degrades by duty, not by taste: fill #e1b025, text/now-line bronze #7c5f05 (icons #8f6e06), focus/selected #7c5f05. Never use fill-gold at text size or bronze as a fill.
+
+**The Gold-Needs-An-Edge Rule.** Brand gold reaches only ~2:1 on white and ~1.8:1 on the parchment tracks, and it never will — the colour is fixed. So a gold fill may not identify anything on its own: every meaning-carrying gold surface (timeline blocks, day-strip blocks, mini-timeline spans, week bars) ships a 1px inset hairline in icon-accent #8f6e06, which clears 3:1 on every ground the app uses. The boundary carries the contrast, not the fill. `tests/kontrast.test.ts` computes all of this and fails the build if a token drifts.
 
 ## Typography
 
@@ -155,7 +157,7 @@ Light-mode depth is quiet and structural: white surfaces float on the tinted pap
 - **Low** (`0 2px 4px oklch(0 0 0 / 5%), 0 4px 8px oklch(0 0 0 / 10%)` + transparent inset): cards, work segments.
 - **Med** (`0 2px 4px / 5%, 0 4px 12px / 10%`): popovers.
 - **High** (`0 4px 6px / 10%, 0 12px 24px / 15%`): modals/dialogs.
-- **Inset rings** (2px inset): hover `#e1b0254D`, selected `#b9900e99`, success `#1981004D`, warning `#e97a004D`, error `#e33f4a4D`. Interactive rows (`.zeile-interaktiv`) hover with `--color-overlay-hover` and focus with a 2px #b9900e outline (offset −2px).
+- **Inset rings** (2px inset): hover `#e1b0254D`, selected `#7c5f05`, success `#1981004D`, warning `#dd72004D`, error `#e33f4a4D`. Interactive rows (`.zeile-interaktiv`) hover with `--color-overlay-hover` and focus with a 2px `--color-icon-accent` outline (offset −2px).
 
 (The theme also defines a dark-mode "bezel" inset vocabulary via `light-dark()`; it is dormant while light mode is forced.)
 
@@ -174,7 +176,10 @@ Nothing is truly square: even `--radius-none` is 0.25rem. The ladder runs inner 
 - **Destructive:** locked pastel treatment — error wash #facecb background with dark error text #a50c25, not a filled red.
 
 ### StatusDot
-Fills match the filled semantic badges so dot and badge speak one status language: success #198100, warning orange #e97a00, error #e33f4a — and **accent is brand gold #e1b025**, pulsing while eingestempelt. Neutral keeps the component's visible mid-gray.
+Fills match the filled semantic badges so dot and badge speak one status language: success #198100, warning orange #dd7200, error #e33f4a — and **accent is brand gold #e1b025**, pulsing while eingestempelt. Neutral keeps the component's visible mid-gray.
+
+### Status vocabulary on entries
+Five states, five distinct readings — gold no longer has to mean everything: **Arbeit** (yellow badge, the kind of entry), **Pause** (neutral badge), **läuft** (info blue — today's clock still running), **ohne Ende** (error red — a past day never closed, uncountable), **bitte bestätigen** (warning orange — provisionally closed by the cutoff sweep). Absence days carry a neutral badge with their day type (Urlaub, Krank, Feiertag, Freizeitausgleich, Fortbildung).
 
 ### Badges
 Semantic badges are filled saturated chips (info blue/success green/error red with white text; warning orange with dark ink). Categorical badges are pastel surface + dark colored text via the per-hue tokens.
@@ -208,10 +213,10 @@ Mini-timeline: a full-radius muted track (`role="img"` with a German segment sum
 - **Do** set every time and duration in tabular numerals.
 - **Do** keep all copy German and register new Astryx built-in strings in `locales/de.json`.
 - **Do** reuse the timeline grammar (gold = Arbeit, dashed/stone = Pause, bronze now-marker) for any new time visualization, at whatever scale.
-- **Do** use `.zeile-interaktiv` (overlay hover + 2px #b9900e focus outline) for any new clickable row.
+- **Do** use `.zeile-interaktiv` (overlay hover + 2px `--color-icon-accent` focus outline) for any new clickable row, and `.arbeit-flaeche` for any new gold surface that carries meaning.
 
 ### Don't:
-- **Don't** use gold or yellow for warnings or any status — warnings are orange (#e97a00 filled / #6e3500 text).
+- **Don't** use gold or yellow for warnings or any status — warnings are orange (#dd7200 filled / #6e3500 text).
 - **Don't** use white text on gold; it fails AA.
 - **Don't** ship dark-mode surfaces — the app forces `mode="light"`; dark token slots are dormant theme inheritance, not a supported mode.
 - **Don't** use Astryx `FieldLabel`'s `isRequired`/`isOptional` props (hardcoded English).

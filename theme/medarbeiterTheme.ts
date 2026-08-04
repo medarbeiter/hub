@@ -368,9 +368,9 @@ export const medarbeiterTheme = defineTheme({
       '0 12px 24px light-dark(oklch(0 0 0 / 15%), oklch(0 0 0 / 70%)), ' +
       'inset 0 0 0 1px light-dark(transparent, oklch(1 0 0 / 15%))',
     '--shadow-inset-hover': 'inset 0px 0px 0px 2px #e1b0254D',
-    '--shadow-inset-selected': 'inset 0px 0px 0px 2px #b9900e99',
+    '--shadow-inset-selected': 'inset 0px 0px 0px 2px #7c5f05',
     '--shadow-inset-success': 'inset 0px 0px 0px 2px #1981004D',
-    '--shadow-inset-warning': 'inset 0px 0px 0px 2px #e97a004D',
+    '--shadow-inset-warning': 'inset 0px 0px 0px 2px #dd72004D',
     '--shadow-inset-error': 'inset 0px 0px 0px 2px #e33f4a4D',
   },
 
@@ -430,7 +430,7 @@ export const medarbeiterTheme = defineTheme({
       'variant:warning': {
         // Orange, not yellow — keeps warnings visually distinct from the
         // brand-gold accent. Dark text clears AA on both stops.
-        backgroundColor: 'light-dark(#e97a00, #e2883e)',
+        backgroundColor: 'light-dark(#dd7200, #e2883e)',
         color: '#171717',
       },
       'variant:error': {
@@ -516,7 +516,7 @@ export const medarbeiterTheme = defineTheme({
     // =========================================================================
     statusdot: {
       'variant:success': {backgroundColor: 'light-dark(#198100, #64af4c)'},
-      'variant:warning': {backgroundColor: 'light-dark(#e97a00, #e2883e)'},
+      'variant:warning': {backgroundColor: 'light-dark(#dd7200, #e2883e)'},
       'variant:error': {backgroundColor: 'light-dark(#e33f4a, #ff705d)'},
       // Brand gold: an "eingestempelt" dot must speak the same color as the
       // work segments it summarizes.
@@ -610,7 +610,7 @@ export const medarbeiterTheme = defineTheme({
       },
       'variant:warning': {
         // Orange saturated stop (= variant:warning badge bg)
-        '--color-warning': '#e97a00',
+        '--color-warning': '#dd7200',
       },
       'variant:error': {
         // Red T55 saturated stop (= variant:error badge bg)

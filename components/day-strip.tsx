@@ -59,7 +59,16 @@ export function DayStrip({segments, isToday, nowMin, onSegmentClick, feierabendM
     } (${fmtDuration(end - s.start_min)})`;
 
   return (
-    <figure aria-label="Tagesverlauf" style={{position: 'relative', height: TOTAL_HEIGHT, margin: 0}}>
+    <figure
+      aria-label={
+        segments.length === 0
+          ? 'Tagesverlauf: noch keine Zeiten erfasst'
+          : `Tagesverlauf: ${segments
+              .map((s) => label(s, s.end_min ?? (isToday ? nowMin : s.start_min + 1)))
+              .join(', ')}`
+      }
+      style={{position: 'relative', height: TOTAL_HEIGHT, margin: 0}}
+    >
       {/* Hour axis */}
       {hours.map((h) => (
         <span key={h} aria-hidden>
@@ -119,7 +128,8 @@ export function DayStrip({segments, isToday, nowMin, onSegmentClick, feierabendM
                     : 'var(--color-accent)'
                   : // Warm stone ≥3:1 on the track — Pause must be findable at a glance.
                     '#8b8474',
-                boxShadow: isArbeit ? 'var(--shadow-low)' : 'none',
+                // Gold cannot carry 3:1 on its own; the bronze hairline does.
+                boxShadow: isArbeit ? 'inset 0 0 0 1px var(--color-icon-accent), var(--shadow-low)' : 'none',
               }}
             >
               {isArbeit && wide && (
