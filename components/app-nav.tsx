@@ -1,7 +1,7 @@
 'use client';
 
 import {SideNav, SideNavHeading, SideNavItem, SideNavSection, Text, VStack} from '@astryxdesign/core';
-import {CalendarDays, ChartNoAxesColumn, LockKeyhole, Sun, UserRoundCog, Users} from 'lucide-react';
+import {CalendarDays, ChartNoAxesColumn, LockKeyhole, UserRoundCog, Users} from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import {usePathname} from 'next/navigation';
@@ -40,14 +40,13 @@ export function AppNav({name, role}: AppNavProps) {
         </VStack>
       }
     >
-      <SideNavSection title="Meine Zeit" isHeaderHidden={role !== 'verwaltung'}>
-        <SideNavItem label="Heute" href="/" as={NextLink} icon={Sun} isSelected={pathname === '/'} />
+      <SideNavSection title="Meine Zeit" isHeaderHidden>
         <SideNavItem
-          label="Meine Zeiten"
-          href="/zeiten"
+          label="Meine Zeit"
+          href="/"
           as={NextLink}
           icon={CalendarDays}
-          isSelected={pathname.startsWith('/zeiten')}
+          isSelected={pathname === '/' || pathname.startsWith('/zeiten')}
         />
       </SideNavSection>
       {role === 'verwaltung' && (

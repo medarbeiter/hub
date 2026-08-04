@@ -8,6 +8,7 @@ import {segmentResizeAction} from '@/app/actions';
 import {fmtDate, fmtDateLong} from '@/lib/format';
 import {AddEntryButton} from './add-entry-button';
 import {REMINDER_MIN, useClock} from './clock-provider';
+import {PeriodSwitcher} from './period-switcher';
 import {DayTimeline, type TimelineSegment} from './day-timeline';
 import {SegmentEditor} from './segment-editor';
 import {WeekStrip, ZeitkontoCard, type WeekDay} from './week-strip';
@@ -81,7 +82,7 @@ export function HeuteView(props: HeuteViewProps) {
               label="Jetzt korrigieren"
               variant="secondary"
               size="sm"
-              onClick={() => router.push(`/zeiten?tag=${props.anomalies[0]!.date}`)}
+              onClick={() => router.push(`/?ansicht=monat&tag=${props.anomalies[0]!.date}`)}
             />
           }
         />
@@ -102,6 +103,8 @@ export function HeuteView(props: HeuteViewProps) {
           description={`So funktioniert's: Einstempeln startet Ihren Arbeitstag auf der Zeitleiste. Pausen erfassen Sie mit „Pause starten“, den Feierabend mit „Ausstempeln“. Vertippt? Jeder Eintrag lässt sich anklicken und korrigieren – alle Tage finden Sie unter „Meine Zeiten“.`}
         />
       )}
+
+      <PeriodSwitcher ansicht="heute" />
 
       <HStack gap={5} wrap="wrap" align="start">
         <StackItem size="fill">
@@ -131,11 +134,6 @@ export function HeuteView(props: HeuteViewProps) {
                 usualStartMin={props.usualStartMin}
               />
             </Card>
-            <Text type="supporting" color="secondary">
-              <Link href="/zeiten" style={{color: 'var(--color-text-accent)'}}>
-                Alle Zeiten ansehen
-              </Link>
-            </Text>
           </VStack>
         </StackItem>
 
