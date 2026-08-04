@@ -24,15 +24,21 @@ export function ClockBar() {
       if (result.error) setError(result.error);
     });
 
+  // Advisory only. The cap is named before it is crossed, and stated plainly
+  // after — but nothing here stops the clock or refuses a record.
   const c = clock.compliance;
-  const breakHint =
+  const hint =
     clock.status === 'aus'
       ? null
-      : c.deficitMin > 0 && c.requiredMin > 0
-        ? `Pause: noch ${c.deficitMin} Min. gesetzlich nötig`
-        : c.dueSoon
-          ? 'Ab 6 Std. Arbeit sind 30 Min. Pause Pflicht'
-          : null;
+      : c.capExceeded
+        ? 'Über 10 Std. – Höchstarbeitszeit überschritten (§3 ArbZG)'
+        : c.capApproaching
+          ? 'Bald 10 Std. – das ist die Höchstarbeitszeit (§3 ArbZG)'
+          : c.deficitMin > 0 && c.requiredMin > 0
+            ? `Pause: noch ${c.deficitMin} Min. gesetzlich nötig`
+            : c.dueSoon
+              ? 'Ab 6 Std. Arbeit sind 30 Min. Pause Pflicht'
+              : null;
 
   return (
     <HStack className="stempel-leiste" gap={3} vAlign="center" paddingInline={5} paddingBlock={2} wrap="wrap">
@@ -65,10 +71,9 @@ export function ClockBar() {
           )}
         </Text>
       )}
-      {/* Advisory, never blocking: the record stays whatever actually happened. */}
-      {breakHint && (
+      {hint && (
         <Text type="supporting" color="inherit" hasTabularNumbers>
-          <span style={{color: 'var(--color-warning)'}}>{breakHint}</span>
+          <span style={{color: 'var(--color-warning)'}}>{hint}</span>
         </Text>
       )}
       {error && (
