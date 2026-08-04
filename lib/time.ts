@@ -1,4 +1,5 @@
 import {getDb, type Segment, type User} from './db';
+import {mergeWindowMin} from './settings';
 import {
   addDays,
   dailySollMinutes,
@@ -15,9 +16,12 @@ import {
 } from './format';
 
 // All times are server-local (Europe/Berlin for this deployment). Segments
-// store a calendar date plus minutes-from-midnight and never cross midnight;
-// a forgotten clock-out surfaces as an open segment on a past date (anomaly)
-// and is fixed by manual correction, never auto-closed.
+// store a calendar date plus minutes-from-midnight and never cross midnight.
+// A forgotten clock-out surfaces as an open segment on a past date (anomaly)
+// and is fixed by manual correction — with one exception: a segment still
+// open from exactly yesterday counts as a running night shift while the
+// elapsed time stays plausible (ROLLOVER_MAX_MIN) and is split at midnight on
+// the next stamp action. Anything older is never auto-closed.
 
 export {
   addDays,
@@ -44,35 +48,66 @@ export function segmentsForDay(userId: number, dateISO: string): Segment[] {
     .all(userId, dateISO);
 }
 
-export function openSegmentToday(userId: number): Segment | null {
+export function openSegmentToday(userId: number, today: string = todayISO()): Segment | null {
   return (
     getDb()
       .query<Segment, [number, string]>('SELECT * FROM segments WHERE user_id = ? AND date = ? AND end_min IS NULL')
-      .get(userId, todayISO()) ?? null
+      .get(userId, today) ?? null
   );
+}
+
+/**
+ * A shift longer than this cannot be a running night shift anymore — the open
+ * segment is treated as a forgotten clock-out instead. Keeps a one-click
+ * "Ausstempeln" from fabricating a whole missed day.
+ */
+const ROLLOVER_MAX_MIN = 12 * 60;
+
+/**
+ * Yesterday's open segment, if it plausibly continues into today (night
+ * shift): elapsed time within ROLLOVER_MAX_MIN and nothing recorded today yet.
+ */
+export function openYesterdayContinuation(
+  userId: number,
+  now: number = nowMinutes(),
+  today: string = todayISO(),
+): Segment | null {
+  const open = getDb()
+    .query<Segment, [number, string]>('SELECT * FROM segments WHERE user_id = ? AND date = ? AND end_min IS NULL')
+    .get(userId, addDays(today, -1));
+  if (!open) return null;
+  if (1440 - open.start_min + now > ROLLOVER_MAX_MIN) return null;
+  if (segmentsForDay(userId, today).length > 0) return null;
+  return open;
 }
 
 /** Open segments on past dates — forgotten clock-outs needing correction. */
 export function stalePastOpenSegments(userId: number): Segment[] {
+  const continuation = openYesterdayContinuation(userId);
   return getDb()
     .query<Segment, [number, string]>(
       'SELECT * FROM segments WHERE user_id = ? AND date < ? AND end_min IS NULL ORDER BY date',
     )
-    .all(userId, todayISO());
+    .all(userId, todayISO())
+    .filter((s) => s.id !== continuation?.id);
 }
 
 export type ClockStatus = 'aus' | 'arbeit' | 'pause';
 
 export interface ClockState {
   status: ClockStatus;
-  /** Start (minutes from midnight, today) of the currently open segment. */
+  /** Start (minutes from midnight) of the currently open segment. */
   since: number | null;
+  /** True when the open segment started yesterday (running night shift). */
+  sinceYesterday?: boolean;
 }
 
 export function clockState(userId: number): ClockState {
   const open = openSegmentToday(userId);
-  if (!open) return {status: 'aus', since: null};
-  return {status: open.kind, since: open.start_min};
+  if (open) return {status: open.kind, since: open.start_min, sinceYesterday: false};
+  const continuation = openYesterdayContinuation(userId);
+  if (continuation) return {status: continuation.kind, since: continuation.start_min, sinceYesterday: true};
+  return {status: 'aus', since: null, sinceYesterday: false};
 }
 
 export function isMonthLocked(userId: number, month: string): boolean {
@@ -87,10 +122,10 @@ export function isMonthLocked(userId: number, month: string): boolean {
 // Stamping (state machine on today's segments)
 // ---------------------------------------------------------------------------
 
-function insertSegment(userId: number, kind: 'arbeit' | 'pause', startMin: number): void {
+function insertSegment(userId: number, kind: 'arbeit' | 'pause', startMin: number, date: string): void {
   getDb()
     .query('INSERT INTO segments (user_id, date, kind, start_min) VALUES (?, ?, ?, ?)')
-    .run(userId, todayISO(), kind, startMin);
+    .run(userId, date, kind, startMin);
 }
 
 /** Close the open segment; a zero-length segment is removed, not stored. */
@@ -103,29 +138,109 @@ function closeSegment(segment: Segment, endMin: number): void {
   }
 }
 
-export function stamp(userId: number, action: 'einstempeln' | 'pause' | 'fortsetzen' | 'ausstempeln'): string | null {
-  const open = openSegmentToday(userId);
-  const now = nowMinutes();
+function reopenSegment(segmentId: number): void {
+  getDb().query("UPDATE segments SET end_min = NULL, updated_at = datetime('now') WHERE id = ?").run(segmentId);
+}
+
+/**
+ * Mis-click protection: a clock-out followed by a clock-in within the merge
+ * window continues the previous segment instead of fragmenting the day.
+ * Only the day's last closed segment qualifies (reopening an earlier one
+ * would overlap whatever came after it).
+ */
+function reopenIfWithinMergeWindow(userId: number, kind: 'arbeit' | 'pause', now: number, today: string): boolean {
+  const last = getDb()
+    .query<Segment, [number, string]>(
+      'SELECT * FROM segments WHERE user_id = ? AND date = ? AND end_min IS NOT NULL ORDER BY end_min DESC LIMIT 1',
+    )
+    .get(userId, today);
+  if (!last || last.kind !== kind || last.end_min === null) return false;
+  const gap = now - last.end_min;
+  if (gap < 0 || gap > mergeWindowMin()) return false;
+  reopenSegment(last.id);
+  return true;
+}
+
+/** Split a running night shift at midnight so the state machine only ever sees today. */
+function rolloverYesterdayOpen(userId: number, now: number, today: string): void {
+  const continuation = openYesterdayContinuation(userId, now, today);
+  if (!continuation) return;
+  const db = getDb();
+  db.transaction(() => {
+    db.query("UPDATE segments SET end_min = 1440, updated_at = datetime('now') WHERE id = ?").run(continuation.id);
+    db.query('INSERT INTO segments (user_id, date, kind, start_min) VALUES (?, ?, ?, 0)').run(
+      userId,
+      today,
+      continuation.kind,
+    );
+  })();
+}
+
+export function stamp(
+  userId: number,
+  action: 'einstempeln' | 'pause' | 'fortsetzen' | 'ausstempeln',
+  now: number = nowMinutes(),
+  today: string = todayISO(),
+): string | null {
+  rolloverYesterdayOpen(userId, now, today);
+  const open = openSegmentToday(userId, today);
   switch (action) {
     case 'einstempeln':
       if (open) return 'Sie sind bereits eingestempelt.';
-      insertSegment(userId, 'arbeit', now);
+      if (!reopenIfWithinMergeWindow(userId, 'arbeit', now, today)) insertSegment(userId, 'arbeit', now, today);
       return null;
     case 'pause':
       if (!open || open.kind !== 'arbeit') return 'Pause ist nur während der Arbeitszeit möglich.';
       closeSegment(open, now);
-      insertSegment(userId, 'pause', now);
+      insertSegment(userId, 'pause', now, today);
       return null;
-    case 'fortsetzen':
+    case 'fortsetzen': {
       if (!open || open.kind !== 'pause') return 'Es läuft keine Pause.';
       closeSegment(open, now);
-      insertSegment(userId, 'arbeit', now);
+      // A pause below the merge window is stamp fumbling, not a real break:
+      // drop it and continue the work block it interrupted.
+      if (now - open.start_min < mergeWindowMin()) {
+        const previous = getDb()
+          .query<Segment, [number, string, number]>(
+            "SELECT * FROM segments WHERE user_id = ? AND date = ? AND kind = 'arbeit' AND end_min = ? LIMIT 1",
+          )
+          .get(userId, today, open.start_min);
+        if (previous) {
+          getDb().query('DELETE FROM segments WHERE id = ?').run(open.id);
+          reopenSegment(previous.id);
+          return null;
+        }
+      }
+      insertSegment(userId, 'arbeit', now, today);
       return null;
+    }
     case 'ausstempeln':
       if (!open) return 'Sie sind nicht eingestempelt.';
       closeSegment(open, now);
       return null;
   }
+}
+
+/** Client toast shows 30s; the server allows slack for latency and clock skew. */
+const UNDO_WINDOW_SEC = 45;
+
+/**
+ * Undo a clock-out shortly after it happened by reopening the day's last
+ * closed segment. Everything the undo must prove — same user, just closed,
+ * nothing recorded since — is derived from the database; no token needed.
+ */
+export function undoStamp(userId: number, today: string = todayISO()): string | null {
+  if (openSegmentToday(userId, today)) return 'Es läuft bereits ein Eintrag.';
+  const last = getDb()
+    .query<Segment & {recent: number}, [number, string]>(
+      `SELECT *, (updated_at >= datetime('now', '-${UNDO_WINDOW_SEC} seconds')) AS recent
+       FROM segments WHERE user_id = ? AND date = ? AND end_min IS NOT NULL
+       ORDER BY end_min DESC LIMIT 1`,
+    )
+    .get(userId, today);
+  if (!last || !last.recent) return 'Rückgängig ist nicht mehr möglich.';
+  reopenSegment(last.id);
+  return null;
 }
 
 // ---------------------------------------------------------------------------

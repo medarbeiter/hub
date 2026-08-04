@@ -13,6 +13,7 @@ import {
   monthRecord,
   segmentsForDay,
   stamp,
+  undoStamp,
   unlockMonth,
   updateSegment,
   validateSegment,
@@ -64,6 +65,13 @@ export async function stampAction(
 ): Promise<ActionState> {
   const user = await requireUser();
   const error = stamp(user.id, action);
+  revalidatePath('/', 'layout');
+  return {error};
+}
+
+export async function undoStampAction(): Promise<ActionState> {
+  const user = await requireUser();
+  const error = undoStamp(user.id);
   revalidatePath('/', 'layout');
   return {error};
 }

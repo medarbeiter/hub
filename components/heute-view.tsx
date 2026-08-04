@@ -1,10 +1,10 @@
 'use client';
 
-import {Banner, Button, Card, Heading, HStack, StackItem, StatusDot, Text, VStack} from '@astryxdesign/core';
+import {Banner, Button, Card, Heading, HStack, StackItem, StatusDot, Text, useToast, VStack} from '@astryxdesign/core';
 import Link from 'next/link';
 import {useEffect, useRef, useState, useTransition} from 'react';
 import {useRouter} from 'next/navigation';
-import {segmentResizeAction, stampAction} from '@/app/actions';
+import {segmentResizeAction, stampAction, undoStampAction} from '@/app/actions';
 import {daySummary, fmtDate, fmtDateLong, fmtTime, nowMinutes} from '@/lib/format';
 import type {ClockStatus} from '@/lib/time';
 import {DayTimeline, type TimelineSegment} from './day-timeline';
@@ -52,6 +52,7 @@ export function HeuteView(props: HeuteViewProps) {
   const [, startTransition] = useTransition();
   const notifiedRef = useRef(false);
   const router = useRouter();
+  const showToast = useToast();
 
   // Fresh server data supersedes the optimistic overlay.
   useEffect(() => {
@@ -118,6 +119,29 @@ export function HeuteView(props: HeuteViewProps) {
     if (result.error) {
       setOptimistic(null);
       return result;
+    }
+    if (action === 'ausstempeln') {
+      const dismiss = showToast({
+        body: `Ausgestempelt um ${fmtTime(now)}`,
+        type: 'info',
+        isAutoHide: true,
+        autoHideDuration: 30_000,
+        uniqueID: 'ausstempeln-undo',
+        endContent: (
+          <Button
+            label="Rückgängig"
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              dismiss();
+              void undoStampAction().then((r) => {
+                if (r.error) setActionError(r.error);
+                router.refresh();
+              });
+            }}
+          />
+        ),
+      });
     }
     router.refresh();
     return {error: null};
