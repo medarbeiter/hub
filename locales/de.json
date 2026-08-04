@@ -1,0 +1,23 @@
+{
+  "@astryx.dialog.close": {"defaultMessage": "Schließen"},
+  "@astryx.popover.close": {"defaultMessage": "Popover schließen"},
+  "@astryx.banner.dismiss": {"defaultMessage": "Ausblenden"},
+  "@astryx.banner.expand": {"defaultMessage": "Ausklappen"},
+  "@astryx.banner.collapse": {"defaultMessage": "Einklappen"},
+  "@astryx.appShell.mobileNavigation": {"defaultMessage": "Mobile Navigation"},
+  "@astryx.mobileNav.navigation": {"defaultMessage": "Navigation"},
+  "@astryx.mobileNav.toggle.open": {"defaultMessage": "Navigation öffnen"},
+  "@astryx.mobileNav.closeNavigation": {"defaultMessage": "Navigation schließen"},
+  "@astryx.sideNav.label": {"defaultMessage": "Seitennavigation"},
+  "@astryx.sideNav.resizeSidebar": {"defaultMessage": "Seitenleiste anpassen"},
+  "@astryx.sideNavCollapseButton.expandSidebar": {"defaultMessage": "Seitenleiste ausklappen"},
+  "@astryx.sideNavCollapseButton.collapseSidebar": {"defaultMessage": "Seitenleiste einklappen"},
+  "@astryx.timeInput.placeholder": {"defaultMessage": "Uhrzeit wählen"},
+  "@astryx.timeInput.clearLabel": {"defaultMessage": "{label} leeren"},
+  "@astryx.textInput.clearLabel": {"defaultMessage": "{label} leeren"},
+  "@astryx.input.statusButton.error": {"defaultMessage": "Fehlerdetails"},
+  "@astryx.input.statusButton.warning": {"defaultMessage": "Warnhinweis"},
+  "@astryx.input.statusButton.success": {"defaultMessage": "Erfolgsdetails"},
+  "@astryx.dropdownMenu.label": {"defaultMessage": "Menü"},
+  "@astryx.toast.dismiss": {"defaultMessage": "Benachrichtigung ausblenden"}
+}

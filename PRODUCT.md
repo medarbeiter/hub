@@ -1,0 +1,75 @@
+# Product
+
+<!-- impeccable:product-schema 1 -->
+
+## Platform
+
+web
+
+## Stack
+
+Next.js (App Router) with React and TypeScript, run and installed via Bun (`bun install`, `bun run dev`). UI built on the Astryx design system: `@astryxdesign/core` components with `@astryxdesign/theme-neutral`, conventions documented by `@astryxdesign/cli init`. User-committed decision (2026-08-04), superseding the earlier `Bun.serve()` HTML-imports plan.
+
+## Users
+
+Office/desk employees of a single company (realistic scale: 15–50 people), logging their working hours from a desktop browser at their workplace. Secondary audience: managers/back-office staff (role "Verwaltung") who review, correct, and approve those hours and prepare payroll-relevant summaries.
+
+## Product Purpose
+
+An internal employee time-tracking tool (Arbeitszeiterfassung) for one organization. Employees record when they work; managers keep those records accurate and approved; the company gets reliable monthly figures for payroll. Success means every employee's hours are captured completely and correctly with minimal daily effort, and month-end reporting requires no manual spreadsheet work.
+
+## Operating Context
+
+- Used during the normal office workday in a desktop browser; clock in/out happens at the start/end of work and around breaks.
+- German-speaking workplace: the entire UI is in German.
+- German labor-law context (ArbZG-shaped concepts): Arbeitszeit, Pausen, Überstunden/Zeitkonto, and the duty to record working time. Records feed payroll.
+- Single shared instance for one company — no multi-tenant accounts or per-company settings.
+
+## Capabilities and Constraints
+
+Confirmed scope (built 2026-08-04):
+
+- **Live clock in/out** — one state-coupled control (Einstempeln / Pause / Ausstempeln) writing onto a live day timeline.
+- **Manual time entries** — enter or correct segments after the fact (date, start, end, Art, Notiz); corrections record who edited (`edited_by`) for payroll traceability.
+- **Approvals & corrections** — both modes: per-entry corrections anytime plus a formal **Monatsabschluss** lock per employee per month; locked months are read-only until Verwaltung unlocks.
+- **Reports & export** — monthly summaries, Zeitkonto balances, semicolon-CSV (UTF-8 BOM, Excel-ready) and a print-optimized monthly sheet ("Als PDF speichern", one page per employee with signature lines).
+
+Decided model facts:
+
+- Two roles: `mitarbeiter` (sees own time) and `verwaltung` (sees and corrects everyone, locks months, exports).
+- Auth: email/password with hashed passwords (argon2 via `Bun.password`) and 30-day session cookies.
+- Sollzeit: per-employee weekly minutes (`users.weekly_minutes`), spread over Mo–Fr.
+- **Zeitkonto counts only recorded days** (worked − Soll on days with entries), so untracked absences don't distort the balance; every display of the balance says "aus erfassten Tagen".
+- Forgotten clock-outs stay open as **anomalies** (never auto-closed); they block Monatsabschluss and surface as warnings until manually corrected.
+- Segments never cross midnight; times are server-local (Europe/Berlin deployment).
+- Language: German only. Astryx built-ins are localized via `locales/de.json`; the English-hardcoded Required/Optional field indicators are deliberately unused.
+
+Open decisions (record here when decided; do not invent):
+
+- Password reset / password policy (currently: Verwaltung resets by hand).
+- Whether ArbZG rules (Pausenpflicht, Höchstarbeitszeit) warn or block — currently displayed only, not enforced.
+- Absence types (Urlaub, Krankheit, Feiertage) — explicitly out of scope of v1; the Zeitkonto model was chosen to stay honest without them.
+- Hosting/deployment target.
+
+## Brand Commitments
+
+- Product/brand name: **MedArbeiter** (medical-flavored — heart + EKG motif; fits a healthcare-sector employer).
+- Logo: `assets/logo.png` — black and gold heart mark with EKG line and upward arrow, plus "MedArbeiter" wordmark in a black geometric sans.
+- Brand color: **#e1b025** (gold) on a **white background** — user-stated binding constraint.
+
+## Evidence on Hand
+
+- `assets/logo.png` (1366×249, transparent, wordmark + heart mark) — the only real asset. Derived: `public/logo.png` (full logo, login) and `public/logo-mark.png` (cropped heart, app shell).
+- The marketing site (screenshot provided by the user, 2026-08-04) is brand evidence: warm gold gradient wash on white, rounded gold CTAs, black geometric sans headlines — the app deliberately reads as kin to it.
+- No real employee data exists. `bun scripts/seed.ts --demo` generates SYNTHETIC demo employees and times (stable PRNG, `*.example` addresses); never present these as real people or real hours.
+
+## Accessibility & Inclusion
+
+Established during the finish review and binding for future work: text contrast ≥4.5:1 and non-text UI (timeline fills, ticks, focus rings) ≥3:1, computed not eyeballed; DOM order matches visual order at every breakpoint; visible focus treatment on interactive rows; animations respect `prefers-reduced-motion`; assistive tech must reach the inline segment-correction buttons (no presentational roles on containers with controls).
+
+## Product Principles
+
+1. **Daily use must be near-zero effort.** Clocking in/out is a many-times-a-day ritual; it should take one glance and one click, never a form.
+2. **The record is the product.** Completeness and correctness of hours outrank every convenience feature; corrections and approvals must leave the record trustworthy for payroll.
+3. **Speak the workplace's language.** German terms employees and payroll actually use (Arbeitszeit, Pause, Überstunden, Monatsabschluss) — no invented jargon, no English UI strings.
+4. **Two audiences, one truth.** Employees see their own time simply; managers see the whole team with the controls to keep it accurate — both views read from the same authoritative record.

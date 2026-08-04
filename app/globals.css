@@ -1,0 +1,62 @@
+/* Responsive composition the component layer can't express: on narrow
+   viewports the stamp card (primary action) is a separate DOM instance above
+   the timeline, so visual order and focus order stay identical. */
+.nur-mobil {
+  display: none;
+}
+.nur-desktop {
+  display: block;
+}
+@media (max-width: 920px) {
+  .nur-mobil {
+    display: block;
+  }
+  .nur-desktop {
+    display: none;
+  }
+  .heute-rail {
+    width: 100% !important;
+  }
+}
+
+/* Interactive rows (team, day list): hover and keyboard focus must be visible. */
+.zeile-interaktiv:hover {
+  background-color: var(--color-overlay-hover);
+}
+.zeile-interaktiv:focus-visible {
+  /* Icon-accent bronze: the ring must clear 3:1 on white (#8f6e06 ≈ 4.8:1). */
+  outline: 2px solid var(--color-icon-accent);
+  outline-offset: -2px;
+}
+
+/* The one authored motion moment: the live tip of the growing gold segment
+   breathes at its lower edge while the clock runs. */
+.zeitleiste-live-tip {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  block-size: 5px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.85), transparent);
+  animation: zeitleiste-atmen 2.6s var(--ease-standard) infinite;
+}
+@keyframes zeitleiste-atmen {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .zeitleiste-live-tip {
+    animation: none;
+    opacity: 0.6;
+  }
+}
+
+@media print {
+  .astryx-app-shell {
+    display: block !important;
+  }
+}

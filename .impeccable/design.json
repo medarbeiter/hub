@@ -1,0 +1,184 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-04T00:00:00Z",
+  "title": "Design System: MedArbeiter Zeiterfassung",
+  "extensions": {
+    "colorMeta": {
+      "brand-gold": {
+        "role": "primary",
+        "displayName": "Brand Gold",
+        "canonical": "#e1b025",
+        "tonalRamp": ["oklch(0.25 0.06 92)", "oklch(0.35 0.09 92)", "oklch(0.45 0.11 92)", "oklch(0.55 0.13 92)", "oklch(0.66 0.14 92)", "oklch(0.78 0.145 92)", "oklch(0.88 0.10 95)", "oklch(0.95 0.05 95)"]
+      },
+      "bronze-text-gold": {
+        "role": "primary",
+        "displayName": "Bronze Text-Gold",
+        "canonical": "#7c5f05",
+        "tonalRamp": ["oklch(0.22 0.05 95)", "oklch(0.32 0.08 95)", "oklch(0.42 0.10 95)", "oklch(0.50 0.11 95)", "oklch(0.60 0.12 95)", "oklch(0.72 0.12 95)", "oklch(0.84 0.09 95)", "oklch(0.94 0.05 95)"]
+      },
+      "warm-ink": {
+        "role": "neutral",
+        "displayName": "Warm Ink",
+        "canonical": "#1c1917",
+        "tonalRamp": ["oklch(0.18 0.005 60)", "oklch(0.28 0.005 60)", "oklch(0.40 0.006 60)", "oklch(0.52 0.007 60)", "oklch(0.64 0.008 70)", "oklch(0.76 0.009 80)", "oklch(0.88 0.008 85)", "oklch(0.97 0.006 90)"]
+      },
+      "paper-body": {
+        "role": "neutral",
+        "displayName": "Paper Body",
+        "canonical": "#faf8f3",
+        "tonalRamp": ["oklch(0.20 0.01 90)", "oklch(0.32 0.01 90)", "oklch(0.45 0.012 90)", "oklch(0.58 0.014 90)", "oklch(0.70 0.015 90)", "oklch(0.82 0.014 90)", "oklch(0.92 0.012 90)", "oklch(0.98 0.008 90)"]
+      },
+      "pause-stone": {
+        "role": "neutral",
+        "displayName": "Pause Stone",
+        "canonical": "#8b8474",
+        "tonalRamp": ["oklch(0.22 0.015 95)", "oklch(0.32 0.02 95)", "oklch(0.42 0.025 95)", "oklch(0.52 0.028 95)", "oklch(0.61 0.028 95)", "oklch(0.72 0.025 95)", "oklch(0.84 0.02 95)", "oklch(0.94 0.012 95)"]
+      },
+      "warning-orange": {
+        "role": "tertiary",
+        "displayName": "Warning Orange",
+        "canonical": "#e97a00",
+        "tonalRamp": ["oklch(0.25 0.07 55)", "oklch(0.35 0.10 55)", "oklch(0.45 0.13 55)", "oklch(0.55 0.15 55)", "oklch(0.68 0.17 55)", "oklch(0.78 0.14 60)", "oklch(0.87 0.09 65)", "oklch(0.94 0.05 70)"]
+      },
+      "error-red": {
+        "role": "tertiary",
+        "displayName": "Error Red",
+        "canonical": "#e33f4a",
+        "tonalRamp": ["oklch(0.25 0.10 22)", "oklch(0.35 0.14 22)", "oklch(0.45 0.17 22)", "oklch(0.55 0.19 22)", "oklch(0.64 0.19 22)", "oklch(0.74 0.14 22)", "oklch(0.85 0.08 22)", "oklch(0.94 0.04 22)"]
+      },
+      "success-green": {
+        "role": "tertiary",
+        "displayName": "Success Green",
+        "canonical": "#198100",
+        "tonalRamp": ["oklch(0.22 0.07 145)", "oklch(0.32 0.10 145)", "oklch(0.42 0.12 145)", "oklch(0.52 0.14 145)", "oklch(0.62 0.15 145)", "oklch(0.74 0.13 145)", "oklch(0.86 0.09 145)", "oklch(0.95 0.05 145)"]
+      },
+      "info-blue": {
+        "role": "tertiary",
+        "displayName": "Info Blue",
+        "canonical": "#0074e2",
+        "tonalRamp": ["oklch(0.25 0.09 250)", "oklch(0.35 0.13 250)", "oklch(0.45 0.16 250)", "oklch(0.55 0.18 250)", "oklch(0.63 0.17 250)", "oklch(0.74 0.12 250)", "oklch(0.85 0.08 250)", "oklch(0.94 0.04 250)"]
+      }
+    },
+    "typographyMeta": {
+      "heading": {"displayName": "Poppins Headings", "purpose": "Wordmark kinship; weights 500/600/700 loaded, h3/h4 forced bold. Scale base 14px, ratio 1.2."},
+      "body": {"displayName": "Figtree Body", "purpose": "Long-form legibility at data density; tabular numerals on every time/duration."}
+    },
+    "shadows": [
+      {"name": "shadow-low", "value": "0 2px 4px oklch(0 0 0 / 5%), 0 4px 8px oklch(0 0 0 / 10%)", "purpose": "Cards and gold Arbeit segments (light mode)."},
+      {"name": "shadow-med", "value": "0 2px 4px oklch(0 0 0 / 5%), 0 4px 12px oklch(0 0 0 / 10%)", "purpose": "Popovers."},
+      {"name": "shadow-high", "value": "0 4px 6px oklch(0 0 0 / 10%), 0 12px 24px oklch(0 0 0 / 15%)", "purpose": "Modals and dialogs."},
+      {"name": "inset-hover", "value": "inset 0px 0px 0px 2px #e1b0254D", "purpose": "Hoverable surface ring in accent gold at 30% alpha."},
+      {"name": "inset-selected", "value": "inset 0px 0px 0px 2px #b9900e99", "purpose": "Selected ring in darker selected-gold (3:1 on white)."},
+      {"name": "inset-success", "value": "inset 0px 0px 0px 2px #1981004D", "purpose": "Success state ring."},
+      {"name": "inset-warning", "value": "inset 0px 0px 0px 2px #e97a004D", "purpose": "Warning state ring (orange, never gold)."},
+      {"name": "inset-error", "value": "inset 0px 0px 0px 2px #e33f4a4D", "purpose": "Error state ring."}
+    ],
+    "motion": [
+      {"name": "duration-fast", "value": "125ms", "purpose": "Micro state transitions (theme motion.fast; min 95 / max 165)."},
+      {"name": "duration-medium", "value": "300ms", "purpose": "Standard transitions (min 225 / max 400)."},
+      {"name": "duration-slow", "value": "700ms", "purpose": "Timeline segment growth and now-line travel."},
+      {"name": "zeitleiste-atmen", "value": "2.6s var(--ease-standard) infinite (opacity 0.25 -> 0.9 -> 0.25)", "purpose": "The one authored motion moment: the live tip of the open gold segment breathes. prefers-reduced-motion: animation off, opacity locked 0.6."}
+    ],
+    "breakpoints": [
+      {"name": "mobile", "value": "920px"}
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button (Stamp Action)",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Brand-gold primary action with dark ink; on the stamp card it is full-width, size lg, and state-coupled (label = the one legal stamp action).",
+      "html": "<button class=\"ds-btn-primary\">Einstempeln</button>",
+      "css": ".ds-btn-primary { background: var(--color-accent, #e1b025); color: #231a02; font-family: Figtree, sans-serif; font-weight: 600; font-size: 15px; padding: 12px 24px; border: none; border-radius: 0.625rem; width: 100%; cursor: pointer; transition: filter 125ms ease; } .ds-btn-primary:hover { filter: brightness(0.96); } .ds-btn-primary:focus-visible { outline: 2px solid #b9900e; outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "description": "Bordered neutral for the demoted alternative action (Pause starten, banner actions).",
+      "html": "<button class=\"ds-btn-secondary\">Pause starten</button>",
+      "css": ".ds-btn-secondary { background: #ffffff; color: #1c1917; font-family: Figtree, sans-serif; font-weight: 500; font-size: 14px; padding: 10px 20px; border: 1px solid #d8d2c6; border-radius: 0.625rem; cursor: pointer; transition: background 125ms ease; } .ds-btn-secondary:hover { background: rgba(0,0,0,0.05); } .ds-btn-secondary:focus-visible { outline: 2px solid #b9900e; outline-offset: 2px; }"
+    },
+    {
+      "name": "Destructive Button",
+      "kind": "button",
+      "refersTo": "button-destructive",
+      "description": "Locked pastel treatment: error wash background with dark error text, not a filled red.",
+      "html": "<button class=\"ds-btn-destructive\">Eintrag löschen</button>",
+      "css": ".ds-btn-destructive { background: #facecb; color: #a50c25; font-family: Figtree, sans-serif; font-weight: 600; font-size: 14px; padding: 10px 20px; border: none; border-radius: 0.625rem; cursor: pointer; transition: filter 125ms ease; } .ds-btn-destructive:hover { filter: brightness(0.97); } .ds-btn-destructive:focus-visible { outline: 2px solid #e33f4a; outline-offset: 2px; }"
+    },
+    {
+      "name": "Status Dots",
+      "kind": "custom",
+      "refersTo": "statusdot-accent",
+      "description": "Accent dot is brand gold (eingestempelt, pulsing live); warning is orange; neutral is mid-gray. Dot fills match filled badge colors.",
+      "html": "<span class=\"ds-dotrow\"><span class=\"ds-dot ds-dot-gold\"></span> Eingestempelt <span class=\"ds-dot ds-dot-orange\"></span> Pause <span class=\"ds-dot ds-dot-neutral\"></span> Ausgestempelt</span>",
+      "css": ".ds-dotrow { font-family: Figtree, sans-serif; font-size: 13px; color: #67625a; display: inline-flex; align-items: center; gap: 6px; } .ds-dot { inline-size: 8px; block-size: 8px; border-radius: 9999px; display: inline-block; } .ds-dot-gold { background: #e1b025; } .ds-dot-orange { background: #e97a00; } .ds-dot-neutral { background: #737373; }"
+    },
+    {
+      "name": "Timeline Segments (Arbeit / Pause)",
+      "kind": "custom",
+      "refersTo": "timeline-segment-arbeit",
+      "description": "The signature grammar: gold filled block with shadow for Arbeit, flat dashed muted block for Pause; open segments gradient toward white with a breathing live tip.",
+      "html": "<div class=\"ds-tl\"><div class=\"ds-tl-arbeit\"><span>08:00–12:15</span><span>4:15</span></div><div class=\"ds-tl-pause\"><span>12:15–12:45</span><span>Pause 0:30</span></div><div class=\"ds-tl-arbeit ds-tl-offen\"><span>12:45–…</span><span>läuft · 2:10</span><span class=\"ds-tl-tip\"></span></div></div>",
+      "css": ".ds-tl { display: flex; flex-direction: column; gap: 6px; inline-size: 260px; font-family: Figtree, sans-serif; font-size: 13px; font-variant-numeric: tabular-nums; } .ds-tl-arbeit { position: relative; display: flex; justify-content: space-between; padding: 8px 12px; border-radius: 0.625rem; background: #e1b025; color: #231a02; font-weight: 600; box-shadow: 0 2px 4px oklch(0 0 0 / 5%), 0 4px 8px oklch(0 0 0 / 10%); overflow: hidden; } .ds-tl-offen { background: linear-gradient(180deg, #e1b025 0%, color-mix(in srgb, #e1b025 78%, white) 100%); } .ds-tl-pause { display: flex; justify-content: space-between; padding: 8px 12px; border-radius: 0.625rem; background: #f5f2ea; color: #67625a; border: 1px dashed #d8d2c6; } .ds-tl-tip { position: absolute; inset-inline: 0; inset-block-end: 0; block-size: 5px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.85), transparent); animation: ds-atmen 2.6s ease-in-out infinite; } @keyframes ds-atmen { 0%, 100% { opacity: 0.25; } 50% { opacity: 0.9; } } @media (prefers-reduced-motion: reduce) { .ds-tl-tip { animation: none; opacity: 0.6; } }"
+    },
+    {
+      "name": "Mini-Timeline",
+      "kind": "custom",
+      "description": "A day compressed into one horizontal pill band for team rows: gold = Arbeit, pause-stone = Pause, bronze tick = now.",
+      "html": "<span class=\"ds-mini\"><span class=\"ds-mini-arbeit\" style=\"left:14%;width:30%\"></span><span class=\"ds-mini-pause\" style=\"left:44%;width:4%\"></span><span class=\"ds-mini-arbeit\" style=\"left:48%;width:22%\"></span><span class=\"ds-mini-now\" style=\"left:72%\"></span></span>",
+      "css": ".ds-mini { position: relative; display: block; inline-size: 240px; block-size: 16px; background: #f5f2ea; border-radius: 9999px; overflow: hidden; } .ds-mini > span { position: absolute; top: 0; bottom: 0; } .ds-mini-arbeit { background: #e1b025; } .ds-mini-pause { background: #8b8474; } .ds-mini-now { width: 2px; background: #7c5f05; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "description": "White surface on the warm paper body; container radius, shadow-low, warm hairline separation.",
+      "html": "<div class=\"ds-card\"><h3 class=\"ds-card-title\">Zeitkonto</h3><p class=\"ds-card-num\">+3:45 Std.</p><p class=\"ds-card-sub\">Überstunden bis gestern, aus erfassten Tagen</p></div>",
+      "css": ".ds-card { background: #ffffff; border-radius: 0.75rem; padding: 16px; box-shadow: 0 2px 4px oklch(0 0 0 / 5%), 0 4px 8px oklch(0 0 0 / 10%); inline-size: 260px; font-family: Figtree, sans-serif; } .ds-card-title { font-family: Poppins, sans-serif; font-weight: 700; font-size: 15px; color: #1c1917; margin: 0 0 4px; } .ds-card-num { font-family: Poppins, sans-serif; font-weight: 600; font-size: 24px; color: #7c5f05; font-variant-numeric: tabular-nums; margin: 0; } .ds-card-sub { font-size: 13px; color: #67625a; margin: 4px 0 0; }"
+    },
+    {
+      "name": "Warning Banner",
+      "kind": "custom",
+      "description": "Anomaly banner (vergessenes Ausstempeln): orange-family pastel wash with dark orange text — never gold.",
+      "html": "<div class=\"ds-banner-warnung\"><strong>Offener Eintrag vom 03.08. – Ausstempeln wurde vergessen.</strong><span>Bitte korrigieren Sie die Einträge, damit der Monat abgeschlossen werden kann.</span></div>",
+      "css": ".ds-banner-warnung { background: #fad0b5; color: #6e3500; border-radius: 0.75rem; padding: 12px 16px; font-family: Figtree, sans-serif; font-size: 14px; display: flex; flex-direction: column; gap: 2px; inline-size: 420px; max-inline-size: 100%; } .ds-banner-warnung strong { font-weight: 600; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Der gestempelte Tag (The Stamped Day)",
+    "overview": "The workday itself is the interface. Instead of a form beside a stats grid, the employee's day is rendered as a live vertical timeline that stamping writes onto: gold blocks are worked time, quiet dashed gaps are breaks, and a bronze now-line crawls down as the clock runs. Every other surface in the app is a restatement of that same timeline grammar at a different scale — a horizontal mini-band per team member, quiet week bars against a Soll tick. The world is warm and papery, not clinical: white cards float on a barely-warm paper body with warm stone neutrals, so the single brand color — MedArbeiter gold #e1b025 — can mean exactly one thing. Gold is worked time and the primary action; it is never decoration and never a status color. The tone is calm, trustworthy, and payroll-serious: tabular numerals everywhere times appear, one authored motion moment, German-only voice. Built on Astryx components with the MedArbeiter theme; light mode is forced at the provider, so the shipped world is exclusively the light palette.",
+    "keyCharacteristics": [
+      "One accent, one meaning: gold = Arbeit + primary action, nothing else.",
+      "Warm stone neutrals on a paper ground (#faf8f3 body, white surfaces), never cold gray.",
+      "Timeline grammar repeated at three scales (day, mini-band, week bars).",
+      "Poppins headings (wordmark kinship), Figtree body, tabular numerals for all times.",
+      "Quiet motion: one breathing live-tip; everything else is fast, functional transitions."
+    ],
+    "rules": [
+      {"name": "The Gold-Is-Work Rule", "body": "Brand gold #e1b025 appears only as worked time and the primary action. No status color, chart color, or decoration may use gold or yellow; warnings are orange. If something is gold, it is work.", "section": "colors"},
+      {"name": "The Dark-Ink-On-Gold Rule", "body": "Text or icons on a gold surface are always #231a02. White on gold fails AA and is forbidden.", "section": "colors"},
+      {"name": "The Three-Golds Rule", "body": "Gold degrades by duty, not by taste: fill #e1b025, text/now-line bronze #7c5f05 (icons #8f6e06), focus/selected #b9900e. Never use fill-gold at text size or bronze as a fill.", "section": "colors"},
+      {"name": "The Tabular Time Rule", "body": "Every time or duration — axis labels, segment ranges, week totals, the now-pill, Zeitkonto — renders with tabular numerals. Times never wiggle as they tick.", "section": "typography"},
+      {"name": "The German Voice Rule", "body": "The UI is German-only (lang=de, locale de). Astryx built-in strings are covered by a partial catalog in locales/de.json; any new built-in string an Astryx component surfaces must be added there, never left English.", "section": "typography"},
+      {"name": "The Duplicate-Don't-Reorder Rule", "body": "When mobile needs the primary action first, render a second DOM instance gated by .nur-mobil/.nur-desktop; never reorder with CSS alone.", "section": "layout"},
+      {"name": "The Work-Casts-A-Shadow Rule", "body": "On any timeline, only Arbeit lifts (shadow-low); Pause stays flat and dashed. Depth encodes the same meaning as color.", "section": "elevation"}
+    ],
+    "dos": [
+      "Do paint worked time, the primary action, and the clocked-in StatusDot in brand gold #e1b025 — and nothing else.",
+      "Do put dark ink #231a02 on every gold surface, and use bronze #7c5f05 whenever gold must act as text or a thin line.",
+      "Do set every time and duration in tabular numerals.",
+      "Do keep all copy German and register new Astryx built-in strings in locales/de.json.",
+      "Do reuse the timeline grammar (gold = Arbeit, dashed/stone = Pause, bronze now-marker) for any new time visualization, at whatever scale.",
+      "Do use .zeile-interaktiv (overlay hover + 2px #b9900e focus outline) for any new clickable row."
+    ],
+    "donts": [
+      "Don't use gold or yellow for warnings or any status — warnings are orange (#e97a00 filled / #6e3500 text).",
+      "Don't use white text on gold; it fails AA.",
+      "Don't ship dark-mode surfaces — the app forces mode=\"light\"; dark token slots are dormant theme inheritance, not a supported mode.",
+      "Don't use Astryx FieldLabel's isRequired/isOptional props (hardcoded English).",
+      "Don't add a second ambient animation. The breathing live-tip (zeitleiste-atmen, 2.6s, reduced-motion-safe) is the one authored motion moment; everything else is state transitions at fast/medium/slow (125/300/700ms).",
+      "Don't reorder mobile layouts with CSS; duplicate the DOM instance under .nur-mobil/.nur-desktop so focus order matches visual order."
+    ]
+  }
+}
