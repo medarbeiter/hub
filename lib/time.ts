@@ -1,5 +1,5 @@
 import {getDb, type Segment, type User} from './db';
-import {mergeWindowMin} from './settings';
+import {autoCloseCutoffMin, mergeWindowMin} from './settings';
 import {
   addDays,
   dailySollMinutes,
@@ -82,13 +82,13 @@ export function openYesterdayContinuation(
 }
 
 /** Open segments on past dates — forgotten clock-outs needing correction. */
-export function stalePastOpenSegments(userId: number): Segment[] {
-  const continuation = openYesterdayContinuation(userId);
+export function stalePastOpenSegments(userId: number, today: string = todayISO()): Segment[] {
+  const continuation = openYesterdayContinuation(userId, nowMinutes(), today);
   return getDb()
     .query<Segment, [number, string]>(
       'SELECT * FROM segments WHERE user_id = ? AND date < ? AND end_min IS NULL ORDER BY date',
     )
-    .all(userId, todayISO())
+    .all(userId, today)
     .filter((s) => s.id !== continuation?.id);
 }
 
@@ -221,6 +221,42 @@ export function stamp(
   }
 }
 
+/**
+ * Provisionally close entries left open on past days at the configured cutoff
+ * and flag them `auto_closed` — they surface as "please confirm", never as
+ * accepted fact. Disabled by default (no cutoff configured). Entries that
+ * started after the cutoff are left open: guessing an end time for them would
+ * invent hours rather than approximate them. Returns how many were closed.
+ */
+export function autoCloseForgotten(userId: number, today: string = todayISO()): number {
+  const cutoff = autoCloseCutoffMin();
+  if (cutoff === null) return 0;
+  const db = getDb();
+  let closed = 0;
+  for (const open of stalePastOpenSegments(userId, today)) {
+    if (open.start_min >= cutoff) continue;
+    if (isMonthLocked(userId, monthOf(open.date))) continue;
+    db.query("UPDATE segments SET end_min = ?, auto_closed = 1, updated_at = datetime('now') WHERE id = ?").run(
+      cutoff,
+      open.id,
+    );
+    closed++;
+  }
+  return closed;
+}
+
+/** Accept a provisionally closed entry as correct. */
+export function confirmAutoClosed(actor: User, segmentId: number): string | null {
+  const segment = getDb().query<Segment, [number]>('SELECT * FROM segments WHERE id = ?').get(segmentId);
+  if (!segment) return 'Eintrag nicht gefunden.';
+  if (!canEdit(actor, segment.user_id)) return 'Keine Berechtigung.';
+  if (isMonthLocked(segment.user_id, monthOf(segment.date))) return 'Dieser Monat ist abgeschlossen.';
+  getDb()
+    .query("UPDATE segments SET auto_closed = 0, edited_by = ?, updated_at = datetime('now') WHERE id = ?")
+    .run(actor.id, segmentId);
+  return null;
+}
+
 /** Client toast shows 30s; the server allows slack for latency and clock skew. */
 const UNDO_WINDOW_SEC = 45;
 
@@ -297,10 +333,11 @@ export function updateSegment(actor: User, segmentId: number, input: SegmentInpu
   }
   const invalid = validateSegment(segment.user_id, input, segmentId);
   if (invalid) return invalid;
+  // A human just set the times: whatever the sweep guessed is now confirmed.
   getDb()
     .query(
       `UPDATE segments SET date = ?, kind = ?, start_min = ?, end_min = ?, note = ?, edited_by = ?,
-       updated_at = datetime('now') WHERE id = ?`,
+       auto_closed = 0, updated_at = datetime('now') WHERE id = ?`,
     )
     .run(input.date, input.kind, input.startMin, input.endMin, input.note ?? null, actor.id, segmentId);
   return null;

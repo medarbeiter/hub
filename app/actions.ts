@@ -5,6 +5,7 @@ import {redirect} from 'next/navigation';
 import {createSession, destroySession, requireUser, requireVerwaltung, verifyLogin} from '@/lib/auth';
 import {
   activeUsers,
+  confirmAutoClosed,
   createSegment,
   deleteSegment,
   getUser,
@@ -21,6 +22,7 @@ import {
 } from '@/lib/time';
 import {monthOf, todayISO} from '@/lib/format';
 import {createUser, resetPassword, setUserActive, updateUser, type UserInput} from '@/lib/users';
+import {setSetting} from '@/lib/settings';
 import {getDb} from '@/lib/db';
 
 export interface ActionState {
@@ -103,6 +105,13 @@ export async function segmentSaveAction(_prev: ActionState, formData: FormData):
   if (error) return {error};
   revalidatePath('/', 'layout');
   return OK;
+}
+
+export async function segmentConfirmAction(segmentId: number): Promise<ActionState> {
+  const actor = await requireUser();
+  const error = confirmAutoClosed(actor, segmentId);
+  revalidatePath('/', 'layout');
+  return {error};
 }
 
 export async function segmentDeleteAction(segmentId: number): Promise<ActionState> {
@@ -214,6 +223,33 @@ export async function userSetActiveAction(userId: number, active: boolean): Prom
   const error = setUserActive(actor, userId, active);
   revalidatePath('/', 'layout');
   return {error};
+}
+
+// ---------------------------------------------------------------------------
+// Einstellungen (Verwaltung)
+// ---------------------------------------------------------------------------
+
+export async function settingsSaveAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  await requireVerwaltung();
+
+  const mergeRaw = String(formData.get('mergeWindow') ?? '').trim();
+  const merge = Number(mergeRaw);
+  if (!Number.isInteger(merge) || merge < 0 || merge > 15) {
+    return {error: 'Das Zusammenführen-Fenster muss zwischen 0 und 15 Minuten liegen.'};
+  }
+
+  const cutoffRaw = String(formData.get('autoCloseCutoff') ?? '').trim();
+  let cutoff = '';
+  if (cutoffRaw !== '') {
+    const parsed = parseTime(cutoffRaw);
+    if (parsed === null || parsed >= 1440) return {error: 'Bitte eine Uhrzeit im Format HH:MM angeben.'};
+    cutoff = String(parsed);
+  }
+
+  setSetting('merge_window_min', String(merge));
+  setSetting('auto_close_cutoff_min', cutoff);
+  revalidatePath('/', 'layout');
+  return OK;
 }
 
 export async function unlockMonthAction(userId: number, month: string): Promise<ActionState> {

@@ -1,7 +1,7 @@
 'use client';
 
 import {SideNav, SideNavHeading, SideNavItem, SideNavSection, Text, VStack} from '@astryxdesign/core';
-import {CalendarDays, ChartNoAxesColumn, LockKeyhole, UserRoundCog, Users} from 'lucide-react';
+import {CalendarDays, ChartNoAxesColumn, LockKeyhole, Settings, UserRoundCog, Users} from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import {usePathname} from 'next/navigation';
@@ -72,6 +72,13 @@ export function AppNav({name, role}: AppNavProps) {
             as={NextLink}
             icon={UserRoundCog}
             isSelected={pathname.startsWith('/mitarbeiter')}
+          />
+          <SideNavItem
+            label="Einstellungen"
+            href="/einstellungen"
+            as={NextLink}
+            icon={Settings}
+            isSelected={pathname.startsWith('/einstellungen')}
           />
         </SideNavSection>
       )}

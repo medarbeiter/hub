@@ -1,7 +1,15 @@
 import {afterEach, beforeEach, describe, expect, test} from 'bun:test';
-import {createDb, setDbForTesting, type Segment} from '../lib/db';
+import {createDb, setDbForTesting, type Segment, type User} from '../lib/db';
 import type {Database} from 'bun:sqlite';
-import {openYesterdayContinuation, stamp, undoStamp} from '../lib/time';
+import {
+  autoCloseForgotten,
+  confirmAutoClosed,
+  openYesterdayContinuation,
+  stamp,
+  undoStamp,
+  updateSegment,
+} from '../lib/time';
+import {setSetting} from '../lib/settings';
 
 const TODAY = '2026-08-04';
 const YESTERDAY = '2026-08-03';
@@ -168,5 +176,76 @@ describe('night-shift rollover', () => {
     const cont = openYesterdayContinuation(userId, 90, TODAY);
     expect(cont).not.toBeNull();
     expect(cont!.start_min).toBe(22 * 60);
+  });
+});
+
+describe('auto-close of forgotten entries', () => {
+  const OLD = '2026-08-01';
+
+  function openOn(date: string, startMin: number): number {
+    db.query('INSERT INTO segments (user_id, date, kind, start_min) VALUES (?, ?, ?, ?)').run(
+      userId,
+      date,
+      'arbeit',
+      startMin,
+    );
+    return db.query<{id: number}, []>('SELECT id FROM segments ORDER BY id DESC LIMIT 1').get()!.id;
+  }
+
+  test('does nothing while no cutoff is configured', () => {
+    openOn(OLD, 8 * 60);
+    expect(autoCloseForgotten(userId, TODAY)).toBe(0);
+    expect(segments(OLD)[0]!.end_min).toBeNull();
+  });
+
+  test('closes at the cutoff and flags the entry', () => {
+    setSetting('auto_close_cutoff_min', String(18 * 60));
+    openOn(OLD, 8 * 60);
+    expect(autoCloseForgotten(userId, TODAY)).toBe(1);
+    const row = segments(OLD)[0]!;
+    expect(row.end_min).toBe(18 * 60);
+    expect(row.auto_closed).toBe(1);
+  });
+
+  test('leaves entries that started after the cutoff open', () => {
+    setSetting('auto_close_cutoff_min', String(18 * 60));
+    openOn(OLD, 20 * 60);
+    expect(autoCloseForgotten(userId, TODAY)).toBe(0);
+    expect(segments(OLD)[0]!.end_min).toBeNull();
+  });
+
+  test('never touches a locked month', () => {
+    setSetting('auto_close_cutoff_min', String(18 * 60));
+    openOn(OLD, 8 * 60);
+    db.query('INSERT INTO month_locks (user_id, month, locked_by) VALUES (?, ?, ?)').run(userId, '2026-08', userId);
+    expect(autoCloseForgotten(userId, TODAY)).toBe(0);
+    expect(segments(OLD)[0]!.end_min).toBeNull();
+  });
+
+  test('never touches a running night shift from yesterday', () => {
+    setSetting('auto_close_cutoff_min', String(18 * 60));
+    openOn(YESTERDAY, 22 * 60);
+    expect(autoCloseForgotten(userId, TODAY)).toBe(0);
+    expect(segments(YESTERDAY)[0]!.end_min).toBeNull();
+  });
+
+  test('confirming clears the flag', () => {
+    setSetting('auto_close_cutoff_min', String(18 * 60));
+    const id = openOn(OLD, 8 * 60);
+    autoCloseForgotten(userId, TODAY);
+    const actor = {id: userId, role: 'mitarbeiter'} as User;
+    expect(confirmAutoClosed(actor, id)).toBeNull();
+    expect(segments(OLD)[0]!.auto_closed).toBe(0);
+  });
+
+  test('correcting the entry clears the flag too', () => {
+    setSetting('auto_close_cutoff_min', String(18 * 60));
+    const id = openOn(OLD, 8 * 60);
+    autoCloseForgotten(userId, TODAY);
+    const actor = {id: userId, role: 'mitarbeiter'} as User;
+    expect(updateSegment(actor, id, {date: OLD, kind: 'arbeit', startMin: 8 * 60, endMin: 16 * 60})).toBeNull();
+    const row = segments(OLD)[0]!;
+    expect(row.end_min).toBe(16 * 60);
+    expect(row.auto_closed).toBe(0);
   });
 });

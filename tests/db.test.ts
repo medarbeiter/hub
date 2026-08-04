@@ -3,7 +3,7 @@ import {Database} from 'bun:sqlite';
 import {mkdtempSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import {createDb, setDbForTesting} from '../lib/db';
+import {createDb, SCHEMA_VERSION, setDbForTesting} from '../lib/db';
 import {getSetting, mergeWindowMin, setSetting} from '../lib/settings';
 
 afterEach(() => setDbForTesting(undefined));
@@ -25,7 +25,7 @@ describe('migrations', () => {
     expect(tableNames(db)).toEqual(
       expect.arrayContaining(['users', 'sessions', 'segments', 'month_locks', 'settings']),
     );
-    expect(userVersion(db)).toBe(2);
+    expect(userVersion(db)).toBe(SCHEMA_VERSION);
   });
 
   test('pre-versioning database (tables exist, user_version 0) migrates cleanly', () => {
@@ -50,8 +50,14 @@ describe('migrations', () => {
     legacy.close();
 
     const db = createDb(path);
-    expect(userVersion(db)).toBe(2);
+    expect(userVersion(db)).toBe(SCHEMA_VERSION);
     expect(tableNames(db)).toContain('settings');
+    // Later migrations reach the pre-existing tables too.
+    const columns = db
+      .query<{name: string}, []>('PRAGMA table_info(segments)')
+      .all()
+      .map((c) => c.name);
+    expect(columns).toContain('auto_closed');
     // Existing rows survive the replayed baseline.
     expect(db.query<{name: string}, []>('SELECT name FROM users').get()!.name).toBe('Alte Daten');
   });
@@ -59,7 +65,7 @@ describe('migrations', () => {
   test('reopening an already-migrated database is a no-op', () => {
     const path = join(mkdtempSync(join(tmpdir(), 'medarbeiter-test-')), 'twice.db');
     createDb(path).close();
-    expect(userVersion(createDb(path))).toBe(2);
+    expect(userVersion(createDb(path))).toBe(SCHEMA_VERSION);
   });
 });
 

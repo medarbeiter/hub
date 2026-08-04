@@ -13,7 +13,10 @@ type Migration = (db: Database) => void;
 // Exception: the baseline must stay idempotent (IF NOT EXISTS), because
 // databases created before versioning existed sit at user_version 0 and
 // replay it as a no-op.
-const MIGRATIONS: Migration[] = [migration1Baseline, migration2Settings];
+const MIGRATIONS: Migration[] = [migration1Baseline, migration2Settings, migration3AutoClose];
+
+/** The `PRAGMA user_version` a fully migrated database carries. */
+export const SCHEMA_VERSION = MIGRATIONS.length;
 
 function migration1Baseline(db: Database) {
   db.exec(`
@@ -69,6 +72,13 @@ function migration2Settings(db: Database) {
   `);
 }
 
+function migration3AutoClose(db: Database) {
+  // A provisionally closed entry: the cutoff sweep ended it because the
+  // clock-out was forgotten. It stays flagged until a human confirms or
+  // corrects it — never silently accepted as fact.
+  db.exec('ALTER TABLE segments ADD COLUMN auto_closed INTEGER NOT NULL DEFAULT 0');
+}
+
 function migrate(db: Database) {
   const row = db.query<{user_version: number}, []>('PRAGMA user_version').get();
   for (let version = row?.user_version ?? 0; version < MIGRATIONS.length; version++) {
@@ -122,6 +132,8 @@ export interface Segment {
   end_min: number | null;
   note: string | null;
   edited_by: number | null;
+  /** 1 = provisionally closed by the cutoff sweep, awaiting confirmation. */
+  auto_closed: number;
   created_at: string;
   updated_at: string;
 }
