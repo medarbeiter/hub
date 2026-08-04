@@ -5,6 +5,7 @@ import {createContext, useCallback, useContext, useEffect, useMemo, useRef, useS
 import {useRouter} from 'next/navigation';
 import {stampAction, undoStampAction} from '@/app/actions';
 import {daySummary, fmtTime, nowMinutes, type DaySummary} from '@/lib/format';
+import {checkDay, feierabendPrognose, type DayCompliance, type Prognose} from '@/lib/arbzg';
 import type {ClockStatus} from '@/lib/time';
 import type {TimelineSegment} from './day-timeline';
 
@@ -23,6 +24,10 @@ export interface ClockValue {
   sinceYesterday: boolean;
   summary: DaySummary;
   sollMin: number;
+  /** Live "when can I go home?" — remaining Soll plus any break still owed. */
+  prognose: Prognose | null;
+  /** Today's ArbZG picture, provisional while the day runs. */
+  compliance: DayCompliance;
   stamp: (action: StampAction) => Promise<{error: string | null}>;
 }
 
@@ -86,6 +91,14 @@ export function ClockProvider(props: ClockProviderProps) {
     ? {...deriveState(optimistic), sinceYesterday: false}
     : {status: props.status, since: props.since, sinceYesterday: props.sinceYesterday};
   const summary = daySummary(segments, props.today, nowMin, props.today);
+  const compliance = checkDay(segments, props.today, nowMin, props.today);
+  const prognose = feierabendPrognose({
+    segments,
+    workedMin: summary.workedMin,
+    sollMin: props.sollMin,
+    nowMin,
+    isRunning: status !== 'aus',
+  });
 
   // Browser notification once past the reminder hour while still clocked in.
   useEffect(() => {
@@ -165,9 +178,11 @@ export function ClockProvider(props: ClockProviderProps) {
       sinceYesterday,
       summary,
       sollMin: props.sollMin,
+      prognose,
+      compliance,
       stamp,
     }),
-    [props.today, nowMin, segments, status, since, sinceYesterday, summary, props.sollMin, stamp],
+    [props.today, nowMin, segments, status, since, sinceYesterday, summary, props.sollMin, prognose, compliance, stamp],
   );
 
   return <ClockContext.Provider value={value}>{props.children}</ClockContext.Provider>;

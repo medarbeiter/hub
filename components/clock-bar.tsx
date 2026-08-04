@@ -24,6 +24,16 @@ export function ClockBar() {
       if (result.error) setError(result.error);
     });
 
+  const c = clock.compliance;
+  const breakHint =
+    clock.status === 'aus'
+      ? null
+      : c.deficitMin > 0 && c.requiredMin > 0
+        ? `Pause: noch ${c.deficitMin} Min. gesetzlich nötig`
+        : c.dueSoon
+          ? 'Ab 6 Std. Arbeit sind 30 Min. Pause Pflicht'
+          : null;
+
   return (
     <HStack className="stempel-leiste" gap={3} vAlign="center" paddingInline={5} paddingBlock={2} wrap="wrap">
       {clock.status === 'arbeit' ? (
@@ -45,6 +55,20 @@ export function ClockBar() {
       <Text type="supporting" color="secondary" hasTabularNumbers>
         · {fmtDuration(clock.summary.workedMin)} Std. heute
       </Text>
+      {clock.prognose && (
+        <Text type="supporting" color="secondary" hasTabularNumbers>
+          · Feierabend ca. {fmtTime(clock.prognose.atMin)}
+          {clock.prognose.outstandingBreakMin > 0 && (
+            <> (inkl. {clock.prognose.outstandingBreakMin} Min. Pause)</>
+          )}
+        </Text>
+      )}
+      {/* Advisory, never blocking: the record stays whatever actually happened. */}
+      {breakHint && (
+        <Text type="supporting" color="inherit" hasTabularNumbers>
+          <span style={{color: 'var(--color-warning)'}}>· {breakHint}</span>
+        </Text>
+      )}
       {error && (
         <Text type="supporting" color="inherit">
           <span style={{color: 'var(--color-error)'}}>{error}</span>

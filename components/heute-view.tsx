@@ -40,7 +40,8 @@ export function HeuteView(props: HeuteViewProps) {
   const lateBanner = status !== 'aus' && nowMin >= REMINDER_MIN;
 
   const remaining = sollMin - summary.workedMin;
-  const feierabendMin = status !== 'aus' && remaining > 0 && nowMin + remaining < 1440 ? nowMin + remaining : null;
+  // Same projection the clock bar states in words — one calculation, two readings.
+  const feierabendMin = clock.prognose?.atMin ?? null;
 
   const openEditor = (segment: TimelineSegment | null) => {
     if (segment && segment.id < 0) return; // optimistic placeholder, not yet saved
@@ -48,15 +49,14 @@ export function HeuteView(props: HeuteViewProps) {
     setEditorOpen(true);
   };
 
-  // One sentence under the big figure: what matters next, never a deficit.
-  const prognose =
+  // One line under the big figure: how the day stands. The concrete Feierabend
+  // time lives in the clock bar, so the figure appears exactly once.
+  const stand =
     status === 'aus' && segments.length === 0
       ? 'Noch nicht eingestempelt.'
       : remaining <= 0
         ? `${fmtDurationSigned(-remaining)} Std. über Soll`
-        : feierabendMin != null
-          ? `noch ${fmtDuration(remaining)} Std. · Feierabend ca. ${fmtTime(feierabendMin)}`
-          : `noch ${fmtDuration(remaining)} Std. bis zum Soll`;
+        : `noch ${fmtDuration(remaining)} Std. bis zum Soll`;
 
   return (
     <VStack gap={5} padding={5}>
@@ -116,7 +116,7 @@ export function HeuteView(props: HeuteViewProps) {
                 </HStack>
                 <Text type="supporting" color="secondary" hasTabularNumbers>
                   {summary.pauseMin > 0 && <>Pausen {fmtDuration(summary.pauseMin)} Std. · </>}
-                  {prognose}
+                  {stand}
                 </Text>
               </VStack>
               <AddEntryButton onClick={() => openEditor(null)} />
