@@ -51,17 +51,26 @@ function migrate(db: Database) {
   `);
 }
 
+export function createDb(path: string): Database {
+  const db = new Database(path, {create: true, strict: true});
+  db.exec('PRAGMA journal_mode = WAL;');
+  db.exec('PRAGMA foreign_keys = ON;');
+  migrate(db);
+  return db;
+}
+
 export function getDb(): Database {
   if (!globalThis.__medarbeiterDb) {
     const dir = join(process.cwd(), 'data');
     mkdirSync(dir, {recursive: true});
-    const db = new Database(join(dir, 'medarbeiter.db'), {create: true, strict: true});
-    db.exec('PRAGMA journal_mode = WAL;');
-    db.exec('PRAGMA foreign_keys = ON;');
-    migrate(db);
-    globalThis.__medarbeiterDb = db;
+    globalThis.__medarbeiterDb = createDb(join(dir, 'medarbeiter.db'));
   }
   return globalThis.__medarbeiterDb;
+}
+
+/** Test-only: point the process-wide handle at another database (e.g. ':memory:'). */
+export function setDbForTesting(db: Database | undefined): void {
+  globalThis.__medarbeiterDb = db;
 }
 
 export type Role = 'mitarbeiter' | 'verwaltung';
