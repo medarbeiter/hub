@@ -1,4 +1,5 @@
 import {getDb, type Role, type User} from './db';
+import {isBundesland} from './feiertage';
 
 // User administration (Verwaltung only — callers enforce the role).
 
@@ -7,12 +8,14 @@ export interface UserInput {
   email: string;
   role: Role;
   weeklyMinutes: number;
+  /** Two-letter code, or '' to follow the company-wide setting. */
+  bundesland?: string;
 }
 
 export function allUsers(): User[] {
   return getDb()
     .query<User, []>(
-      'SELECT id, email, name, role, weekly_minutes, active, created_at FROM users ORDER BY active DESC, name',
+      'SELECT id, email, name, role, weekly_minutes, active, created_at, bundesland FROM users ORDER BY active DESC, name',
     )
     .all();
 }
@@ -22,6 +25,7 @@ function validateUserInput(input: UserInput, excludeId?: number): string | null 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) return 'Bitte eine gültige E-Mail-Adresse angeben.';
   if (!['mitarbeiter', 'verwaltung'].includes(input.role)) return 'Ungültige Rolle.';
   if (input.weeklyMinutes < 60 || input.weeklyMinutes > 60 * 60) return 'Die Wochenstunden müssen zwischen 1 und 60 liegen.';
+  if (input.bundesland && !isBundesland(input.bundesland)) return 'Unbekanntes Bundesland.';
   const existing = getDb()
     .query<{id: number}, [string]>('SELECT id FROM users WHERE email = ?')
     .get(input.email.trim());
@@ -45,8 +49,8 @@ export async function createUser(actor: User, input: UserInput): Promise<{error:
   const password = generatePassword();
   const hash = await Bun.password.hash(password);
   getDb()
-    .query('INSERT INTO users (email, password_hash, name, role, weekly_minutes) VALUES (?, ?, ?, ?, ?)')
-    .run(input.email.trim(), hash, input.name.trim(), input.role, input.weeklyMinutes);
+    .query('INSERT INTO users (email, password_hash, name, role, weekly_minutes, bundesland) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(input.email.trim(), hash, input.name.trim(), input.role, input.weeklyMinutes, input.bundesland || null);
   return {password};
 }
 
@@ -58,8 +62,8 @@ export function updateUser(actor: User, userId: number, input: UserInput): strin
     return 'Sie können sich nicht selbst die Verwaltungsrolle entziehen.';
   }
   getDb()
-    .query('UPDATE users SET name = ?, email = ?, role = ?, weekly_minutes = ? WHERE id = ?')
-    .run(input.name.trim(), input.email.trim(), input.role, input.weeklyMinutes, userId);
+    .query('UPDATE users SET name = ?, email = ?, role = ?, weekly_minutes = ?, bundesland = ? WHERE id = ?')
+    .run(input.name.trim(), input.email.trim(), input.role, input.weeklyMinutes, input.bundesland || null, userId);
   return null;
 }
 

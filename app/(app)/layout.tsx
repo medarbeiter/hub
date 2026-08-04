@@ -5,7 +5,7 @@ import {AppNav} from '@/components/app-nav';
 import {AttentionBanner} from '@/components/attention-banner';
 import {ClockBar} from '@/components/clock-bar';
 import {ClockProvider} from '@/components/clock-provider';
-import {attentionIssues, correctionQueue} from '@/lib/attention';
+import {attentionIssues, correctionQueue, excusedDays} from '@/lib/attention';
 import {autoCloseForgotten, clockState, dayRecord, nowMinutes, todayISO} from '@/lib/time';
 
 export default async function AppLayout({children}: {children: ReactNode}) {
@@ -18,7 +18,7 @@ export default async function AppLayout({children}: {children: ReactNode}) {
 
   const record = dayRecord(user, today);
   const clock = clockState(user.id);
-  const issues = attentionIssues(user, {today});
+  const issues = attentionIssues(user, {today, isExcused: excusedDays(user, today)});
 
   return (
     <AppShell sideNav={<AppNav name={user.name} role={user.role} />} height="auto" contentPadding={0}>

@@ -1,6 +1,6 @@
 import {Heading, Text, VStack} from '@astryxdesign/core';
 import {requireVerwaltung} from '@/lib/auth';
-import {autoCloseCutoffMin, mergeWindowMin} from '@/lib/settings';
+import {autoCloseCutoffMin, getSetting, mergeWindowMin} from '@/lib/settings';
 import {fmtTime} from '@/lib/format';
 import {SettingsForm} from '@/components/settings-form';
 
@@ -18,7 +18,11 @@ export default async function EinstellungenPage() {
           Gelten für alle Mitarbeiter. Änderungen wirken ab sofort und ändern keine bereits erfassten Zeiten.
         </Text>
       </VStack>
-      <SettingsForm mergeWindowMin={mergeWindowMin()} autoCloseCutoff={cutoff === null ? '' : fmtTime(cutoff)} />
+      <SettingsForm
+        mergeWindowMin={mergeWindowMin()}
+        autoCloseCutoff={cutoff === null ? '' : fmtTime(cutoff)}
+        bundesland={getSetting('bundesland')}
+      />
     </VStack>
   );
 }

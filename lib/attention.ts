@@ -6,6 +6,8 @@
 
 import {getDb, type Segment, type User} from './db';
 import {checkDay, restBetween} from './arbzg';
+import {resolveDayTypes} from './daytypes';
+import {firstRecordedDate} from './time';
 import {addDays, dailySollMinutes, fmtDuration, monthOf, todayISO, type SegmentLike} from './format';
 
 export type IssueKind =
@@ -45,6 +47,8 @@ export interface DayInput {
   /** The previous calendar day, for the rest-period check. */
   prevSegments?: SegmentLike[];
   sollMin: number;
+  /** Urlaub, Krank, Feiertag …: the day is accounted for without stamped time. */
+  dayType?: string | null;
 }
 
 /**
@@ -60,7 +64,7 @@ export function dayIssues(day: DayInput): Issue[] {
   const hasUnconfirmed = day.segments.some((s) => s.auto_closed === 1);
 
   if (day.segments.length === 0) {
-    if (day.sollMin > 0) add('fehlt', 'Kein Eintrag an einem Arbeitstag.');
+    if (day.sollMin > 0 && !day.dayType) add('fehlt', 'Kein Eintrag an einem Arbeitstag.');
     return issues;
   }
   if (hasOpen) add('offen', 'Ausstempeln wurde vergessen – der Tag hat kein Ende.');
@@ -118,11 +122,9 @@ export function attentionIssues(user: User, options: ScanOptions = {}): Issue[] 
 
   // Never claim days are missing from before this employee started recording:
   // the app has no basis to say work was expected then.
-  const first = getDb()
-    .query<{date: string | null}, [number]>('SELECT MIN(date) AS date FROM segments WHERE user_id = ?')
-    .get(user.id);
-  if (!first?.date) return [];
-  const from = requested > first.date ? requested : first.date;
+  const first = firstRecordedDate(user.id);
+  if (!first) return [];
+  const from = requested > first ? requested : first;
   if (from > to) return [];
 
   // One query for the whole range (plus the day before it, for rest periods).
@@ -159,6 +161,17 @@ export function attentionIssues(user: User, options: ScanOptions = {}): Issue[] 
     );
   }
   return sortIssues(issues);
+}
+
+/**
+ * A predicate for `ScanOptions.isExcused`: days carrying a day type (Urlaub,
+ * Krank, Feiertag, …) legitimately have no stamped time.
+ */
+export function excusedDays(user: User, today: string): (dateISO: string) => boolean {
+  // One resolution pass over the widest range the scan can ask for.
+  const from = `${monthOf(addDays(`${monthOf(today)}-01`, -1))}-01`;
+  const types = resolveDayTypes(user, from, today);
+  return (dateISO) => types.has(dateISO);
 }
 
 /** Days (not issues) that need correcting, most recent first — the fix queue. */

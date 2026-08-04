@@ -11,6 +11,7 @@ import {
   HStack,
   SegmentedControl,
   SegmentedControlItem,
+  Selector,
   StackItem,
   Text,
   TextInput,
@@ -25,6 +26,7 @@ import {
   userUpdateAction,
   type UserActionState,
 } from '@/app/actions';
+import {BUNDESLAENDER} from '@/lib/feiertage';
 
 export interface ManagedUser {
   id: number;
@@ -33,6 +35,7 @@ export interface ManagedUser {
   role: 'mitarbeiter' | 'verwaltung';
   weekly_minutes: number;
   active: number;
+  bundesland?: string | null;
 }
 
 interface UserManagerProps {
@@ -41,6 +44,8 @@ interface UserManagerProps {
 }
 
 const INITIAL: UserActionState = {error: null};
+
+const LAND_OPTIONS = Object.entries(BUNDESLAENDER).map(([value, label]) => ({value, label}));
 
 function UserForm({
   user,
@@ -53,6 +58,7 @@ function UserForm({
   const [email, setEmail] = useState(user?.email ?? '');
   const [role, setRole] = useState<string>(user?.role ?? 'mitarbeiter');
   const [weeklyHours, setWeeklyHours] = useState(user ? String(user.weekly_minutes / 60) : '40');
+  const [land, setLand] = useState(user?.bundesland ?? '');
   const [state, formAction, isPending] = useActionState(user ? userUpdateAction : userCreateAction, INITIAL);
   const lastState = useRef(state);
 
@@ -86,6 +92,18 @@ function UserForm({
           onChange={setWeeklyHours}
           htmlName="weeklyHours"
           description="Vertragliche Stunden pro Woche, verteilt auf Montag bis Freitag."
+        />
+        <Selector
+          label="Bundesland (Feiertage)"
+          options={LAND_OPTIONS}
+          value={land}
+          onChange={(value) => setLand(value ?? '')}
+          htmlName="bundesland"
+          placeholder="Wie im Unternehmen eingestellt"
+          description="Nur nötig, wenn dieser Mitarbeiter in einem anderen Bundesland arbeitet."
+          hasSearch
+          searchPlaceholder="Bundesland suchen"
+          hasClear
         />
         <input type="hidden" name="role" value={role} />
         {user && <input type="hidden" name="userId" value={user.id} />}

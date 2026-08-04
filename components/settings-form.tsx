@@ -1,25 +1,31 @@
 'use client';
 
-import {Banner, Button, Card, Heading, HStack, Text, TextInput, VStack} from '@astryxdesign/core';
+import {Banner, Button, Card, Heading, HStack, Selector, Text, TextInput, VStack} from '@astryxdesign/core';
 import {useActionState, useEffect, useRef, useState} from 'react';
 import {settingsSaveAction, type ActionState} from '@/app/actions';
+import {BUNDESLAENDER} from '@/lib/feiertage';
 
 const INITIAL: ActionState = {error: null};
+
+const LAND_OPTIONS = Object.entries(BUNDESLAENDER).map(([value, label]) => ({value, label}));
 
 interface SettingsFormProps {
   mergeWindowMin: number;
   /** Cutoff as HH:MM, or '' when auto-closing is switched off. */
   autoCloseCutoff: string;
+  /** Two-letter code, or '' when no holidays should be computed. */
+  bundesland: string;
 }
 
 /**
- * The two settings that decide how the app treats imperfect records. Both are
- * conservative by default: merge only true mis-clicks, and never close a
- * forgotten day behind the employee's back.
+ * Company-wide settings. The defaults are deliberately conservative: merge
+ * only true mis-clicks, never close a forgotten day behind the employee's
+ * back, and invent no holidays until someone names the Bundesland.
  */
 export function SettingsForm(props: SettingsFormProps) {
   const [mergeWindow, setMergeWindow] = useState(String(props.mergeWindowMin));
   const [cutoff, setCutoff] = useState(props.autoCloseCutoff);
+  const [land, setLand] = useState(props.bundesland);
   const [isSaved, setSaved] = useState(false);
   const [state, formAction, isSaving] = useActionState(settingsSaveAction, INITIAL);
   const lastState = useRef(state);
@@ -80,6 +86,31 @@ export function SettingsForm(props: SettingsFormProps) {
               htmlName="autoCloseCutoff"
               placeholder="z. B. 20:00 – leer = aus"
               width={200}
+            />
+          </VStack>
+        </Card>
+
+        <Card padding={4}>
+          <VStack gap={3}>
+            <VStack gap={1}>
+              <Heading level={2}>Feiertage</Heading>
+              <Text type="supporting" color="secondary">
+                Gesetzliche Feiertage werden aus dem Bundesland berechnet und zählen als bezahlte Abwesenheit – sie
+                erzeugen also kein Minus im Zeitkonto und gelten nicht als fehlender Tag. Für einzelne Mitarbeiter in
+                einem anderen Bundesland lässt sich das im Mitarbeiterprofil überschreiben. Ohne Angabe werden keine
+                Feiertage berechnet.
+              </Text>
+            </VStack>
+            <Selector
+              label="Bundesland"
+              options={LAND_OPTIONS}
+              value={land}
+              onChange={edit(setLand)}
+              htmlName="bundesland"
+              placeholder="Kein Bundesland gewählt"
+              hasSearch
+              searchPlaceholder="Bundesland suchen"
+              width={280}
             />
           </VStack>
         </Card>

@@ -7,7 +7,9 @@ import {useState, useTransition} from 'react';
 import {segmentConfirmAction, segmentResizeAction} from '@/app/actions';
 import {fmtDate, fmtDateLong, fmtDuration} from '@/lib/format';
 import type {Issue} from '@/lib/attention';
+import type {DayTypeKind} from '@/lib/db';
 import {AddEntryButton} from './add-entry-button';
+import {DayTypeControl} from './day-type-control';
 import {DayTimeline, type TimelineSegment} from './day-timeline';
 import {EntryList} from './entry-list';
 import {SegmentEditor} from './segment-editor';
@@ -23,6 +25,8 @@ interface DayDetailProps {
   sollMin: number;
   canEdit: boolean;
   lockedNote?: string;
+  dayType?: DayTypeKind | null;
+  dayTypeLabel?: string | null;
   /** What this day needs, if anything — shown inline above the entries. */
   issues?: Issue[];
   /**
@@ -77,7 +81,16 @@ export function DayDetail(props: DayDetailProps) {
             )}
           </Text>
         </VStack>
-        {props.canEdit && <AddEntryButton onClick={() => openEditor(null)} />}
+        <HStack gap={2} vAlign="center" wrap="wrap">
+          <DayTypeControl
+            userId={props.userId}
+            date={props.date}
+            type={props.dayType ?? null}
+            computedLabel={props.dayTypeLabel ?? null}
+            isDisabled={!props.canEdit}
+          />
+          {props.canEdit && <AddEntryButton onClick={() => openEditor(null)} />}
+        </HStack>
       </HStack>
 
       {props.lockedNote && <Banner status="info" title={props.lockedNote} />}

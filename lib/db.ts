@@ -13,7 +13,7 @@ type Migration = (db: Database) => void;
 // Exception: the baseline must stay idempotent (IF NOT EXISTS), because
 // databases created before versioning existed sit at user_version 0 and
 // replay it as a no-op.
-const MIGRATIONS: Migration[] = [migration1Baseline, migration2Settings, migration3AutoClose];
+const MIGRATIONS: Migration[] = [migration1Baseline, migration2Settings, migration3AutoClose, migration4DayTypes];
 
 /** The `PRAGMA user_version` a fully migrated database carries. */
 export const SCHEMA_VERSION = MIGRATIONS.length;
@@ -79,6 +79,26 @@ function migration3AutoClose(db: Database) {
   db.exec('ALTER TABLE segments ADD COLUMN auto_closed INTEGER NOT NULL DEFAULT 0');
 }
 
+function migration4DayTypes(db: Database) {
+  // One day type per employee and day. Public holidays are computed from the
+  // Bundesland rather than stored — a row here is only ever a human decision
+  // (or a correction of the computed holiday).
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS day_types (
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      date TEXT NOT NULL,
+      type TEXT NOT NULL CHECK (type IN ('urlaub', 'krank', 'feiertag', 'freizeitausgleich', 'fortbildung')),
+      note TEXT,
+      edited_by INTEGER REFERENCES users(id),
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (user_id, date)
+    );
+  `);
+  // Employees can sit in different states; empty falls back to the company setting.
+  db.exec('ALTER TABLE users ADD COLUMN bundesland TEXT');
+}
+
 function migrate(db: Database) {
   const row = db.query<{user_version: number}, []>('PRAGMA user_version').get();
   for (let version = row?.user_version ?? 0; version < MIGRATIONS.length; version++) {
@@ -121,6 +141,20 @@ export interface User {
   weekly_minutes: number;
   active: number;
   created_at: string;
+  /** Two-letter code; null falls back to the company-wide setting. */
+  bundesland?: string | null;
+}
+
+export type DayTypeKind = 'urlaub' | 'krank' | 'feiertag' | 'freizeitausgleich' | 'fortbildung';
+
+export interface DayTypeRow {
+  user_id: number;
+  date: string;
+  type: DayTypeKind;
+  note: string | null;
+  edited_by: number | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Segment {

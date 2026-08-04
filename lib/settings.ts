@@ -8,6 +8,9 @@ const DEFAULTS = {
   // Uhrzeit (Minuten ab Mitternacht), zu der vergessene offene Einträge
   // vorläufig geschlossen werden. Leer = deaktiviert.
   auto_close_cutoff_min: '',
+  // Bundesland für die Feiertagsberechnung; je Mitarbeiter überschreibbar.
+  // Leer = keine Feiertage berechnen (lieber nichts als das falsche Land).
+  bundesland: '',
 } as const;
 
 export type SettingKey = keyof typeof DEFAULTS;

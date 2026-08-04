@@ -10,6 +10,8 @@ export interface DayListDay {
   segments: Array<SegmentLike & {id: number}>;
   summary: {workedMin: number; pauseMin: number; hasOpen: boolean};
   sollMin: number;
+  dayType?: string | null;
+  dayTypeLabel?: string | null;
 }
 
 interface DayListProps {
@@ -72,6 +74,8 @@ export function DayList({days, selectedDate, today, nowMin, hrefFor, emptyText, 
                 <span style={{inlineSize: 104, flexShrink: 0, textAlign: 'end'}}>
                   {blocking ? (
                     <Badge variant="warning" label={SHORT_LABEL[blocking.kind] ?? 'Prüfen'} />
+                  ) : d.dayType && d.segments.length === 0 ? (
+                    <Badge variant="neutral" label={d.dayTypeLabel ?? 'Abwesend'} />
                   ) : d.segments.length > 0 ? (
                     <HStack gap={2} vAlign="center" justify="end">
                       {advisory && <StatusDot variant="warning" label={advisory.message} />}

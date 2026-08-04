@@ -3,7 +3,7 @@ import Link from 'next/link';
 import {notFound} from 'next/navigation';
 import {requireVerwaltung} from '@/lib/auth';
 import {addDays, todayISO} from '@/lib/format';
-import {getUser, zeitkontoBalance, zeitkontoLedger} from '@/lib/time';
+import {getUser, zeitkontoSummary} from '@/lib/time';
 import {KontoLedger} from '@/components/konto-ledger';
 
 export const dynamic = 'force-dynamic';
@@ -19,8 +19,7 @@ export default async function TeamKontoPage({params}: PageProps) {
   if (!user || !user.active) notFound();
 
   const through = addDays(todayISO(), -1);
-  const rows = zeitkontoLedger(user, through);
-  const balance = zeitkontoBalance(user, through);
+  const summary = zeitkontoSummary(user, through);
 
   return (
     <VStack gap={5} padding={5}>
@@ -35,7 +34,7 @@ export default async function TeamKontoPage({params}: PageProps) {
         </Link>
         <Heading level={1}>Zeitkonto – {user.name}</Heading>
       </VStack>
-      <KontoLedger rows={rows} balanceMin={balance} />
+      <KontoLedger summary={summary} />
     </VStack>
   );
 }

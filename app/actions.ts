@@ -23,7 +23,9 @@ import {
 import {monthOf, todayISO} from '@/lib/format';
 import {createUser, resetPassword, setUserActive, updateUser, type UserInput} from '@/lib/users';
 import {setSetting} from '@/lib/settings';
-import {getDb} from '@/lib/db';
+import {setDayType} from '@/lib/daytypes';
+import {isBundesland} from '@/lib/feiertage';
+import {getDb, type DayTypeKind} from '@/lib/db';
 
 export interface ActionState {
   error: string | null;
@@ -105,6 +107,18 @@ export async function segmentSaveAction(_prev: ActionState, formData: FormData):
   if (error) return {error};
   revalidatePath('/', 'layout');
   return OK;
+}
+
+export async function dayTypeSaveAction(
+  userId: number,
+  date: string,
+  type: DayTypeKind | null,
+  note?: string,
+): Promise<ActionState> {
+  const actor = await requireUser();
+  const error = setDayType(actor, userId, date, type, note);
+  revalidatePath('/', 'layout');
+  return {error};
 }
 
 export async function segmentConfirmAction(segmentId: number): Promise<ActionState> {
@@ -194,6 +208,7 @@ function userInputFromForm(formData: FormData): UserInput {
     email: String(formData.get('email') ?? ''),
     role: (String(formData.get('role') ?? 'mitarbeiter') as UserInput['role']),
     weeklyMinutes: Math.round(Number(formData.get('weeklyHours') ?? 0) * 60),
+    bundesland: String(formData.get('bundesland') ?? '').trim(),
   };
 }
 
@@ -246,8 +261,12 @@ export async function settingsSaveAction(_prev: ActionState, formData: FormData)
     cutoff = String(parsed);
   }
 
+  const land = String(formData.get('bundesland') ?? '').trim();
+  if (land !== '' && !isBundesland(land)) return {error: 'Unbekanntes Bundesland.'};
+
   setSetting('merge_window_min', String(merge));
   setSetting('auto_close_cutoff_min', cutoff);
+  setSetting('bundesland', land);
   revalidatePath('/', 'layout');
   return OK;
 }

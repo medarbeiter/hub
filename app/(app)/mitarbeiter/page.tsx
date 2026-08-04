@@ -25,6 +25,7 @@ export default async function MitarbeiterPage() {
           role: u.role,
           weekly_minutes: u.weekly_minutes,
           active: u.active,
+          bundesland: u.bundesland ?? null,
         }))}
         selfId={actor.id}
       />
