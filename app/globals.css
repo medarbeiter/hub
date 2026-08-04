@@ -29,6 +29,26 @@
   outline-offset: -2px;
 }
 
+/* Timeline entries advertise their interactivity without a helper sentence:
+   pointer cursor (inline), hover ring, and a pencil that appears on
+   hover/focus. Focus ring in icon-accent bronze, same rationale as above. */
+.zeitleiste-eintrag .zeitleiste-stift {
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+.zeitleiste-eintrag:hover .zeitleiste-stift,
+.zeitleiste-eintrag:focus-visible .zeitleiste-stift {
+  opacity: 1;
+}
+.zeitleiste-eintrag:hover .zeitleiste-block {
+  /* !important: the block's resting shadow is an inline style (state-dependent). */
+  box-shadow: var(--shadow-inset-hover), var(--shadow-low) !important;
+}
+.zeitleiste-eintrag:focus-visible {
+  outline: 2px solid var(--color-icon-accent);
+  outline-offset: 2px;
+}
+
 /* The one authored motion moment: the live tip of the growing gold segment
    breathes at its lower edge while the clock runs. */
 .zeitleiste-live-tip {

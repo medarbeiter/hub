@@ -1,6 +1,7 @@
 'use client';
 
 import {Text} from '@astryxdesign/core';
+import {Pencil} from 'lucide-react';
 import {useEffect, useRef, useState} from 'react';
 import {fmtDuration, fmtTime, type SegmentLike} from '@/lib/format';
 
@@ -166,7 +167,9 @@ export function DayTimeline({
           const segStart = preview?.start ?? s.start_min;
           const segEnd = preview?.end ?? s.end_min ?? (isToday ? Math.max(nowMin, s.start_min + 1) : s.start_min + 1);
           const top = y(segStart);
-          const blockHeight = Math.max(y(segEnd) - top, 6);
+          // Flush neighbours get a visible seam so each entry reads as its own block.
+          const hasAdjacentNext = s.end_min !== null && segments.some((o) => o.start_min === s.end_min);
+          const blockHeight = Math.max(y(segEnd) - top - (hasAdjacentNext ? 2 : 0), 6);
           const dur = segEnd - segStart;
           const isArbeit = s.kind === 'arbeit';
           const isDragging = drag?.id === s.id;
@@ -175,6 +178,7 @@ export function DayTimeline({
           const canResize = Boolean(onSegmentResize) && !isOpen;
           const inner = (
             <span
+              className="zeitleiste-block"
               style={{
                 position: 'absolute',
                 inset: 0,
@@ -200,9 +204,12 @@ export function DayTimeline({
                   <Text type="label" size="sm" weight="semibold" hasTabularNumbers color="inherit">
                     {fmtTime(segStart)}–{isOpen ? '…' : fmtTime(segEnd)}
                   </Text>
-                  <Text type="supporting" size="sm" color="inherit" hasTabularNumbers>
-                    {isArbeit ? (isOpen ? `läuft · ${fmtDuration(dur)}` : fmtDuration(dur)) : `Pause ${fmtDuration(dur)}`}
-                  </Text>
+                  <span style={{display: 'flex', alignItems: 'center', gap: 'var(--spacing-1-5)'}}>
+                    <Text type="supporting" size="sm" color="inherit" hasTabularNumbers>
+                      {isArbeit ? (isOpen ? `läuft · ${fmtDuration(dur)}` : fmtDuration(dur)) : `Pause ${fmtDuration(dur)}`}
+                    </Text>
+                    {onSegmentClick && <Pencil className="zeitleiste-stift" size={14} strokeWidth={2} aria-hidden />}
+                  </span>
                 </>
               )}
             </span>
@@ -224,6 +231,7 @@ export function DayTimeline({
               {onSegmentClick ? (
                 <button
                   type="button"
+                  className="zeitleiste-eintrag"
                   aria-label={`${label} bearbeiten`}
                   onClick={() => {
                     if (suppressClick.current) {
@@ -323,16 +331,20 @@ export function DayTimeline({
             transition: 'top var(--duration-slow) var(--ease-standard)',
           }}
         >
+          {/* Pill lives in the axis gutter, clear of entry bars and their labels;
+              it may cover the nearest hour label — the current time is the
+              strictly more useful figure there. */}
           <span
             style={{
               position: 'absolute',
-              insetInlineEnd: 0,
+              insetInlineStart: -AXIS_WIDTH,
               transform: 'translateY(-50%)',
               background: 'var(--color-text-accent)',
               color: 'var(--color-background-surface)',
               borderRadius: 'var(--radius-full)',
               padding: '0 var(--spacing-2)',
               lineHeight: 1.6,
+              zIndex: 2,
             }}
           >
             <Text type="label" size="sm" color="inherit" hasTabularNumbers>

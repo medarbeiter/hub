@@ -93,11 +93,17 @@ export default async function ZeitenPage({searchParams}: PageProps) {
                           <StatusDot variant="warning" label="Offener Eintrag" />
                         ) : d.segments.length > 0 ? (
                           <Text type="supporting" color="secondary" hasTabularNumbers>
-                            {fmtDuration(d.summary.workedMin)}{' '}
-                            <span style={{color: diff >= 0 ? 'var(--color-text-accent)' : 'inherit'}}>
-                              ({diff >= 0 ? '+' : ''}
-                              {fmtDuration(diff)})
-                            </span>
+                            {fmtDuration(d.summary.workedMin)}
+                            {/* Running day: no signed deficit until Soll is met or the day is over. */}
+                            {(!isToday || diff >= 0) && (
+                              <>
+                                {' '}
+                                <span style={{color: diff >= 0 ? 'var(--color-text-accent)' : 'inherit'}}>
+                                  ({diff >= 0 ? '+' : ''}
+                                  {fmtDuration(diff)})
+                                </span>
+                              </>
+                            )}
                           </Text>
                         ) : (
                           <Text type="supporting" color="disabled">

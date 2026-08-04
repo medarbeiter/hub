@@ -7,6 +7,7 @@ import {useRouter} from 'next/navigation';
 import {segmentResizeAction, stampAction, undoStampAction} from '@/app/actions';
 import {daySummary, fmtDate, fmtDateLong, fmtTime, nowMinutes} from '@/lib/format';
 import type {ClockStatus} from '@/lib/time';
+import {AddEntryButton} from './add-entry-button';
 import {DayTimeline, type TimelineSegment} from './day-timeline';
 import {SegmentEditor} from './segment-editor';
 import {StampCard, type StampAction} from './stamp-card';
@@ -238,7 +239,7 @@ export function HeuteView(props: HeuteViewProps) {
                   </Text>
                 </HStack>
               </VStack>
-              <Button label="Eintrag hinzufügen" variant="ghost" size="sm" onClick={() => openEditor(null)} />
+              <AddEntryButton onClick={() => openEditor(null)} />
             </HStack>
             {actionError && <Banner status="error" title={actionError} />}
             <Card padding={4}>
@@ -254,7 +255,6 @@ export function HeuteView(props: HeuteViewProps) {
               />
             </Card>
             <Text type="supporting" color="secondary">
-              Einträge anklicken, um sie zu korrigieren – oder Kanten direkt auf der Zeitleiste ziehen.{' '}
               <Link href="/zeiten" style={{color: 'var(--color-text-accent)'}}>
                 Alle Zeiten ansehen
               </Link>

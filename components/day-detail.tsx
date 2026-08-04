@@ -5,6 +5,7 @@ import {useRouter} from 'next/navigation';
 import {useState, useTransition} from 'react';
 import {segmentResizeAction} from '@/app/actions';
 import {fmtDateLong, fmtDuration, fmtTime} from '@/lib/format';
+import {AddEntryButton} from './add-entry-button';
 import {DayTimeline, type TimelineSegment} from './day-timeline';
 import {SegmentEditor} from './segment-editor';
 
@@ -63,9 +64,7 @@ export function DayDetail(props: DayDetailProps) {
             )}
           </Text>
         </VStack>
-        {props.canEdit && (
-          <Button label="Eintrag hinzufügen" variant="secondary" size="sm" onClick={() => openEditor(null)} />
-        )}
+        {props.canEdit && <AddEntryButton onClick={() => openEditor(null)} />}
       </HStack>
 
       {props.lockedNote && <Banner status="info" title={props.lockedNote} />}
@@ -126,13 +125,21 @@ export function DayDetail(props: DayDetailProps) {
         </Card>
       )}
 
+      {/* A running day is framed forward ("noch …"), never as a deficit —
+          the signed delta appears only once the day is over or Soll is met. */}
       {props.sollMin > 0 && props.segments.length > 0 && (
         <Text type="supporting" color="secondary" hasTabularNumbers>
-          Differenz zum Soll:{' '}
-          <span style={{color: diff >= 0 ? 'var(--color-text-accent)' : 'var(--color-text-secondary)'}}>
-            {diff >= 0 ? '+' : ''}
-            {fmtDuration(diff)} Std.
-          </span>
+          {props.isToday && diff < 0 ? (
+            <>noch {fmtDuration(-diff)} Std. bis zum Soll</>
+          ) : (
+            <>
+              Differenz zum Soll:{' '}
+              <span style={{color: diff >= 0 ? 'var(--color-text-accent)' : 'var(--color-text-secondary)'}}>
+                {diff >= 0 ? '+' : ''}
+                {fmtDuration(diff)} Std.
+              </span>
+            </>
+          )}
         </Text>
       )}
 
