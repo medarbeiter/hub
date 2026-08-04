@@ -7,7 +7,15 @@ declare global {
   var __medarbeiterDb: Database | undefined;
 }
 
-function migrate(db: Database) {
+type Migration = (db: Database) => void;
+
+// Append-only: shipped migrations are never edited, only new ones added.
+// Exception: the baseline must stay idempotent (IF NOT EXISTS), because
+// databases created before versioning existed sit at user_version 0 and
+// replay it as a no-op.
+const MIGRATIONS: Migration[] = [migration1Baseline, migration2Settings];
+
+function migration1Baseline(db: Database) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -49,6 +57,26 @@ function migrate(db: Database) {
       PRIMARY KEY (user_id, month)
     );
   `);
+}
+
+function migration2Settings(db: Database) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+}
+
+function migrate(db: Database) {
+  const row = db.query<{user_version: number}, []>('PRAGMA user_version').get();
+  for (let version = row?.user_version ?? 0; version < MIGRATIONS.length; version++) {
+    db.transaction(() => {
+      MIGRATIONS[version]!(db);
+      db.exec(`PRAGMA user_version = ${version + 1}`);
+    })();
+  }
 }
 
 export function createDb(path: string): Database {
