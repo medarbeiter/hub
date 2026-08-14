@@ -2,6 +2,7 @@
   "name": "medarbeiter_timetracker",
   "type": "module",
   "private": true,
+  "engines": {"bun": "1.3.13"},
   "scripts": {
     "dev": "bun --bun next dev",
     "build": "bun --bun next build",
