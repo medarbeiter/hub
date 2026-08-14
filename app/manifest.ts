@@ -2,10 +2,15 @@ import type {MetadataRoute} from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'MedArbeiter Zeiterfassung',
-    short_name: 'MedArbeiter',
+    name: 'MedArbeiter Hub',
+    short_name: 'MedArbeiter Hub',
     description: 'Arbeitszeiterfassung für MedArbeiter: Einstempeln, Pausen, Überstunden und Monatsabschluss.',
+    // `id` bindet die installierte Anwendung an eine feste Kennung: ohne sie
+    // gilt `start_url` als Identität, und eine spätere Änderung daran ergäbe
+    // eine zweite Installation neben der ersten.
+    id: '/',
     start_url: '/',
+    scope: '/',
     display: 'standalone',
     lang: 'de',
     background_color: '#faf8f3',

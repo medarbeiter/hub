@@ -161,7 +161,7 @@ describe('night-shift rollover', () => {
 
   test('clocking in while the night shift is running reports "already clocked in"', () => {
     openYesterday(22 * 60);
-    expect(stamp(userId, 'einstempeln', 30, TODAY)).toBe('Sie sind bereits eingestempelt.');
+    expect(stamp(userId, 'einstempeln', 30, TODAY)).toBe('Du bist bereits eingestempelt.');
   });
 
   test('an implausibly long open segment is a forgotten clock-out, not a night shift', () => {

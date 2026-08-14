@@ -3,7 +3,6 @@
 import {
   Banner,
   Button,
-  Dialog,
   DialogHeader,
   HStack,
   SegmentedControl,
@@ -16,29 +15,58 @@ import {
 import {createISOTimeString} from '@astryxdesign/core/utils';
 import {useActionState, useEffect, useRef, useState, useTransition} from 'react';
 import {segmentDeleteAction, segmentSaveAction, type ActionState} from '@/app/actions';
-import {fmtDateLong, fmtTime} from '@/lib/format';
-import type {TimelineSegment} from './day-timeline';
+import {fmtDateLong, fmtDuration, fmtTime, isoToMin, type TimelineSegment} from '@/lib/format';
+import {Sinnbild} from './sinnbilder';
+import {TafelDialog} from './tafel-dialog';
 
 interface SegmentEditorProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   userId: number;
   date: string;
-  /** Existing segment to correct, or null to create a new entry. */
+  /** Existing segment to correct, or null to record a new one. */
   segment: TimelineSegment | null;
+  /** The day's other entries — for the prefill and the overlap check. */
+  tagesSegmente?: TimelineSegment[];
+  /** Minutes-from-midnight if this day is today, otherwise null. */
+  nowMin?: number | null;
 }
 
 const INITIAL: ActionState = {error: null};
+const SNAP = 5;
 
 /**
- * Correction dialog: edits one segment in place (or records a new one).
- * An open (running/forgotten) segment requires an end time to be entered —
- * that is exactly how a forgotten clock-out gets fixed.
+ * Where the day is filled in by hand: correcting one entry, or recording one
+ * the clock never saw. The lane above is the faster path for the common case;
+ * this dialog is the precise one, and the only one a keyboard can reach.
  */
-export function SegmentEditor({isOpen, onOpenChange, userId, date, segment}: SegmentEditorProps) {
+export function SegmentEditor({
+  isOpen,
+  onOpenChange,
+  userId,
+  date,
+  segment,
+  tagesSegmente = [],
+  nowMin = null,
+}: SegmentEditorProps) {
+  /**
+   * A new entry opens where the day left off: after the last entry, or at the
+   * usual start of a day. The end is only prefilled while the day is running —
+   * guessing an end for a past day would invent hours, not save typing.
+   */
+  const vorschlag = () => {
+    const enden = tagesSegmente.map((s) => s.end_min ?? s.start_min);
+    const beginn = enden.length > 0 ? Math.max(...enden) : 8 * 60;
+    const jetzt = nowMin != null ? Math.floor(nowMin / SNAP) * SNAP : null;
+    return {
+      start: fmtTime(Math.min(beginn, 1440 - SNAP)),
+      end: jetzt != null && jetzt > beginn ? fmtTime(jetzt) : '',
+    };
+  };
+
   const [kind, setKind] = useState<string>(segment?.kind ?? 'arbeit');
-  const [start, setStart] = useState<string>(segment ? fmtTime(segment.start_min) : '');
-  const [end, setEnd] = useState<string>(segment?.end_min != null ? fmtTime(segment.end_min) : '');
+  const [start, setStart] = useState<string>('');
+  const [end, setEnd] = useState<string>('');
   const [note, setNote] = useState<string>(segment?.note ?? '');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -46,14 +74,22 @@ export function SegmentEditor({isOpen, onOpenChange, userId, date, segment}: Seg
   const [state, formAction, isSaving] = useActionState(segmentSaveAction, INITIAL);
   const lastState = useRef(state);
 
-  // Re-sync fields when a different segment is opened.
+  // Re-sync when a different entry (or a fresh one) is opened.
   useEffect(() => {
+    if (!isOpen) return;
     setKind(segment?.kind ?? 'arbeit');
-    setStart(segment ? fmtTime(segment.start_min) : '');
-    setEnd(segment?.end_min != null ? fmtTime(segment.end_min) : '');
+    if (segment) {
+      setStart(fmtTime(segment.start_min));
+      setEnd(segment.end_min != null ? fmtTime(segment.end_min) : '');
+    } else {
+      const v = vorschlag();
+      setStart(v.start);
+      setEnd(v.end);
+    }
     setNote(segment?.note ?? '');
     setConfirmDelete(false);
     setDeleteError(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [segment, isOpen]);
 
   // Close after a successful save.
@@ -64,47 +100,83 @@ export function SegmentEditor({isOpen, onOpenChange, userId, date, segment}: Seg
     }
   }, [state, isOpen, onOpenChange]);
 
+  const startMin = isoToMin(start);
+  const endMin = isoToMin(end);
+
+  /**
+   * The same rules the server enforces, said early. The server check stays
+   * authoritative — this only spares the round trip and names the conflict.
+   */
+  const hinweis = (): string | null => {
+    if (startMin === null || endMin === null) return null;
+    if (endMin <= startMin) return 'Das Ende muss nach dem Beginn liegen.';
+    for (const other of tagesSegmente) {
+      if (other.id === segment?.id || other.id < 0) continue;
+      const otherEnd = other.end_min ?? (nowMin ?? 1440);
+      if (startMin < otherEnd && other.start_min < endMin) {
+        return `Überschneidung mit ${fmtTime(other.start_min)}–${
+          other.end_min === null ? 'offen' : fmtTime(other.end_min)
+        }.`;
+      }
+    }
+    return null;
+  };
+
+  const konflikt = hinweis();
+  const dauer = startMin !== null && endMin !== null && endMin > startMin ? endMin - startMin : null;
   const isOpenSegment = segment != null && segment.end_min === null;
 
   return (
-    <Dialog isOpen={isOpen} onOpenChange={onOpenChange} purpose="form" width={420}>
-      <DialogHeader
-        title={segment ? 'Eintrag korrigieren' : 'Eintrag hinzufügen'}
-        subtitle={fmtDateLong(date)}
-      />
+    <TafelDialog isOpen={isOpen} onOpenChange={onOpenChange} purpose="form" width={440}>
+      <DialogHeader title={segment ? 'Eintrag korrigieren' : 'Eintrag hinzufügen'} subtitle={fmtDateLong(date)} />
       <form action={formAction}>
         <VStack gap={4} padding={4}>
           {isOpenSegment && (
             <Banner
               status="warning"
               title="Offener Eintrag"
-              description="Dieser Eintrag wurde nie beendet. Tragen Sie das tatsächliche Ende ein, um ihn zu korrigieren."
+              description="Dieser Eintrag wurde nie beendet. Trage das tatsächliche Ende ein, um ihn zu korrigieren."
             />
           )}
           {state.error && <Banner status="error" title={state.error} />}
           {deleteError && <Banner status="error" title={deleteError} />}
 
           <SegmentedControl label="Art des Eintrags" value={kind} onChange={setKind} layout="fill">
-            <SegmentedControlItem value="arbeit" label="Arbeit" />
-            <SegmentedControlItem value="pause" label="Pause" />
+            <SegmentedControlItem value="arbeit" label="Arbeit" icon={<Sinnbild sinn="arbeit" />} />
+            <SegmentedControlItem value="pause" label="Pause" icon={<Sinnbild sinn="pause" />} />
           </SegmentedControl>
 
-          <HStack gap={3}>
-            <TimeInput
-              label="Beginn"
-              hourFormat="24h"
-              value={start ? (createISOTimeString(start) ?? undefined) : undefined}
-              onChange={(v) => setStart(v ?? '')}
-              width="100%"
-            />
-            <TimeInput
-              label="Ende"
-              hourFormat="24h"
-              value={end ? (createISOTimeString(end) ?? undefined) : undefined}
-              onChange={(v) => setEnd(v ?? '')}
-              width="100%"
-            />
-          </HStack>
+          <VStack gap={1.5}>
+            <HStack gap={3}>
+              <TimeInput
+                label="Beginn"
+                hourFormat="24h"
+                value={start ? (createISOTimeString(start) ?? undefined) : undefined}
+                onChange={(v) => setStart(v ?? '')}
+                width="100%"
+              />
+              <TimeInput
+                label="Ende"
+                hourFormat="24h"
+                value={end ? (createISOTimeString(end) ?? undefined) : undefined}
+                onChange={(v) => setEnd(v ?? '')}
+                width="100%"
+              />
+            </HStack>
+            {/* The number the entry is actually about, while it is being typed. */}
+            <HStack justify="between" gap={2} vAlign="center">
+              <Text type="supporting" color="secondary" hasTabularNumbers>
+                {dauer !== null
+                  ? `Ergibt ${fmtDuration(dauer)} Std. ${kind === 'arbeit' ? 'Arbeitszeit' : 'Pause'}.`
+                  : 'Beginn und Ende im Format HH:MM.'}
+              </Text>
+              {konflikt && (
+                <Text type="supporting" color="inherit">
+                  <span style={{color: 'var(--color-error)'}}>{konflikt}</span>
+                </Text>
+              )}
+            </HStack>
+          </VStack>
 
           <TextInput
             label="Notiz"
@@ -131,6 +203,7 @@ export function SegmentEditor({isOpen, onOpenChange, userId, date, segment}: Seg
                     variant="destructive"
                     size="sm"
                     isLoading={isDeleting}
+                    icon={<Sinnbild sinn="entfernen" />}
                     onClick={() =>
                       startDelete(async () => {
                         const result = await segmentDeleteAction(segment.id);
@@ -141,18 +214,33 @@ export function SegmentEditor({isOpen, onOpenChange, userId, date, segment}: Seg
                   />
                 </HStack>
               ) : (
-                <Button label="Eintrag löschen" variant="ghost" size="sm" onClick={() => setConfirmDelete(true)} />
+                <Button
+                  label="Eintrag löschen"
+                  variant="ghost"
+                  size="sm"
+                  /* Siehe reise-tafel.tsx: der Weg ins Löschen trägt die
+                     Fehlerfarbe, die Bestätigung die volle Fläche. */
+                  style={{color: 'var(--color-error)'}}
+                  icon={<Sinnbild sinn="entfernen" />}
+                  onClick={() => setConfirmDelete(true)}
+                />
               )
             ) : (
               <span />
             )}
             <HStack gap={2}>
               <Button label="Abbrechen" variant="secondary" onClick={() => onOpenChange(false)} />
-              <Button label="Speichern" variant="primary" type="submit" isLoading={isSaving} />
+              <Button
+                label="Speichern"
+                variant="primary"
+                type="submit"
+                isLoading={isSaving}
+                isDisabled={konflikt !== null}
+              />
             </HStack>
           </HStack>
         </VStack>
       </form>
-    </Dialog>
+    </TafelDialog>
   );
 }

@@ -3,6 +3,7 @@
 // gap, and the balance quietly stops meaning anything.
 
 import {getDb, type DayTypeKind, type DayTypeRow, type User} from './db';
+import {hatRecht} from './rechte';
 import {dailySollMinutes, monthOf, todayISO} from './format';
 import {holidayName, holidaysInRange, isBundesland, type Bundesland} from './feiertage';
 import {getSetting} from './settings';
@@ -127,7 +128,7 @@ export function setDayType(
   type: DayTypeKind | null,
   note?: string,
 ): string | null {
-  if (actor.role !== 'verwaltung' && actor.id !== userId) return 'Keine Berechtigung.';
+  if (!hatRecht(actor, 'zeit.korrigieren') && actor.id !== userId) return 'Keine Berechtigung.';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateISO)) return 'Ungültiges Datum.';
   const locked = getDb()
     .query<{month: string}, [number, string]>('SELECT month FROM month_locks WHERE user_id = ? AND month = ?')

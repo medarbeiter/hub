@@ -1,7 +1,7 @@
 'use client';
 
 import {Button} from '@astryxdesign/core';
-import {Plus} from 'lucide-react';
+import {Sinnbild} from './sinnbilder';
 
 /** The one appearance of "Eintrag hinzufügen", identical on every surface. */
 export function AddEntryButton({onClick}: {onClick: () => void}) {
@@ -10,7 +10,7 @@ export function AddEntryButton({onClick}: {onClick: () => void}) {
       label="Eintrag hinzufügen"
       variant="secondary"
       size="sm"
-      icon={<Plus size={16} strokeWidth={2} aria-hidden />}
+      icon={<Sinnbild sinn="hinzufuegen" />}
       onClick={onClick}
     />
   );

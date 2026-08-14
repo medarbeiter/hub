@@ -1,13 +1,12 @@
 'use client';
 
-import {Button, useToast} from '@astryxdesign/core';
 import {createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode} from 'react';
 import {useRouter} from 'next/navigation';
 import {stampAction, undoStampAction} from '@/app/actions';
-import {daySummary, fmtTime, nowMinutes, type DaySummary} from '@/lib/format';
+import {daySummary, fmtTime, nowMinutes, type DaySummary, type TimelineSegment} from '@/lib/format';
 import {checkDay, feierabendPrognose, type DayCompliance, type Prognose} from '@/lib/arbzg';
+import {useMelde} from './melde';
 import type {ClockStatus} from '@/lib/time';
-import type {TimelineSegment} from './day-timeline';
 
 export type StampAction = 'einstempeln' | 'pause' | 'fortsetzen' | 'ausstempeln';
 
@@ -29,6 +28,15 @@ export interface ClockValue {
   /** Today's ArbZG picture, provisional while the day runs. */
   compliance: DayCompliance;
   stamp: (action: StampAction) => Promise<{error: string | null}>;
+  /**
+   * Zählt die erfolgreichen Stempelungen dieser Sitzung. Nur dafür da, dass die
+   * Stempelleiste ihre Quittung zeichnen kann — und zwar auch dann, wenn
+   * gestempelt wurde, ohne sie anzufassen (der aufgeklappte Eintrag „Meine
+   * Zeit" in der Seitenleiste kann dasselbe). Der Zustand ist die einzige
+   * Wahrheit; ein zweiter Auslöser in der Leiste wäre ein zweiter Ort, an dem
+   * dieselbe Handlung bekannt sein müsste.
+   */
+  stempelungen: number;
 }
 
 const ClockContext = createContext<ClockValue | null>(null);
@@ -37,6 +45,14 @@ export function useClock(): ClockValue {
   const value = useContext(ClockContext);
   if (!value) throw new Error('useClock benötigt einen ClockProvider.');
   return value;
+}
+
+/**
+ * The clock where it may legitimately be absent — the manager's view of another
+ * employee, where "today" is somebody else's day and must stay a server value.
+ */
+export function useClockOptional(): ClockValue | null {
+  return useContext(ClockContext);
 }
 
 function deriveState(segments: TimelineSegment[]): {status: ClockStatus; since: number | null} {
@@ -64,9 +80,10 @@ interface ClockProviderProps {
 export function ClockProvider(props: ClockProviderProps) {
   const [nowMin, setNowMin] = useState(props.initialNowMin);
   const [optimistic, setOptimistic] = useState<TimelineSegment[] | null>(null);
+  const [stempelungen, setStempelungen] = useState(0);
   const notifiedRef = useRef(false);
   const router = useRouter();
-  const showToast = useToast();
+  const melde = useMelde();
 
   // Fresh server data supersedes the optimistic overlay.
   useEffect(() => {
@@ -106,7 +123,7 @@ export function ClockProvider(props: ClockProviderProps) {
     if (!notifiedRef.current && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
       notifiedRef.current = true;
       new Notification('MedArbeiter – noch eingestempelt?', {
-        body: `Sie sind seit ${since !== null ? fmtTime(since) : 'heute'} ${status === 'pause' ? 'in der Pause' : 'eingestempelt'}. Ausstempeln nicht vergessen.`,
+        body: `Du bist seit ${since !== null ? fmtTime(since) : 'heute'} ${status === 'pause' ? 'in der Pause' : 'eingestempelt'}. Ausstempeln nicht vergessen.`,
         icon: '/logo-mark.png',
       });
     }
@@ -142,30 +159,31 @@ export function ClockProvider(props: ClockProviderProps) {
         setOptimistic(null);
         return result;
       }
+      // Erst jetzt: quittiert wird, was der Server angenommen hat, nicht der
+      // Klick. Eine Bestätigung, die auch bei einem Fehlschlag käme, wäre eine
+      // Lüge über einen Datensatz, auf dem die Lohnabrechnung sitzt.
+      setStempelungen((n) => n + 1);
       if (action === 'ausstempeln') {
-        const dismiss = showToast({
-          body: `Ausgestempelt um ${fmtTime(now)}`,
-          type: 'info',
-          isAutoHide: true,
+        const dismiss = melde({
+          ton: 'erfolg',
+          titel: `Ausgestempelt um ${fmtTime(now)}`,
           autoHideDuration: 30_000,
           uniqueID: 'ausstempeln-undo',
-          endContent: (
-            <Button
-              label="Rückgängig"
-              variant="secondary"
-              size="sm"
-              onClick={() => {
+          aktionen: [
+            {
+              label: 'Rückgängig',
+              onClick: () => {
                 dismiss();
                 void undoStampAction().then(() => router.refresh());
-              }}
-            />
-          ),
+              },
+            },
+          ],
         });
       }
       router.refresh();
       return {error: null};
     },
-    [props.segments, props.today, router, showToast],
+    [props.segments, props.today, router, melde],
   );
 
   const value = useMemo<ClockValue>(
@@ -181,8 +199,22 @@ export function ClockProvider(props: ClockProviderProps) {
       prognose,
       compliance,
       stamp,
+      stempelungen,
     }),
-    [props.today, nowMin, segments, status, since, sinceYesterday, summary, props.sollMin, prognose, compliance, stamp],
+    [
+      props.today,
+      nowMin,
+      segments,
+      status,
+      since,
+      sinceYesterday,
+      summary,
+      props.sollMin,
+      prognose,
+      compliance,
+      stamp,
+      stempelungen,
+    ],
   );
 
   return <ClockContext.Provider value={value}>{props.children}</ClockContext.Provider>;

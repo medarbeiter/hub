@@ -1,6 +1,9 @@
 import {getDb, type DayTypeKind, type Segment, type User} from './db';
 import {autoCloseCutoffMin, mergeWindowMin} from './settings';
+import {hatRecht} from './rechte';
 import {creditedWorkMin, effectiveSollMin, resolveDayType, resolveDayTypes} from './daytypes';
+import {eingereichteImMonat} from './spesen';
+import {offeneAntraegeImMonat} from './abwesenheit';
 import {
   addDays,
   dailySollMinutes,
@@ -187,7 +190,7 @@ export function stamp(
   const open = openSegmentToday(userId, today);
   switch (action) {
     case 'einstempeln':
-      if (open) return 'Sie sind bereits eingestempelt.';
+      if (open) return 'Du bist bereits eingestempelt.';
       if (!reopenIfWithinMergeWindow(userId, 'arbeit', now, today)) insertSegment(userId, 'arbeit', now, today);
       return null;
     case 'pause':
@@ -216,7 +219,7 @@ export function stamp(
       return null;
     }
     case 'ausstempeln':
-      if (!open) return 'Sie sind nicht eingestempelt.';
+      if (!open) return 'Du bist nicht eingestempelt.';
       closeSegment(open, now);
       return null;
   }
@@ -311,7 +314,7 @@ export function validateSegment(userId: number, input: SegmentInput, excludeId?:
 }
 
 function canEdit(actor: User, ownerId: number): boolean {
-  return actor.role === 'verwaltung' || actor.id === ownerId;
+  return hatRecht(actor, 'zeit.korrigieren') || actor.id === ownerId;
 }
 
 export function createSegment(actor: User, userId: number, input: SegmentInput): string | null {
@@ -443,7 +446,7 @@ export function monthRecord(user: User, month: string): MonthRecord {
 export function activeUsers(): User[] {
   return getDb()
     .query<User, []>(
-      'SELECT id, email, name, role, weekly_minutes, active, created_at, bundesland FROM users WHERE active = 1 ORDER BY name',
+      'SELECT id, email, name, role, weekly_minutes, active, created_at, bundesland, urlaubstage_jahr FROM users WHERE active = 1 ORDER BY name',
     )
     .all();
 }
@@ -452,7 +455,7 @@ export function getUser(id: number): User | null {
   return (
     getDb()
       .query<User, [number]>(
-        'SELECT id, email, name, role, weekly_minutes, active, created_at, bundesland FROM users WHERE id = ?',
+        'SELECT id, email, name, role, weekly_minutes, active, created_at, bundesland, urlaubstage_jahr FROM users WHERE id = ?',
       )
       .get(id) ?? null
   );
@@ -603,7 +606,7 @@ export function zeitkontoLedger(user: User, throughISO: string): LedgerRow[] {
 // ---------------------------------------------------------------------------
 
 export function lockMonth(actor: User, userId: number, month: string): string | null {
-  if (actor.role !== 'verwaltung') return 'Keine Berechtigung.';
+  if (!hatRecht(actor, 'abschluss.verwalten')) return 'Keine Berechtigung.';
   if (month >= monthOf(todayISO())) return 'Der laufende Monat kann noch nicht abgeschlossen werden.';
   const user = getUser(userId);
   if (!user) return 'Mitarbeiter nicht gefunden.';
@@ -614,12 +617,22 @@ export function lockMonth(actor: User, userId: number, month: string): string | 
     )
     .get(userId, month);
   if (open && open.n > 0) return 'Offene Einträge müssen vor dem Abschluss korrigiert werden.';
+  // Eine eingereichte Spesenabrechnung wartet auf eine Entscheidung; ein Abschluss
+  // würde sie einfrieren, bevor jemand sie gesehen hat.
+  if (eingereichteImMonat(userId, month) > 0) {
+    return 'Eingereichte Reisen müssen vor dem Abschluss geprüft werden.';
+  }
+  // Dasselbe für einen Urlaubs- oder Ausgleichsantrag: er ändert das Zeitkonto
+  // erst mit der Genehmigung, und ein Abschluss davor schlösse ihn aus.
+  if (offeneAntraegeImMonat(userId, month) > 0) {
+    return 'Eingereichte Abwesenheitsanträge müssen vor dem Abschluss entschieden werden.';
+  }
   getDb().query('INSERT INTO month_locks (user_id, month, locked_by) VALUES (?, ?, ?)').run(userId, month, actor.id);
   return null;
 }
 
 export function unlockMonth(actor: User, userId: number, month: string): string | null {
-  if (actor.role !== 'verwaltung') return 'Keine Berechtigung.';
+  if (!hatRecht(actor, 'abschluss.verwalten')) return 'Keine Berechtigung.';
   getDb().query('DELETE FROM month_locks WHERE user_id = ? AND month = ?').run(userId, month);
   return null;
 }

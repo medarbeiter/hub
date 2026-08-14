@@ -1,7 +1,9 @@
 import {notFound} from 'next/navigation';
-import {requireVerwaltung} from '@/lib/auth';
-import {fmtDate, fmtDuration, fmtMonth, fmtTime, fmtWeekdayShort} from '@/lib/format';
-import {activeUsers, isMonthLocked, monthRecord} from '@/lib/time';
+import {requireUser} from '@/lib/auth';
+import {hatRecht} from '@/lib/rechte';
+import {fmtDate, fmtDateMitWochentag, fmtDuration, fmtMonth, fmtTime} from '@/lib/format';
+import {activeUsers, firstRecordedDate, isMonthLocked, monthRecord} from '@/lib/time';
+import {dayTypeCounts} from '@/lib/daytypes';
 import {PrintToolbar} from '@/components/print-toolbar';
 
 export const dynamic = 'force-dynamic';
@@ -17,12 +19,22 @@ interface PageProps {
  * produces the payroll PDF.
  */
 export default async function DruckPage({params, searchParams}: PageProps) {
-  await requireVerwaltung();
+  /**
+   * Bis hierher kam nur die Verwaltung — Mitarbeitende wurden wortlos auf die
+   * Startseite geschickt. Der eigene Arbeitszeitnachweis ist aber genau das:
+   * der eigene. Wer angemeldet ist, bekommt sein Blatt; alle Blätter und die
+   * Blätter anderer bleiben der Verwaltung vorbehalten (dieselbe Grenze wie
+   * bei den Belegen in `api/beleg/[id]`).
+   */
+  const user = await requireUser();
   const {monat} = await params;
   const query = await searchParams;
   if (!/^\d{4}-\d{2}$/.test(monat)) notFound();
 
   const filterId = query.mitarbeiter ? Number(query.mitarbeiter) : null;
+  const istVerwaltung = hatRecht(user, 'zeit.team');
+  if (!istVerwaltung && filterId !== user.id) notFound();
+
   const users = activeUsers().filter((u) => filterId === null || u.id === filterId);
   if (users.length === 0) notFound();
 
@@ -45,6 +57,24 @@ export default async function DruckPage({params, searchParams}: PageProps) {
         const record = monthRecord(u, monat);
         const recorded = record.days.filter((d) => d.segments.length > 0);
         const locked = isMonthLocked(u.id, monat);
+        const abwesenheit = dayTypeCounts(u, monat);
+        /**
+         * Arbeitstage, an denen weder gestempelt noch eine Tagesart gewählt
+         * wurde. Der Bildschirm nennt sie („Nicht gezählt: 3 Arbeitstage ohne
+         * Eintrag"), das Blatt ließ sie stillschweigend weg — und unter dem
+         * Blatt stehen zwei Unterschriftslinien. Ein Nachweis, der eine Lücke
+         * verschweigt, behauptet, es gebe keine. Tage vor dem ersten Eintrag
+         * zählen nicht als Lücke (dieselbe Regel wie im Zeitkonto).
+         */
+        const erster = firstRecordedDate(u.id);
+        const luecken = record.days.filter(
+          (d) =>
+            d.sollMin > 0 &&
+            d.segments.length === 0 &&
+            d.dayType === null &&
+            erster !== null &&
+            d.date >= erster,
+        );
         return (
           <section key={u.id} className="druck-blatt">
             <header style={{display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 16}}>
@@ -80,9 +110,7 @@ export default async function DruckPage({params, searchParams}: PageProps) {
                   const diff = day.summary.workedMin - day.sollMin;
                   return (
                     <tr key={day.date}>
-                      <td>
-                        {fmtWeekdayShort(day.date)}, {fmtDate(day.date)}
-                      </td>
+                      <td>{fmtDateMitWochentag(day.date)}</td>
                       <td>{fmtTime(first.start_min)}</td>
                       <td>{open ? 'offen' : fmtTime(last.end_min!)}</td>
                       <td className="num">{fmtDuration(day.summary.workedMin)}</td>
@@ -102,7 +130,7 @@ export default async function DruckPage({params, searchParams}: PageProps) {
                   );
                 })}
                 <tr className="druck-summe">
-                  <td colSpan={3}>Summe ({recorded.length} Tage)</td>
+                  <td colSpan={3}>Summe ({recorded.length} {recorded.length === 1 ? 'Tag' : 'Tage'})</td>
                   <td className="num">{fmtDuration(record.workedMin)}</td>
                   <td className="num" />
                   <td className="num">{fmtDuration(record.sollMin)}</td>
@@ -114,6 +142,25 @@ export default async function DruckPage({params, searchParams}: PageProps) {
                 </tr>
               </tbody>
             </table>
+            {/* Die Abwesenheitstage stehen nicht in der Tabelle — sie haben
+                keine Zeiten. Auf einem Blatt mit zwei Unterschriftslinien
+                dürfen sie trotzdem nicht fehlen: ohne sie sieht ein Monat mit
+                zwei Wochen Urlaub aus wie ein Monat mit einem großen Minus. */}
+            {abwesenheit.length > 0 && (
+              <p style={{marginTop: 12, fontSize: 12}}>
+                <strong>Abwesend:</strong>{' '}
+                {abwesenheit.map((a) => `${a.days} ${a.days === 1 ? 'Tag' : 'Tage'} ${a.label}`).join(', ')}.
+                Diese Tage tragen kein Soll und sind in der Differenz nicht enthalten.
+              </p>
+            )}
+            {luecken.length > 0 && (
+              <p style={{marginTop: 12, fontSize: 12}}>
+                <strong>Nicht erfasst:</strong> {luecken.length}{' '}
+                {luecken.length === 1 ? 'Arbeitstag' : 'Arbeitstage'} ohne Eintrag und ohne Tagesart (
+                {luecken.map((d) => fmtDate(d.date)).join(', ')}). Diese Tage sind in Summe, Soll und
+                Differenz nicht enthalten.
+              </p>
+            )}
             <footer style={{marginTop: 48, display: 'flex', gap: 48, fontSize: 12}}>
               <div style={{flex: 1, borderTop: '1px solid #1c1917', paddingTop: 6}}>Datum, Unterschrift Mitarbeiter</div>
               <div style={{flex: 1, borderTop: '1px solid #1c1917', paddingTop: 6}}>Datum, Unterschrift Verwaltung</div>

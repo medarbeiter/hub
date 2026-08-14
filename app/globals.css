@@ -1,50 +1,1154 @@
-/* Responsive composition the component layer can't express: the fixed right
-   rail goes full-width on narrow viewports. The clock action needs no mobile
-   duplicate anymore — the sticky .stempel-leiste is first in DOM and viewport
-   on every breakpoint, so visual order and focus order stay identical. */
+/* Pause stone. Not an Astryx token and deliberately outside the --color-*
+   namespace the theme owns: the value is a project fact (it clears 3:1 on the
+   parchment track so a break is findable at a glance) that no semantic Astryx
+   slot expresses. It used to be pasted as #8b8474 into three components. */
+:root {
+  --farbe-pause: #8b8474;
+
+  /* Das gefüllte Warnorange — dieselbe Farbe, die die Warnmarke und der
+     Pausenpunkt tragen. Astryx hält sie nur komponentenweise vor
+     (`--color-warning` löst je nach Bauteil auf Text- oder Füllgrad auf),
+     also steht der Füllgrad hier einmal als Projektfakt. Sie schafft 3,24:1
+     auf Weiß — der Boden für eine bedeutungstragende Fläche. */
+  --farbe-warnung-flaeche: #dd7200;
+}
+
+/* ---------------------------------------------------------------------------
+   Der Takt — das eine Bewegungssystem der Anwendung.
+
+   Alles in dieser Anwendung ist Zeit, und Zeit springt nicht: sie läuft in
+   eine Richtung und kommt zur Ruhe. Daraus folgen vier Taktzeiten und vier
+   Kurven, und aus nichts anderem darf eine Bewegung hier gebaut werden. Keine
+   davon ist linear — eine Bewegung mit gleichbleibender Geschwindigkeit hat
+   in der Wirklichkeit kein Vorbild und liest sich als Maschine.
+
+   Die Regel, die alle zusammenhält: **der Abgang ist schneller als der
+   Auftritt.** Was geht, soll die Aufmerksamkeit räumen; was kommt, soll Zeit
+   bekommen, gelesen zu werden.
+   --------------------------------------------------------------------------- */
+:root {
+  /* Vier Taktzeiten, nach Weg und Folge — nicht nach Geschmack. */
+  --takt-tupf: var(--duration-fast); /* unmittelbare Rückmeldung: Druck, Überfahren */
+  --takt-schritt: 220ms; /* ein Zustand wechselt an Ort und Stelle */
+  --takt-zug: var(--duration-medium); /* Aufbau, Überlagerung */
+  --takt-bogen: var(--duration-slow); /* der eine ausgeschriebene Auftritt */
+  --takt-fort: 150ms; /* jeder Abgang, ausnahmslos */
+
+  /* Ankommen: exponentielles Auslaufen. Fast der ganze Weg im ersten Drittel
+     der Zeit, dann ein langes Nachgeben — das ist das „Buttrige". */
+  --schwung-an: cubic-bezier(0.16, 1, 0.3, 1);
+  /* Weggehen: beschleunigt hinaus. Nie dieselbe Kurve wie das Ankommen. */
+  --schwung-ab: cubic-bezier(0.55, 0, 1, 0.45);
+  /* Sich bewegen, ohne zu kommen oder zu gehen: beide Enden weich. Für alles,
+     was seinen Platz wechselt (Jetzt-Marke, Aufklappen, Blockkanten). */
+  --schwung-zug: cubic-bezier(0.32, 0.72, 0, 1);
+  /* easeOutBack von easings.co: ein einzelnes, gebremstes Überschwingen für
+     die seltene Einrichtung — federnd, ohne elastisches Wackeln. */
+  --schwung-feder: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Druck ist direkte Manipulation: Der Knopf gibt beim Niederdrücken sofort
+   einen kleinen Weg nach und kehrt aus seinem aktuellen Bild zurück. Nur die
+   eigentlichen Astryx-Knöpfe werden körperlich — Tabellenzeilen und Zeitbahnen
+   bleiben maßhaltig, weil eine Skalierung dort Daten verschieben würde. */
+.zeit-blatt .astryx-button {
+  transition: transform var(--takt-tupf) var(--schwung-an);
+}
+.zeit-blatt .astryx-button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* Astryx' eigene Übergänge fahren dieselbe Kurve wie alles, was hier steht.
+   Ein Knopf, ein Eingabefeld, ein aufklappender Navigationseintrag und eine
+   Zeitleiste sollen sich gleich anfühlen — sonst ist es nicht ein System,
+   sondern zwei. globals.css steht außerhalb jeder `@layer`, astryx.css
+   vollständig innerhalb einer; unbeschichtete Regeln gewinnen, deshalb genügt
+   diese eine Zeile. Die Dauerstufen der Bibliothek (125/300/700 ms) bleiben,
+   wo sie sind: sie decken sich mit --takt-tupf/-zug/-bogen. */
+:root {
+  --ease-standard: var(--schwung-an);
+}
+
+/* Die Rinne für den Rollbalken bleibt stehen, auch wenn eine Ansicht kurz
+   genug ist, um ohne auszukommen. Sonst sprang beim Wechsel von „Monat" auf
+   „Konto" die ganze Seite um 15 px nach rechts — ein Rahmen, der bei jedem
+   Bereichswechsel zuckt, ist kein Rahmen.
+
+   `overflow-y: scroll` muss dabeistehen: am Wurzelelement reicht die Rinne
+   allein nicht, weil dessen `overflow: visible` an den Viewport durchgereicht
+   wird und `scrollbar-gutter` damit wirkungslos bleibt. */
+html {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+
+/* Anmeldung und persönliche Prüfung sind ein Zugang statt zwei Seiten. Der
+   schmale Anmeldebeleg wird nach erfolgreicher Prüfung zum Einrichtungsblatt:
+   400/720 px sind Inhaltsmaße für zwei unterschiedliche Aufgaben (zwei
+   Zugangsfelder gegen eine Auswahlmatrix), keine Abstandsentscheidungen. */
+.zugang-seite {
+  min-block-size: 100dvh;
+  display: grid;
+  place-items: start center;
+  background: radial-gradient(
+    120% 90% at 50% 0%,
+    color-mix(in srgb, var(--color-accent) 14%, var(--color-background-body)) 0%,
+    var(--color-background-body) 55%
+  );
+}
+
+.zugang-rahmen {
+  max-inline-size: 400px;
+  padding-block: var(--spacing-12) var(--spacing-4);
+  transition: max-inline-size var(--takt-bogen) var(--schwung-feder);
+}
+.zugang-rahmen[data-phase='oeffnen'],
+.zugang-rahmen[data-phase='einrichtung'] {
+  max-inline-size: 720px;
+}
+.zugang-karte {
+  overflow: clip;
+  transition: box-shadow var(--takt-bogen) var(--schwung-an);
+}
+.zugang-kopf {
+  background: var(--color-background-muted);
+  border-block-end: var(--border-width) solid var(--color-border);
+}
+.zugang-kopf-start {
+  min-inline-size: 0;
+  flex: 1;
+}
+.zugang-logo-marke {
+  flex: none;
+}
+.zugang-schritttitel {
+  min-inline-size: 0;
+}
+
+/* Der Kontowechsel ist der eine ausgeschriebene Auftritt dieser Oberfläche:
+   die Anmeldung räumt zügig, die längere Einrichtung öffnet sich danach aus
+   demselben Blatt. Grid-Zeilen sind hier das Accordion-Maß; die Inhalte bleiben
+   im Ausgangszustand sichtbar, falls eine Animation nicht läuft. */
+.zugang-anmeldung,
+.zugang-einrichtung {
+  display: grid;
+  overflow: hidden;
+}
+.zugang-anmeldung {
+  grid-template-rows: 1fr;
+  transition: grid-template-rows var(--takt-fort) var(--schwung-ab);
+}
+.zugang-einrichtung {
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--takt-bogen) var(--schwung-feder) 60ms;
+}
+.zugang-anmeldung > section,
+.zugang-einrichtung > section {
+  min-block-size: 0;
+  overflow: hidden;
+}
+.zugang-rahmen[data-phase='oeffnen'] .zugang-anmeldung,
+.zugang-rahmen[data-phase='einrichtung'] .zugang-anmeldung {
+  grid-template-rows: 0fr;
+}
+.zugang-rahmen[data-phase='oeffnen'] .zugang-einrichtung,
+.zugang-rahmen[data-phase='einrichtung'] .zugang-einrichtung {
+  grid-template-rows: 1fr;
+}
+.zugang-einrichtung-inhalt[data-bereit='false'] {
+  visibility: hidden;
+  opacity: 0;
+}
+.zugang-einrichtung-inhalt[data-bereit='true'] {
+  animation: zugang-gesamt-herein 320ms var(--schwung-an) both;
+}
+@keyframes zugang-gesamt-herein {
+  from { opacity: 0; }
+}
+.zugang-logininhalt {
+  animation: zugang-logininhalt-herein var(--takt-zug) var(--schwung-an) both;
+}
+@keyframes zugang-logininhalt-herein {
+  from { transform: translateX(var(--spacing-2)); }
+}
+.zugang-schritt-buehne { overflow: clip; }
+.zugang-schritt[data-wechsel='abgang'] {
+  animation: zugang-schritt-hinaus 180ms var(--schwung-ab) both;
+}
+@keyframes zugang-schritt-hinaus {
+  to { opacity: 0; }
+}
+.zugang-schritt[data-wechsel='messen'],
+.zugang-schritt[data-wechsel='groesse'] {
+  visibility: hidden;
+  opacity: 0;
+}
+.zugang-schritt[data-wechsel='eingang'] {
+  animation: zugang-schritt-herein 320ms var(--schwung-an) both;
+}
+.zugang-schritttitel[data-wechsel='abgang'] {
+  animation: zugang-schritt-hinaus 180ms var(--schwung-ab) both;
+}
+.zugang-schritttitel[data-wechsel='messen'],
+.zugang-schritttitel[data-wechsel='groesse'] {
+  visibility: hidden;
+  opacity: 0;
+}
+.zugang-schritttitel[data-wechsel='eingang'] {
+  animation: zugang-schritt-herein 320ms var(--schwung-an) both;
+}
+@keyframes zugang-schritt-herein {
+  from { opacity: 0; }
+}
+
+/* Die Felder erscheinen als lesbare Gruppe, nicht als gleichzeitig
+   aufspringende Wand. Der Versatz ist auf 160 ms gedeckelt und bewegt nur;
+   Inhalte bleiben auch dann sichtbar, wenn eine Animation nicht tickt. */
+.zugang-schritt[data-wechsel='eingang'] .zugang-schritt-inhalt > *,
+.zugang-schritt[data-wechsel='eingang'] .zugang-schritt-staffel > * {
+  animation: zugang-element-herein 280ms var(--schwung-an) both;
+}
+.zugang-schritt-inhalt > :nth-child(2),
+.zugang-schritt-staffel > :nth-child(2) { animation-delay: 40ms; }
+.zugang-schritt-inhalt > :nth-child(3),
+.zugang-schritt-staffel > :nth-child(3) { animation-delay: 80ms; }
+.zugang-schritt-inhalt > :nth-child(4),
+.zugang-schritt-staffel > :nth-child(4) { animation-delay: 120ms; }
+.zugang-schritt-inhalt > :nth-child(n + 5),
+.zugang-schritt-staffel > :nth-child(n + 5) { animation-delay: 160ms; }
+@keyframes zugang-element-herein {
+  from { opacity: 0; }
+}
+.zugang-schritt[data-schritt='passwort'] .zugang-schritt-inhalt > form,
+.zugang-schritt[data-schritt='google'] .zugang-schritt-inhalt > form {
+  inline-size: 100%;
+}
+.zugang-schritt-aktionen {
+  padding-block-start: var(--spacing-3);
+  border-block-start: var(--border-width) solid var(--color-border);
+}
+.zugang-identitaet {
+  border-block: var(--border-width) solid var(--color-border);
+}
+/* Ankerpunkt für Googles eigenes Knopf-Widget (GIS): der Inhalt kommt aus
+   Googles Skript und lässt sich nicht mit Astryx-Bausteinen setzen. Nur
+   zentriert und mit reservierter Höhe, damit das Nachladen nichts verschiebt. */
+.google-knopf {
+  display: flex;
+  justify-content: center;
+  min-block-size: 44px;
+}
+.zugang-einstellungsgruppe {
+  border-block: var(--border-width) solid var(--color-border);
+}
+.zugang-hinweis-einstellung {
+  border-block-start: var(--border-width) solid var(--color-border);
+}
+
+/* Die Profilfiguren sind zehn lokale Bilder. Sie bleiben eine rein lokale
+   Wahl: Kein Foto-Upload und keine fremde URL erfährt, wer sich anmeldet. */
+.tieravatar {
+  --tieravatar-groesse: calc(var(--spacing-6) + var(--spacing-1));
+  display: inline-block;
+  flex-shrink: 0;
+  inline-size: var(--tieravatar-groesse);
+  block-size: var(--tieravatar-groesse);
+  border-radius: var(--radius-full);
+  object-fit: cover;
+  box-shadow: inset 0 0 0 var(--border-width) var(--color-border-emphasized);
+}
+.tieravatar[data-gross='true'] {
+  --tieravatar-groesse: calc(var(--spacing-10) + var(--spacing-4));
+}
+
+.avatar-auswahl {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.avatar-auswahl legend {
+  margin: 0;
+  padding: 0;
+}
+.avatar-auswahl > p {
+  margin-block: 0 var(--spacing-3);
+}
+.avatar-option {
+  position: relative;
+  display: block;
+  padding: var(--spacing-3);
+  border-radius: var(--radius-element);
+  background: var(--color-background-muted);
+  box-shadow: inset 0 0 0 var(--border-width) var(--color-border);
+  cursor: pointer;
+  transition:
+    transform var(--takt-tupf) var(--schwung-an),
+    background-color var(--takt-schritt) var(--schwung-an),
+    box-shadow var(--takt-schritt) var(--schwung-an);
+}
+.avatar-option input {
+  position: absolute;
+  inline-size: var(--border-width);
+  block-size: var(--border-width);
+  opacity: 0;
+  pointer-events: none;
+}
+.avatar-option:has(input:checked) {
+  background: var(--color-accent-muted);
+  box-shadow: inset 0 0 0 var(--border-width-emphasized) var(--color-icon-accent);
+}
+.avatar-option:has(input:focus-visible) {
+  outline: var(--border-width-emphasized) solid var(--color-icon-accent);
+  outline-offset: var(--spacing-1);
+}
+.avatar-option:active {
+  transform: scale(0.97);
+}
+@media (hover: hover) and (pointer: fine) {
+  .avatar-option:hover {
+    transform: translateY(calc(-1 * var(--border-width-emphasized)));
+  }
+}
+
+@media (max-width: 600px) {
+  .zugang-seite {
+    place-items: start center;
+  }
+  .zugang-rahmen {
+    max-inline-size: 100%;
+    padding-block-start: var(--spacing-6);
+  }
+  /* Vier kurze Bereiche bleiben eine zusammengehörige Auswahl. Astryx gibt
+     jedem Eintrag sonst seine Inhaltsbreite; auf dem Telefon würde „Konto"
+     dadurch rechts abgeschnitten. */
+  .zugang-einstellungsgruppe .astryx-segmented-control-item {
+    min-inline-size: 0;
+    padding-inline: var(--spacing-1);
+  }
+  .zugang-schritt-aktionen {
+    flex-wrap: nowrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zugang-rahmen,
+  .zugang-karte,
+  .zugang-anmeldung,
+  .zugang-einrichtung,
+  .avatar-option {
+    transition-duration: 0.01ms;
+    transition-delay: 0ms;
+  }
+  .zugang-schritt {
+    animation: none;
+  }
+  .zugang-schritttitel {
+    animation: none !important;
+  }
+  .zugang-logininhalt,
+  .zugang-einrichtung-inhalt[data-bereit='true'],
+  .zugang-schritt-inhalt > *,
+  .zugang-schritt-staffel > * {
+    animation: none;
+  }
+  .avatar-option:active,
+  .avatar-option:hover {
+    transform: none;
+  }
+}
+
+/* Stammdaten sind Begriff-Wert-Paare, keine Kennzahlen-Tabelle. Das echte
+   definition list hält diese Beziehung auch ohne die zweispaltige Darstellung. */
+.profil-daten {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  margin: 0;
+}
+.profil-daten dt,
+.profil-daten dd {
+  padding-block: var(--spacing-2);
+  border-block-end: var(--border-width) solid var(--color-border);
+}
+.profil-daten dd {
+  margin: 0;
+  text-align: end;
+  overflow-wrap: anywhere;
+}
+.profil-daten dt:nth-last-of-type(1),
+.profil-daten dd:last-child {
+  border-block-end: 0;
+}
+.profil-daten[data-variante='pruefung'] {
+  padding-inline: var(--spacing-4);
+  border-radius: var(--radius-container);
+  background: var(--color-background-muted);
+  box-shadow: inset 0 0 0 var(--border-width) var(--color-border);
+}
+
+.kontozeile-profil {
+  min-inline-size: 0;
+  flex: 1;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--spacing-2);
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--radius-element);
+  outline: none;
+}
+.kontozeile-profil:hover {
+  color: var(--color-text-accent);
+}
+.kontozeile-profil:focus-visible {
+  outline: var(--border-width-emphasized) solid var(--color-icon-accent);
+  outline-offset: var(--spacing-1);
+}
+.kontozeile-profil-eng {
+  display: block;
+  flex: none;
+}
+
+@media (max-width: 600px) {
+  .profil-daten {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .profil-daten dt {
+    padding-block-end: 0;
+    border-block-end: 0;
+  }
+  .profil-daten dd {
+    padding-block-start: var(--spacing-1);
+    text-align: start;
+  }
+}
+
+/* The sheet. Every band of "Meine Zeit" is full-bleed so the header wash and
+   the row dividers reach the window edges, but the content inside is bounded:
+   stretched across a 1900px monitor, a dense time table stops being readable
+   and the page reads as unfinished rather than spacious. Astryx has no
+   max-width primitive, so the cap lives here. */
+/* Doubled selector so the cap wins against the component's own atomic width
+   rule. `inline-size: 100%` is required: without it the box is a shrink-to-fit
+   flex item and collapses to its content instead of filling out to the cap. */
+.zeit-blatt.zeit-blatt {
+  inline-size: 100%;
+  max-inline-size: 1180px;
+  margin-inline: auto;
+}
+
+/* The one deliberate exception to the Gold-Is-Work rule, documented in
+   DESIGN.md: the header band wears the accent's pastel tint fading into the
+   paper body — the marketing site's gold wash, which PRODUCT.md records as
+   brand evidence. It carries no meaning and no text sits on the saturated end,
+   so gold still identifies only worked time and the primary action. */
+.kopf-band {
+  background: linear-gradient(
+    180deg,
+    var(--color-accent-muted) 0%,
+    color-mix(in srgb, var(--color-accent-muted) 30%, var(--color-background-body)) 62%,
+    var(--color-background-body) 100%
+  );
+  border-block-end: var(--border-width) solid var(--color-border);
+}
+
+/* Stage + Belege beside the context rail. A grid rather than a wrapping row
+   because a flex item's floor is its min-content width, and the day stack's
+   fixed columns exceed any sensible basis — which put the rail underneath a
+   month of lanes. `minmax(0, 1fr)` is what lets the main column actually
+   shrink. Doubled selector to beat the component's own atomic display rule. */
+.zeit-inhalt.zeit-inhalt {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: var(--spacing-5);
+  align-items: start;
+}
+.zeit-inhalt.einspaltig,
+.zeit-inhalt > * {
+  min-inline-size: 0;
+}
+.zeit-inhalt.einspaltig.einspaltig {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Responsive composition the component layer can't express: below the one
+   breakpoint the rail stops being a column and follows the record. The clock
+   action needs no mobile duplicate — the sticky .stempel-leiste is first in DOM
+   and viewport on every breakpoint, so visual order and focus order stay
+   identical. */
 @media (max-width: 920px) {
-  .heute-rail {
-    width: 100% !important;
+  .zeit-inhalt.zeit-inhalt {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Der Kopf auf dem Telefon. Titel, Zahl, Einheit, Standzeile und darunter die
+   Bereichsleiste mit ihren beiden umbrechenden Reihen füllten auf einem 390×844
+   großen Gerät gut die halbe Höhe — man sah den Kopf und die erste Bahn, sonst
+   nichts. Die Zahl bleibt die Hauptsache, aber sie muss nicht 48 px hoch sein,
+   wenn daneben kein Platz ist: engere Ränder und eine Stufe kleiner geben rund
+   ein Drittel des Kopfes an den Inhalt zurück.
+
+   Doppelter Selektor, weil die Textkomponente ihre Größe über eine eigene
+   Klasse setzt — dieselbe Notwehr wie bei .zeit-blatt. */
+@media (max-width: 600px) {
+  .kopf-blatt.kopf-blatt {
+    padding-block: var(--spacing-3);
+    gap: var(--spacing-3);
+  }
+  .kopf-figur.kopf-figur > * {
+    font-size: var(--font-size-3xl);
+    line-height: 1.1;
+  }
+}
+
+/* Der aufklappende Navigationseintrag bewegt sich mit Astryx' eigener
+   Übergangsdefinition (`grid-template-rows` von 0fr auf 1fr, 300 ms,
+   --ease-standard) — dieselbe Technik, die .bahn-ausklapp weiter unten für
+   den sich öffnenden Tag beschreibt. Deshalb steht hier keine eigene
+   Animation.
+
+   Was Astryx allerdings nicht mitbringt, ist die Rücksicht auf
+   `prefers-reduced-motion`; in dieser Anwendung ist jede Bewegung dort
+   stillgelegt. Doppelte Klasse, um die atomaren Ein-Klassen-Regeln der
+   Bibliothek zu schlagen — dieselbe Notwehr wie bei .zeit-blatt. */
+@media (prefers-reduced-motion: reduce) {
+  .astryx-side-nav.astryx-side-nav,
+  .astryx-side-nav.astryx-side-nav * {
+    transition: none;
+    animation: none;
+  }
+}
+
+/* Die Seitenleiste bleibt bewusst AUSSERHALB des Kranzes: ihr eigenes Papier
+   gegen die Goldwäsche von Stempelleiste und Kopfband macht sie als zweiten
+   Abschnitt der Schale lesbar — eine Entscheidung des Nutzers (2026-08-07),
+   nachdem eine Fassung mit durchlaufender Wäsche beide Spalten verschmolz.
+
+   Und wenn es zwei Abschnitte sind, wird die Naht gezeichnet: derselbe
+   Haarstrich, den das Kopfband unten zieht, hier an der Innenkante. Zwei
+   Papiere, die sich ohne Linie berühren, sind keine zwei Abschnitte — sie
+   sind eine Fläche mit einem Farbunterschied, den man für ein Versehen
+   halten kann. */
+.astryx-side-nav.astryx-side-nav {
+  border-inline-end: var(--border-width) solid var(--color-border);
+}
+
+/* 288px statt Astryx' 260: die Vorgabe ist an englischen Beschriftungen
+   gemessen, und dieses Haus spricht Deutsch. „Teamkalender" mit einer
+   Auskunft daneben stieß bei 260 an — gemessen fehlten dem Wort genau vier
+   Pixel, und es stand mit Auslassungspunkten da.
+
+   Eine feste Breite statt Astryx' `resizable`: der Ziehgriff spannte bei
+   schmalem Fenster einen zweiten, waagerechten Fahrbalken unter die Leiste
+   auf, weil sein Raster die Restbreite der Bühne nicht kannte. Eine feste
+   Zahl kann das nicht — sie ist bei jeder Fensterbreite dieselbe Entscheidung.
+   Eingeklappt gilt die Zahl nicht: dort bestimmt Astryx' eigener
+   `--spacing-12` die Zeichenspalte. */
+.astryx-side-nav.astryx-side-nav {
+  inline-size: 288px;
+}
+.astryx-side-nav[data-eingeklappt='true'].astryx-side-nav[data-eingeklappt='true'] {
+  inline-size: var(--spacing-12);
+}
+
+/* Die Breitenbewegung der Schiene erst, wenn der gemerkte Zustand da ist —
+   sonst führe die Leiste beim ersten Bild sichtbar zusammen (siehe
+   `data-bereit` in app-nav.tsx). */
+.astryx-side-nav[data-bereit='false'],
+.astryx-side-nav[data-bereit='false'] * {
+  transition: none !important;
+}
+
+/* Der Ruf in der Schiene.
+ *
+ * Eingeklappt lässt Astryx das `endContent` weg — in einer Zeichenspalte ist
+ * für eine Marke kein Platz. Damit verschwände aber die Auskunft, derentwegen
+ * die Marke da ist. An ihrer Stelle steht dann ein Punkt an der oberen
+ * Außenecke des Zeichens: *dass* etwas offen ist, bleibt sichtbar; *wie viel*,
+ * sagt der Kurzhinweis und die ausgeklappte Leiste.
+ *
+ * Warnorange wie die Marke selbst, mit einem Ring in der Leistenfarbe, damit
+ * der Punkt auch dann als eigenes Ding liest, wenn er auf einem gewählten,
+ * goldgewaschenen Eintrag sitzt. Er trägt seine Aussage nicht allein — der
+ * Kurzhinweis nennt den Eintrag, und ausgeklappt steht die Zahl da. */
+.nav-eintrag {
+  display: block;
+  position: relative;
+}
+/* Die Naht zwischen den drei Verwaltungs-Gruppen (Verwaltung / Auswertung /
+   Stammdaten). Vorher trennte sie nur der Abstand zwischen zwei
+   `SideNavSection`-Blöcken — auf den ersten Blick eine einzige, elf Einträge
+   lange Liste mit ein wenig Luft darin. Ein Haarstrich macht die Gruppierung
+   sichtbar, ohne selbst etwas zu bedeuten: dieselbe stille Linie wie über dem
+   Tagesstand im Fuß, kein zweiter Ton. */
+.verwaltung-trenner {
+  border-block-start: var(--border-width) solid var(--color-border);
+  margin-block-start: var(--spacing-1);
+  padding-block-start: var(--spacing-1);
+}
+
+.astryx-side-nav[data-eingeklappt='true'] .nav-eintrag[data-ruft='true']::after {
+  content: '';
+  position: absolute;
+  inset-block-start: 4px;
+  inset-inline-end: 8px;
+  inline-size: 8px;
+  block-size: 8px;
+  border-radius: var(--radius-full);
+  background: var(--farbe-warnung-flaeche);
+  box-shadow: 0 0 0 2px var(--color-background-body);
+  pointer-events: none;
+}
+
+/* Der Tagesstand über der Kontozeile: zwei stille Zahlen, kein zweiter
+   Eintrag. Eine erste Fassung stand in einer eigenen Karte mit Rahmen und
+   Hinterlegung im Überfahren — das ließ eine bloße Auskunft wie eine dritte
+   Schaltfläche neben Stempeln und Abmelden aussehen. Jetzt trägt nur der
+   Haarstrich über ihm die Abgrenzung zur Liste (dieselbe Linie, die auch die
+   Verwaltungs-Gruppen trennt), und das Überfahren färbt die Schrift statt
+   eine Fläche zu heben — leise genug für eine Zeile, die man liest, nicht
+   drückt. */
+.nav-tagesstand {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  border-block-start: var(--border-width) solid var(--color-border);
+  transition: color var(--takt-tupf) var(--schwung-an);
+}
+.nav-tagesstand:hover {
+  color: var(--color-text-accent);
+}
+.nav-tagesstand:focus-visible {
+  outline: 2px solid var(--color-icon-accent);
+  outline-offset: -2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav-tagesstand {
+    transition: none;
+  }
+}
+
+/* Der gewählte Eintrag spricht die Sprache des Hauses: Goldwäsche mit
+   Bronzetinte statt Astryx' kühlem Grau — dieselbe Auszeichnung, die im
+   Monatsgitter den offenen Tag trägt. Die Füllung allein erreicht auf dem
+   Papier der Leiste keinen Boden (Wäsche auf Papier ≈1,1:1), also zieht der
+   Bronze-Haarstrich die Kante — wie auf jeder bedeutungstragenden Goldfläche
+   (gerechnet in tests/kontrast.test.ts). */
+.astryx-side-nav .astryx-side-nav-item.selected {
+  background: var(--color-accent-muted);
+  box-shadow: inset 0 0 0 1px var(--color-icon-accent);
+  color: var(--color-text-accent);
+}
+
+/* Der Faden eines aufgeklappten Eintrags — wie ein Diskussionsbaum: eine
+   senkrechte Linie, von der aus ein kurzer Steg zu jedem Kind abgeht.
+
+   Die Maße sind aus der Leiste abgelesen, nicht gegriffen: das Zeichen eines
+   Eintrags hat seine Mitte bei 24 px, seine Beschriftung beginnt bei 40 px.
+   Astryx rückt die Kinder auf 32 px ein — die −8 px holen den Faden auf die
+   Zeichenmitte zurück, 2 px Linie plus 14 px Abstand setzen den Inhalt exakt
+   unter die Beschriftung. Der Faden läuft damit dort herunter, wo das Zeichen
+   steht, und die Kinder stehen dort, wo das Wort steht.
+
+   Rein strukturell, keine Aussage: deshalb reicht die Trennlinienfarbe, und
+   der 3:1-Boden für bedeutungstragende Flächen gilt hier nicht — anders als
+   für die beiden Schaltflächen, die daran hängen. */
+.nav-zweig {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  margin-inline-start: -8px;
+  padding-inline-start: 16px;
+}
+
+.nav-zweig > * {
+  position: relative;
+}
+
+/* Jedes Kind zieht sein eigenes Stück Faden: von oben herunter und im rechten
+   Winkel zum Kind hinüber. Der Faden ist damit kein durchgehender Rahmen des
+   Behälters, sondern die Summe dieser Stücke — und endet deshalb von selbst am
+   letzten Kind, statt darunter ins Leere weiterzulaufen. */
+.nav-zweig > *::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: -16px;
+  /* Reicht in den Abstand über sich hinein, damit die Stücke aneinander
+     anschließen; über dem ersten Kind schneidet Astryx' `overflow: hidden`
+     den Überstand sauber ab. */
+  inset-block-start: calc(-1 * var(--spacing-2));
+  inset-block-end: 50%;
+  inline-size: 13px;
+  border-inline-start: 2px solid var(--color-border-emphasized);
+  border-block-end: 2px solid var(--color-border-emphasized);
+}
+
+/* Gerundet wird nur am Schluss. An einem Zwischenknoten läuft der Faden ja
+   weiter — eine Kurve dort hätte ihn erst weggebogen, um ihn darunter gerade
+   wieder aufzunehmen. Der rechte Winkel liest sich als durchgehende Linie mit
+   einem Abgang, der Bogen als deren Ende. */
+.nav-zweig > *:last-child::before {
+  border-end-start-radius: 8px;
+}
+
+/* Die Fortsetzung nach unten — aber nur, solange noch ein Kind folgt. Am
+   letzten Kind fehlt sie, und der Faden hört mit dessen Bogen auf. */
+.nav-zweig > *:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  inset-inline-start: -16px;
+  inset-block-start: 50%;
+  inset-block-end: calc(-1 * var(--spacing-2));
+  border-inline-start: 2px solid var(--color-border-emphasized);
+}
+
+/* Der Stand ist zweizeilig — auf halber Höhe träfe sein Bogen die Lücke
+   zwischen den beiden Zeilen. Er sitzt deshalb auf der Mitte der ersten. */
+.nav-zweig > .nav-zweig-stand::before {
+  inset-block-end: calc(100% - 13px);
+}
+.nav-zweig > .nav-zweig-stand:not(:last-child)::after {
+  inset-block-start: 13px;
+}
+
+/* Der Faden wächst nach unten — und nur nach unten.
+ *
+ * Vorher schoben Stand und Schaltflächen seitlich von der Zeichenspalte her
+ * ein (translateX). Das war die falsche Achse: aufklappen heißt, dass etwas
+ * *herunterkommt*, und Astryx' eigene Bewegung darunter (grid-template-rows
+ * 0fr→1fr) tut auch genau das. Zwei Achsen zugleich lasen sich als zwei
+ * Bewegungen, die zufällig gleichzeitig laufen — und die auffälligere von
+ * beiden zeigte in eine Richtung, in die hier nichts geht.
+ *
+ * Jetzt macht die Bewegung, was der Faden ist: eine Linie, die herunterläuft.
+ * Jedes Stück Faden wird von oben nach unten aufgedeckt (`clip-path`, von
+ * unten zugeschnitten), gestaffelt, sodass der Strich sichtbar an den
+ * Einträgen entlangläuft und am Bogen zum jeweiligen Kind abbiegt. Das Kind
+ * selbst setzt sich dabei die letzten paar Pixel nach unten in seine Zeile —
+ * dieselbe Richtung, kleinere Geste.
+ *
+ * `clip-path` statt `scaleY`: Skalieren zöge die 2 px starke Linie während der
+ * Bewegung dünn und stauchte den Bogen; ein Zuschnitt deckt sie in ihrer
+ * wahren Stärke auf.
+ *
+ * Die Kinder bleiben immer im Baum (Astryx hält sie unter `overflow: hidden`),
+ * deshalb ist das ein *Zustand* und keine Auftrittsanimation: Transitions,
+ * umgeschaltet über data-offen. Sie laufen rückwärts genauso ab wie vorwärts,
+ * ohne dass irgendwo eine zweite Animation dafür stünde. Es ist auch kein
+ * dritter Bewegungsmoment: es ist die Bewegung, die Astryx ohnehin macht, in
+ * derselben Achse fortgeschrieben. */
+.nav-zweig > * {
+  transform: translateY(-4px);
+  transition: transform var(--takt-zug) var(--schwung-zug);
+}
+.nav-zweig > *::before,
+.nav-zweig > *::after {
+  clip-path: inset(0 0 100% 0);
+  transition: clip-path var(--takt-zug) var(--schwung-zug);
+}
+.nav-zweig[data-offen='true'] > * {
+  transform: none;
+}
+.nav-zweig[data-offen='true'] > *::before,
+.nav-zweig[data-offen='true'] > *::after {
+  clip-path: inset(0 0 0 0);
+}
+/* Der Strich läuft weiter, während das Kind darunter schon steht: der Faden
+   erreicht das zweite Kind, nachdem er am ersten vorbei ist. */
+.nav-zweig[data-offen='true'] > *:nth-child(2),
+.nav-zweig[data-offen='true'] > *:nth-child(2)::before,
+.nav-zweig[data-offen='true'] > *:nth-child(2)::after {
+  transition-delay: 45ms;
+}
+.nav-zweig[data-offen='true'] > *:nth-child(n + 3),
+.nav-zweig[data-offen='true'] > *:nth-child(n + 3)::before,
+.nav-zweig[data-offen='true'] > *:nth-child(n + 3)::after {
+  transition-delay: 90ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-zweig > *,
+  .nav-zweig[data-offen='true'] > * {
+    transform: none;
+    transition: none;
+  }
+  .nav-zweig > *::before,
+  .nav-zweig > *::after,
+  .nav-zweig[data-offen='true'] > *::before,
+  .nav-zweig[data-offen='true'] > *::after {
+    clip-path: none;
+    transition: none;
+  }
+}
+
+/* Die kleine Zahl neben einem Eintrag (offene Abwesenheiten, wartende
+   Reisen, ...) sitzt in Astryx' eigenem Layout ganz am rechten Rand, dicht
+   am Aufklapp-Pfeil: die Beschriftung selbst trägt intern `flex: 1` und
+   schiebt alles danach an die Kante. Weder ein Prop noch ein Theme-Ziel
+   erreicht das Innere von `SideNavItem` (geprüft gegen `astryx docs
+   styling`/`astryx docs theme` — kein Data-Attribut, kein Theme-Schlüssel
+   für das Label selbst), und ein Swizzle bräuchte einen eigenen
+   StyleX-Compiler, den dieses Projekt nicht führt (`astryx docs styling`,
+   „StyleX Build Setup"). Die Zahl soll an der Beschriftung hängen, nicht am
+   Pfeil, also nimmt die Beschriftung der Aufklapp-Pfeil ihr `flex: 1`
+   wieder ab.
+
+   Zwei Selektoren, weil ein Eintrag mit Aufklapp *und* Link ein anderes
+   Gerüst trägt als ein einfacher Verweis (Astryx' „Split-Action"-Pfad):
+   einmal ist `.astryx-side-nav-item` die Zeile selbst, einmal der äußere
+   Behälter um Zeile und Pfeil-Schaltfläche — die Beschriftung steht dann
+   im ersten Kind (dem Verweis), nicht direkt in der Zeile. Jeder Eintrag
+   dieser Anwendung trägt ein Zeichen, deshalb ist die Beschriftung überall
+   verlässlich das zweite Kind. */
+.astryx-side-nav-item > *:nth-child(2),
+.astryx-side-nav-item > a > *:nth-child(2) {
+  flex: 0 1 auto;
+}
+
+/* Die Kontozeile im Fuß: dieselbe Trefferfläche und dieselbe Hinterlegung wie
+   ein Navigationseintrag, damit der Fuß nicht als Rest wirkt, der übrig blieb. */
+.kontozeile {
+  border-radius: var(--radius-inner);
+  transition: background-color var(--takt-tupf) var(--schwung-an);
+}
+.kontozeile:hover {
+  background-color: var(--color-overlay-hover);
+}
+@media (prefers-reduced-motion: reduce) {
+  .kontozeile {
+    transition: none;
   }
 }
 
 /* The persistent clock strip — the one place stamping lives, on every route.
    Sticky works against the document scroller (AppShell height="auto" has no
-   inner overflow container); no topNav, so the offset is 0. */
+   inner overflow container); no topNav, so the offset is 0.
+
+   Die Leiste ist das oberste Stück des Kopfbands, nicht ein eigenes weißes
+   Band darüber: sie trägt die volle Goldwäsche, aus der das Kopfband darunter
+   ausblendet, und in Ruhe keine eigene Kante — Leiste und Kopf sind EINE
+   Fläche (die eine Kopfband-Ausnahme der Gold-ist-Arbeit-Regel, siehe
+   DESIGN.md). Vorher war sie das einzige vollflächige Weiß der Anwendung und
+   zerschnitt genau dort, wo Logo, Begrüßung und Handlung zusammengehören. */
 .stempel-leiste {
   position: sticky;
   top: 0;
   /* Above cards, rows, and timeline pills; dialogs/toasts live in the top layer. */
   z-index: 50;
-  background: var(--color-background-surface);
-  border-block-end: var(--border-width) solid var(--color-border);
+  background: var(--color-accent-muted);
+  border-block-end: var(--border-width) solid transparent;
+  transition:
+    border-color var(--takt-tupf) var(--schwung-an),
+    box-shadow var(--takt-tupf) var(--schwung-an);
+}
+
+/* Der Fühler der Leiste: ein unsichtbares Element unmittelbar über ihr im
+   Fluss. Steht es nicht mehr im Bild, klebt die Leiste über fremdem Inhalt. */
+.stempel-fuehler {
+  display: block;
+  block-size: 1px;
+  margin-block-end: -1px;
+  visibility: hidden;
+}
+
+/* Schwebend — beim Rollen über den Inhalt — holt sich die Leiste ihre
+   Abgrenzung zurück: der Haarstrich und ein flacher Schatten tragen die
+   Kante, die Wäsche gegen das Papier allein nicht hergibt (≈1,1:1). Ein
+   Zustandsübergang, kein dritter Bewegungsmoment. */
+.stempel-leiste[data-schwebt='true'] {
+  border-block-end-color: var(--color-border);
+  box-shadow: var(--shadow-low);
 }
 
 /* Touch targets: 44px is the floor for a control used at the door, in a hurry,
    with one thumb. Applies to every viewport — a mouse loses nothing by it. */
 .stempel-leiste button {
   min-block-size: 44px;
+  /* Der Druckpunkt. Ein Knopf, den man vielmals am Tag drückt, darf spürbar
+     nachgeben — 3,5 % sind zu wenig, um zu wackeln, und genug, um den Klick zu
+     quittieren, bevor der Server geantwortet hat. */
+  transition: transform var(--takt-tupf) var(--schwung-an);
+}
+.stempel-leiste button:active {
+  transform: scale(0.965);
+}
+
+/* Die goldene Handlung auf der Goldwäsche: Füllung gegen Grund ≈1,7:1, also
+   trägt die Kante — derselbe Bronze-Haarstrich wie auf jeder
+   bedeutungstragenden Goldfläche (.arbeit-flaeche). Nur hier: auf Weiß steht
+   ein Primärknopf wie überall in der Anwendung ohne Linie, und auf dem
+   Telefon liegt die Leiste wieder auf Weiß (siehe unten). */
+.stempel-leiste .astryx-button[data-variant='primary'] {
+  box-shadow: inset 0 0 0 1px var(--color-icon-accent);
+}
+
+/* Die Quittung.
+
+   Stempeln ist die eine Handlung, um derentwillen es diese Anwendung gibt, und
+   sie hat bisher nichts zurückgegeben außer einer neuen Beschriftung. Jetzt
+   zieht ein goldener Strich einmal unter der Leiste durch und verlöscht: der
+   Datensatz ist geschrieben. Er läuft von links nach rechts wie die Zeit auf
+   jeder Bahn dieser Anwendung, und er ist die einzige Stelle, an der volles
+   Markengold als reine Bestätigung auftritt — er trägt keine Aussage, die
+   gelesen werden müsste, und unterliegt darum keinem Kontrastboden.
+
+   Als ::after auf der Leiste statt als Element im Fluss, damit nichts umbricht
+   und keine Fokusumrandung beschnitten wird. */
+.stempel-leiste::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: calc(-1 * var(--border-width));
+  block-size: 2px;
+  background: linear-gradient(90deg, var(--color-icon-accent), var(--color-accent));
+  transform: scaleX(0);
+  transform-origin: left center;
+  opacity: 0;
+  pointer-events: none;
+}
+.stempel-leiste[data-quittung='true']::after {
+  animation: quittung-strich var(--takt-bogen) var(--schwung-an);
+}
+@keyframes quittung-strich {
+  0% {
+    transform: scaleX(0);
+    opacity: 1;
+  }
+  55% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleX(1);
+    opacity: 0;
+  }
+}
+
+/* Der Stand und die Handlungen wechseln gekoppelt: aus „Einstempeln" wird
+   „Pause starten | Ausstempeln", aus dem grauen Punkt ein pulsender goldener.
+   Beide steigen aus derselben Richtung ein, damit der Wechsel als *eine*
+   Bewegung gelesen wird und nicht als zwei zufällig gleichzeitige.
+
+   Bewusst ohne Deckkraft: ein Auftritt, der `opacity` anfasst, lässt die
+   Hauptschaltfläche unsichtbar stehen, wenn die Animation nie tickt (ein
+   Hintergrundtab tut genau das) — und ein unsichtbarer Ausstempelknopf ist
+   schlimmer als einer, der nicht wandert. Schlimmstenfalls steht er 8 px tief. */
+.stempel-handlungen {
+  animation: stempel-wechsel var(--takt-schritt) var(--schwung-an) both;
+}
+.stempel-stand {
+  animation: stempel-wechsel var(--takt-schritt) var(--schwung-an) 40ms both;
+}
+@keyframes stempel-wechsel {
+  from {
+    transform: translateY(8px) scale(0.97);
+  }
+  to {
+    transform: none;
+  }
+}
+
+/* Die Übergabe.
+
+   Steht der Kopf der Seite im Bild und sagt heute selbst, hat die Leiste dazu
+   nichts beizutragen — sie zieht ihre Angaben ein. Scrollt er weg oder wechselt
+   man auf eine andere Route, kommen sie zurück. Das ist keine dritte
+   Bewegungsidee: es ist genau der Übergang, auf dem der aufklappende
+   Navigationseintrag fährt (`grid-template-rows` 0fr→1fr), nur in der anderen
+   Achse. Ein Raster mit einer Spalte, die von 1fr auf 0fr geht, und ein Inhalt,
+   der an seiner eigenen Kante abschneidet.
+
+   Warum das und nicht `display: none`: eine Angabe, die einfach verschwindet,
+   liest sich als Fehler — man sieht, dass etwas weg ist, aber nicht, dass es
+   woanders steht. So wandert die Zeile in Richtung Kopf aus dem Bild und die
+   Handlungen rücken in einer Bewegung nach.
+
+   `--takt-zug` und nicht `--takt-schritt`: es wechselt nicht ein Zustand an
+   Ort und Stelle, es räumt sich ein ganzer Bereich aus. Und `--schwung-zug`,
+   weil hier nichts ankommt oder weggeht, sondern etwas seinen Platz wechselt —
+   an beiden Enden weich. Die Deckkraft fährt bewusst nur die halbe Zeit und
+   erreicht 1 lange vor dem Ende: die Zeile soll lesbar sein, sobald sie Platz
+   hat, nicht erst danach — und bliebe der Übergang je stehen (Hintergrundtab),
+   stünde sie sichtbar da, nicht unsichtbar. */
+.stempel-angaben {
+  display: grid;
+  grid-template-columns: 1fr;
+  min-inline-size: 0;
+  transition:
+    grid-template-columns var(--takt-zug) var(--schwung-zug),
+    opacity calc(var(--takt-zug) / 2) var(--schwung-an) calc(var(--takt-zug) / 3);
+}
+.stempel-angaben > * {
+  overflow: hidden;
+  min-inline-size: 0;
+}
+/* Auf dem Schreibtisch bleibt die Reihe eine Reihe: sie bricht nicht um und
+   ihre Glieder geben nicht nach, sie schiebt sich hinter die Kante des
+   schrumpfenden Rasters. Bräche sie um, würde die Zeile während der Bewegung
+   zweimal neu gesetzt und die Leiste zuckte in der Höhe; gäben die Glieder
+   nach, würden Uhrzeiten und Zahlen unterwegs gequetscht. Auf dem Telefon ist
+   beides umgekehrt (siehe unten) — dort läuft die Höhe, nicht die Breite.
+
+   Keine Breitenangabe am Kind: eine gesetzte `inline-size` (auch
+   `max-content`) macht die Spur intrinsisch und `0fr` kollabiert dann nicht
+   mehr — das Raster bliebe stehen. */
+.stempel-stand {
+  flex-wrap: nowrap;
+}
+.stempel-stand > * {
+  flex: 0 0 auto;
+}
+
+/* Der Punkt trägt jetzt mehr, als er trug.
+
+   Solange das Wort „Eingestempelt" danebenstand, war er Schmuck — die Aussage
+   stand im Text. Jetzt ist er das Zeichen der Angabe („seit 16:38" sagt die
+   Zeit, der Punkt sagt: läuft noch), und damit eine bedeutungstragende
+   nicht-textliche Fläche mit einem Boden von 3:1. Markengold erreicht auf Weiß
+   knapp 2:1 und wird es nie — es ist die Marke.
+
+   Also dieselbe Antwort wie überall sonst in dieser Anwendung: nicht die
+   Füllung trägt den Kontrast, sondern die Kante. Ein Haarstrich in Bronze,
+   nach innen gelegt, damit der Punkt seine 8 px behält (vgl.
+   `.arbeit-flaeche`). Seit die Leiste die Goldwäsche trägt, braucht auch das
+   Warnorange eine Kante: auf Weiß stand es mit 3,3:1 von selbst über dem
+   Boden, auf der Wäsche erreicht es nur noch 2,8:1 — der Warntextton zieht
+   die Linie (gerechnet in tests/kontrast.test.ts). */
+.stempel-stand .astryx-statusdot.accent,
+.stempel-stand .astryx-statusdot[data-variant='accent'] {
+  box-shadow: inset 0 0 0 1px var(--color-icon-accent);
+}
+.stempel-stand .astryx-statusdot.warning,
+.stempel-stand .astryx-statusdot[data-variant='warning'] {
+  box-shadow: inset 0 0 0 1px var(--color-warning);
+}
+.stempel-angaben[data-gedeckt='true'] {
+  grid-template-columns: 0fr;
+  opacity: 0;
+  /* Beim Abgang keine Verzögerung und schneller als der Auftritt — die Regel
+     des Takts gilt auch hier. */
+  transition:
+    grid-template-columns var(--takt-zug) var(--schwung-zug),
+    opacity var(--takt-fort) var(--schwung-ab);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stempel-leiste {
+    transition: none;
+  }
+  .stempel-leiste button,
+  .stempel-leiste button:active {
+    transition: none;
+    transform: none;
+  }
+  .stempel-leiste[data-quittung='true']::after,
+  .stempel-handlungen,
+  .stempel-stand {
+    animation: none;
+  }
+  /* Die Übergabe selbst bleibt — sie ist eine Aussage, keine Zierde. Nur
+     ohne Weg: der Bereich ist da oder er ist es nicht. */
+  .stempel-angaben,
+  .stempel-angaben[data-gedeckt='true'] {
+    transition: none;
+  }
 }
 
 @media (max-width: 920px) {
+  /* Wie viel Platz die Leiste an der Unterkante beansprucht. Zwei Dinge müssen
+     die Zahl kennen: der Inhalt, damit seine letzte Zeile nicht darunter
+     verschwindet, und die Meldungsecke, die auf derselben Kante hängt. Eine
+     Zahl an einer Stelle, damit die beiden nicht auseinanderlaufen. */
+  :root {
+    --stempelleiste-raum: 132px;
+  }
+
   /* On a phone the clock moves to the bottom edge: always in reach of the
-     thumb, and clear of the app shell's own sticky header at the top. */
-  .stempel-leiste {
+     thumb, and clear of the app shell's own sticky header at the top. Dort
+     ist sie kein Stück des Kopfbands mehr, sondern eine schwebende
+     Werkzeugfläche über beliebigem Inhalt — sie kehrt auf Weiß zurück, und
+     der Schwebe-Zustand des Schreibtischs (der Fühler steht oben im Fluss)
+     darf ihren Schatten nicht anfassen. */
+  .stempel-leiste,
+  .stempel-leiste[data-schwebt='true'] {
     position: fixed;
     inset-block-start: auto;
     inset-block-end: 0;
     inset-inline: 0;
+    background: var(--color-background-surface);
     border-block-end: none;
     border-block-start: var(--border-width) solid var(--color-border);
     padding-block-end: max(var(--spacing-2), env(safe-area-inset-bottom));
     box-shadow: var(--shadow-med);
+  }
+  /* Auf Weiß steht der Primärknopf ohne Linie, wie überall im Haus. */
+  .stempel-leiste .astryx-button[data-variant='primary'] {
+    box-shadow: none;
+  }
+  /* Die Leiste hängt hier an der unteren Kante, also wandert die Quittung an
+     ihre Oberkante — sie läuft immer auf der Linie, die die Leiste vom Inhalt
+     trennt, und nie im leeren Raum unter dem Daumen. */
+  .stempel-leiste::after {
+    inset-block-end: auto;
+    inset-block-start: calc(-1 * var(--border-width));
   }
   .stempel-leiste button {
     flex: 1 1 auto;
   }
   /* Room for the bar so it never covers the last row of content. */
   .astryx-app-shell {
-    padding-block-end: 132px;
+    padding-block-end: var(--stempelleiste-raum);
+  }
+
+  /* Und derselbe Platz für die Meldungsecke. Astryx' Meldungen hängen unten
+     rechts und liegen in der obersten Ebene (`popover`) — sie wissen von
+     nichts, was unter ihnen klebt. Auf dem Telefon klebt dort die
+     Stempelleiste, und eine Meldung, die ausgerechnet das Einstempeln verdeckt,
+     verdeckt die eine Handlung, um derentwillen es diese Anwendung gibt. Die
+     Ecke ist Astryx' eigenes Element; der Selektor greift es über seine
+     unveränderlichen Merkmale statt über eine Klasse, die der Bau vergibt. */
+  [popover][role='region'] {
+    padding-block-end: var(--stempelleiste-raum);
+  }
+
+  /* Hier stehen die Angaben nicht neben den Handlungen, sondern über ihnen —
+     also faltet sich die Übergabe in der anderen Achse zusammen. Es ist
+     dieselbe Bewegung, nur an der Lage der Leiste ausgerichtet: was seitlich
+     steht, geht seitlich; was oben steht, geht nach oben. Der Inhalt darf hier
+     umbrechen, weil die Höhe läuft und nicht die Breite — auf einem Telefon
+     passen drei Angaben nie in eine Zeile, und Abschneiden hieße hier: eine
+     Angabe verschweigen.
+
+     `flex-basis` springt am Ende der Bewegung von 100 % auf 0 (Dauer 0,
+     Verzögerung = die Laufzeit der Faltung). Das ist kein Schmuck, sondern
+     Geometrie: eine eigene Zeile mit Höhe 0 belegt weiterhin eine Zeile, und
+     der Zeilenabstand der Leiste bliebe als 12 px Leere unter dem Daumen
+     stehen. Erst wenn die Zeile keine 100 % mehr verlangt, gibt sie den Platz
+     ganz frei. Zuletzt statt zuerst, damit die Handlungen nicht mitten in der
+     Faltung nach oben rutschen; zurück dagegen sofort, damit die Zeile zum
+     Wachsen schon da ist. Bleibt der Übergang je stehen, greift der Wert
+     trotzdem — die Endlage ist in beiden Richtungen die richtige. */
+  .stempel-angaben {
+    flex: 1 0 100%;
+    grid-template-rows: 1fr;
+    transition:
+      grid-template-rows var(--takt-zug) var(--schwung-zug),
+      flex-basis 0s 0s,
+      opacity calc(var(--takt-zug) / 2) var(--schwung-an) calc(var(--takt-zug) / 3);
+  }
+  .stempel-stand {
+    flex-wrap: wrap;
+  }
+  .stempel-angaben[data-gedeckt='true'] {
+    grid-template-columns: 1fr;
+    grid-template-rows: 0fr;
+    flex-basis: 0;
+    transition:
+      grid-template-rows var(--takt-zug) var(--schwung-zug),
+      flex-basis 0s var(--takt-zug),
+      opacity var(--takt-fort) var(--schwung-ab);
   }
 }
 
@@ -64,6 +1168,7 @@
   inline-size: 100%;
   cursor: pointer;
   min-block-size: 44px;
+  transition: background-color var(--takt-tupf) var(--schwung-an);
 }
 .eintrag-zeile:hover {
   background-color: var(--color-overlay-hover);
@@ -74,7 +1179,64 @@
   overflow-x: auto;
 }
 
+/* Die Personentafel: eine Zeile je Person, Zahlen in Spalten. Sie ersetzt vier
+   von Hand gebaute Raster mit vierundsiebzig fest verdrahteten Pixelbreiten —
+   dieselben drei Zahlen standen auf dem Monatsabschluss 90 px und auf den
+   Berichten 100 px breit. */
+.personen-tafel {
+  min-inline-size: 0;
+}
+/* Der Verweis in einer Tabellenzelle. Kein Unterstrich im Ruhezustand: in
+   einer Spalte aus lauter Namen wäre er Tapete. Beim Überfahren und beim
+   Tastaturfokus meldet er sich — der Ring in Bronze wie überall. */
+.tafel-verweis {
+  color: inherit;
+  text-decoration: none;
+  display: inline-block;
+  max-inline-size: 100%;
+  border-radius: var(--radius-inner);
+}
+.tafel-verweis:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.tafel-verweis:focus-visible {
+  outline: 2px solid var(--color-icon-accent);
+  outline-offset: 2px;
+}
+
+/* Das Kontobuch. Sechs schmale Spalten über die volle Blattbreite gezogen
+   rissen die Zeile auseinander: zwischen „+/−" und „Kontostand" lag ein
+   handbreiter leerer Streifen, weil die Tagesart-Spalte den ganzen Rest
+   aufnahm — und an den meisten Tagen steht dort nichts. Ein Buch liest sich
+   in Spaltenbreite, nicht in Blattbreite. */
+.konto-blatt-tabelle {
+  max-inline-size: 760px;
+}
+
+/* Der Aufklapppfeil der drei Stapel (Tage, Reisen, Prüfliste). Eine Klasse
+   statt dreier gleicher Inline-Kopien — und damit auch nur eine Stelle, an der
+   die Drehung für prefers-reduced-motion stillgelegt wird. */
+.aufklapp-pfeil {
+  display: inline-flex;
+  flex-shrink: 0;
+  /* Derselbe Takt, in dem sich der Bereich darunter öffnet — Pfeil und Fach
+     sind eine Bewegung, nicht zwei. */
+  transition: transform var(--takt-zug) var(--schwung-zug);
+}
+.aufklapp-pfeil[data-offen='true'] {
+  transform: rotate(180deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .aufklapp-pfeil {
+    transition: none;
+  }
+}
+
 /* Interactive rows (team, day list): hover and keyboard focus must be visible. */
+.zeile-interaktiv {
+  transition: background-color var(--takt-tupf) var(--schwung-an);
+}
 .zeile-interaktiv:hover {
   background-color: var(--color-overlay-hover);
 }
@@ -89,16 +1251,22 @@
    hover/focus. Focus ring in icon-accent bronze, same rationale as above. */
 .zeitleiste-eintrag .zeitleiste-stift {
   opacity: 0;
-  transition: opacity var(--duration-fast) var(--ease-standard);
+  /* Der Stift rutscht aus der Beschriftung heraus, statt an ihr aufzublenden. */
+  transform: translateX(-4px);
+  transition:
+    opacity var(--takt-tupf) var(--schwung-an),
+    transform var(--takt-tupf) var(--schwung-an);
 }
 .zeitleiste-eintrag:hover .zeitleiste-stift,
 .zeitleiste-eintrag:focus-visible .zeitleiste-stift {
   opacity: 1;
+  transform: none;
 }
 /* Touch has no hover: the affordance must be there before the tap. */
 @media (hover: none) {
   .zeitleiste-eintrag .zeitleiste-stift {
     opacity: 0.7;
+    transform: none;
   }
 }
 .zeitleiste-eintrag:hover .zeitleiste-block {
@@ -109,16 +1277,252 @@
   outline: 2px solid var(--color-icon-accent);
   outline-offset: 2px;
 }
+/* Der Block selbst hebt sich beim Überfahren einen Hauch an — über `filter`
+   statt über `transform`, weil ein verschobener Block auf einer Zeitachse eine
+   andere Uhrzeit behaupten würde. Helligkeit lügt nicht über die Lage. */
+.zeitleiste-block {
+  transition:
+    box-shadow var(--takt-tupf) var(--schwung-an),
+    filter var(--takt-tupf) var(--schwung-an);
+}
+.zeitleiste-eintrag:hover .zeitleiste-block {
+  filter: brightness(1.05);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zeitleiste-eintrag .zeitleiste-stift,
+  .zeitleiste-block {
+    transition: none;
+    transform: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Tagesbahn — the one day lane, at three scales.
+   --------------------------------------------------------------------------- */
+
+/* The hour scale carried inside the gold fill. Six hours of gold reads as six
+   hours without anyone reading the label — the block stops being a paint
+   swatch and becomes a duration. Decorative only, so no contrast floor.
+
+   Als Strich über die volle Höhe war das Maß aber nicht mehr von einer Kante
+   zu unterscheiden: ein durchgehender Block von 08:32 bis 12:25 las sich als
+   vier aneinanderliegende Einträge, weil die Pause daneben genau dieselbe
+   senkrechte Trennung zeigt. Der Strich sitzt jetzt als Zahn am unteren Rand —
+   er misst weiter, aber er schneidet nicht mehr. */
+.bahn-stundenstrich {
+  position: absolute;
+  inset-block-start: 60%;
+  inset-block-end: 0;
+  inline-size: 1px;
+  background: rgb(255 255 255 / 38%);
+  pointer-events: none;
+}
+
+/* The time being dragged, pinned to the edge under the pointer. */
+.bahn-zeitchip {
+  position: absolute;
+  inset-block-end: calc(100% + var(--spacing-1));
+  background: var(--color-background-inverted);
+  color: var(--color-on-dark);
+  border-radius: var(--radius-inner);
+  padding-inline: var(--spacing-2);
+  line-height: 1.6;
+  white-space: nowrap;
+  z-index: 4;
+  /* Er erscheint im selben Augenblick, in dem der Finger die Kante fasst, und
+     darf deshalb nicht erst aufziehen: der kürzeste Takt, aus der Kante heraus.
+     Ohne Füllmodus — sollte die Animation nie laufen, steht er einfach da. */
+  animation: bahn-chip-an var(--takt-tupf) var(--schwung-an);
+  transform-origin: center bottom;
+}
+@keyframes bahn-chip-an {
+  from {
+    transform: translateY(4px) scale(0.86);
+    opacity: 0;
+  }
+}
+
+/* Die Jetzt-Marke wandert alle 30 Sekunden ein winziges Stück. Ohne Übergang
+   ruckt sie, mit einem zu kurzen zuckt sie: ein langer, an beiden Enden weicher
+   Zug lässt sie gleiten, statt zu springen — man sieht die Zeit vergehen. */
+.bahn-jetzt {
+  position: absolute;
+  inline-size: 2px;
+  margin-inline-start: -1px;
+  background: var(--color-text-accent);
+  transition: inset-inline-start var(--takt-bogen) var(--schwung-zug);
+}
+.bahn-jetzt-pille {
+  position: absolute;
+  transform: translateX(-50%);
+  background: var(--color-text-accent);
+  color: var(--color-background-surface);
+  border-radius: var(--radius-full);
+  padding-inline: var(--spacing-2);
+  line-height: 1.6;
+  white-space: nowrap;
+  transition: inset-inline-start var(--takt-bogen) var(--schwung-zug);
+}
+
+/* Switching range is a change of magnification, so the sibling days settle in
+   around the anchor rather than cross-fading in as a new page.
+   Transform only, deliberately: an entrance that touches opacity can strand a
+   row at 35 % if the animation never ticks (a background tab does exactly
+   that), and a time record that is hard to read is worse than one that does
+   not move. The worst this can do is leave a row 10px low. */
+@keyframes bahn-auf {
+  from {
+    transform: translateY(10px);
+  }
+  to {
+    transform: none;
+  }
+}
+.bahn-reihe {
+  animation: bahn-auf var(--takt-zug) var(--schwung-an) both;
+  list-style: none;
+}
+/* A bounded cascade: a week gets a real top-down arrival, a 31-day month does
+   not spend a second and a half assembling itself. */
+.bahn-reihe:nth-child(2) {
+  animation-delay: 30ms;
+}
+.bahn-reihe:nth-child(3) {
+  animation-delay: 60ms;
+}
+.bahn-reihe:nth-child(4) {
+  animation-delay: 90ms;
+}
+.bahn-reihe:nth-child(5) {
+  animation-delay: 120ms;
+}
+.bahn-reihe:nth-child(6) {
+  animation-delay: 150ms;
+}
+.bahn-reihe:nth-child(n + 7) {
+  animation-delay: 150ms;
+}
+.bahn-stapel {
+  margin: 0;
+  padding: 0;
+}
+
+/* Die kleine Wochenableitung folgt derselben Zeitrichtung wie die große
+   Bahnenfolge. Das ist der sinnvolle Domino: Montag gibt Dienstag weiter,
+   aber die ganze Kette kostet höchstens 150 ms und bewegt nur die Füllung,
+   nie Beschriftung oder Zahlen. */
+.wochen-tag:nth-child(2) .bahn-block {
+  animation-delay: 30ms;
+}
+.wochen-tag:nth-child(3) .bahn-block {
+  animation-delay: 60ms;
+}
+.wochen-tag:nth-child(4) .bahn-block {
+  animation-delay: 90ms;
+}
+.wochen-tag:nth-child(5) .bahn-block {
+  animation-delay: 120ms;
+}
+.wochen-tag:nth-child(n + 6) .bahn-block {
+  animation-delay: 150ms;
+}
+
+/* Der gestempelte Tag zeichnet sich selbst.
+
+   Ein Block erscheint nicht, er wird geschrieben: eine Blende läuft von links
+   nach rechts über ihn hinweg, in derselben Richtung, in der die Zeit auf der
+   Bahn läuft. Beim Einstempeln heißt das, dass der neue goldene Block aus dem
+   Augenblick heraus wächst, in dem man ihn erzeugt hat.
+
+   `clip-path` statt `scaleX`, weil eine Skalierung die Uhrzeit im Block
+   verzerren würde — der Text muss von der ersten Millisekunde an lesbar in
+   seiner endgültigen Breite stehen.
+
+   Ohne Füllmodus und ohne Verzögerung, mit Bedacht: der Ruhezustand des
+   Elements ist „unbeschnitten". Läuft die Animation nie (Hintergrundtab,
+   abgeschaltete Animationen), steht der Block vollständig da. Ein
+   Zeitnachweis, der von einer Animation abhängt, um sichtbar zu sein, ist
+   kein Zeitnachweis. */
+@keyframes bahn-block-zieht {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+/* Zug-Takt, nicht Bogen-Takt: 620 ms hießen, dass der Tag eine gute halbe
+   Sekunde lang leer aussieht, bevor er dasteht — und ein leerer Zeitnachweis
+   ist der einzige Anblick, den diese Anwendung sich nicht leisten kann. Bei
+   360 ms mit dieser Kurve ist der Block nach rund 160 ms praktisch gezeichnet
+   und läuft nur noch aus. */
+.bahn-block {
+  animation: bahn-block-zieht var(--takt-zug) var(--schwung-zug);
+}
+
+/* Zwei weitere Balken derselben Familie: die Wochen- und Monatsleiste in der
+   Kontext-Rail und die Kontostand-Säulen auf „Konto" standen bisher fertig
+   im Bild, in der einen Bewegungsanwendung der Anwendung ohne Bewegung. Die
+   waagerechten teilen sich `.bahn-block` und dessen Blende — dieselbe
+   Richtung, dieselbe Aussage: „ein Tag wird geschrieben". Die Kontostand-
+   Säule läuft auf der senkrechten Achse und braucht darum eine eigene
+   Blende; `transform` statt `clip-path`, weil keine Schrift in ihr steht,
+   die eine Skalierung verzerren könnte. `transform-origin` steht dort, wo
+   die Säule ohnehin schon an der Nulllinie verankert ist (inline gesetzt,
+   `bottom` oder `top` je nach Vorzeichen) — die Säule wächst aus der Linie
+   heraus, nicht aus dem Nichts. */
+@keyframes konto-balken-waechst {
+  from {
+    transform: scaleY(0.08);
+  }
+}
+.konto-balken {
+  animation: konto-balken-waechst var(--takt-zug) var(--schwung-zug) both;
+}
+
+/* Ein Tag, der sich an Ort und Stelle öffnet. Die Kinder werden erst gehängt,
+   wenn er aufgeht, und erst abgehängt, wenn er zu ist — den Zwischenzustand
+   hält `Ausklapp` in components/ausklapp.tsx. Ein Monat mit 31 Tagen soll
+   nicht 31 Tagestafeln im Baum halten, nur damit eine davon animiert werden
+   kann. */
+.bahn-ausklapp {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--takt-zug) var(--schwung-zug);
+}
+.bahn-ausklapp[data-offen='true'] {
+  grid-template-rows: 1fr;
+}
+.bahn-ausklapp > * {
+  min-block-size: 0;
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bahn-reihe,
+  .bahn-block,
+  .bahn-zeitchip,
+  .konto-balken {
+    animation: none;
+  }
+  .bahn-ausklapp,
+  .bahn-jetzt,
+  .bahn-jetzt-pille {
+    transition: none;
+  }
+}
 
 /* The one authored motion moment: the live tip of the growing gold segment
    breathes at its lower edge while the clock runs. */
 .zeitleiste-live-tip {
   position: absolute;
-  inset-inline: 0;
-  inset-block-end: 0;
-  block-size: 5px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.85), transparent);
-  animation: zeitleiste-atmen 2.6s var(--ease-standard) infinite;
+  inset-block: 0;
+  inset-inline-end: 0;
+  inline-size: 7px;
+  /* The lane runs left to right, so the growing edge is the leading one. */
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.9));
+  animation: zeitleiste-atmen 2.6s var(--schwung-zug) infinite;
 }
 @keyframes zeitleiste-atmen {
   0%,
@@ -133,6 +1537,1084 @@
   .zeitleiste-live-tip {
     animation: none;
     opacity: 0.6;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Ein Wert, der sich ändert.
+
+   Die Zahlen dieser Anwendung stehen nicht still: die gearbeitete Zeit wächst
+   im laufenden Tag, der Feierabend rückt, der Kontostand kippt. Eine Zahl, die
+   dabei einfach ausgetauscht wird, blinzelt — man merkt, dass sich etwas
+   geändert hat, aber nicht was. Sie setzt sich deshalb von unten an ihren
+   Platz und läuft ohne Überschwingen aus. Der Wert wird vom System
+   fortgeschrieben, nicht mit Impuls geworfen — ein Sprung wäre falsche Physik.
+
+   Kein Füllmodus, mit Absicht: der Ruhezustand ist der lesbare Zustand. Wenn
+   die Animation nie tickt, steht die Zahl scharf und an ihrem Platz.
+   --------------------------------------------------------------------------- */
+.zahlwert {
+  display: inline-block;
+  animation: zahl-rollt var(--takt-schritt) var(--schwung-an);
+}
+@keyframes zahl-rollt {
+  from {
+    transform: translateY(0.18em);
+    opacity: 0.65;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .zeit-blatt .astryx-button,
+  .zeit-blatt .astryx-button:active:not(:disabled) {
+    transition: none;
+    transform: none;
+  }
+  .zahlwert {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Tafeln (Dialoge).
+
+   Astryx bringt den Auftritt mit — aus der Richtung des Knopfes, der ihn
+   geöffnet hat, mit Maßstab und Deckkraft. Was fehlte, war der Abgang: die
+   Bibliothek ruft `dialog.close()`, und der Dialog ist im selben Bild weg,
+   während der Schleier dahinter noch ausblendet. `components/tafel-dialog.tsx`
+   hält das Schließen um --takt-fort auf und setzt so lange .tafel-abgang.
+
+   Die Vervierfachung der Klasse ist Notwehr, keine Marotte: StyleX schreibt
+   seine Regeln als `.xyz:not(#\#):not(#\#):not(#\#)` und liegt damit bei
+   (0,4,0). Vier Klassen kommen auf denselben Wert, und bei Gleichstand
+   entscheidet die Reihenfolge — globals.css wird nach astryx.css geladen.
+   Dieselbe Notwehr wie bei .zeit-blatt, nur eine Stufe höher. */
+.tafel-abgang.tafel-abgang.tafel-abgang.tafel-abgang {
+  animation: tafel-hinaus var(--takt-fort) var(--schwung-ab) forwards;
+}
+
+/* Der Rumpf einer Tafel, die mit ihrer Eingabe wächst.
+
+   Astryx begrenzt den Dialog auf 75vh und legt `overflow: hidden` auf die
+   innere Spalte — was darüber hinausgeht, ist nicht etwa scrollbar, sondern
+   abgeschnitten. Bei einem Formular fester Länge fällt das nie auf. Beide
+   rechnenden Editoren dieser Anwendung wachsen aber mit dem, was jemand
+   eingibt: der Reise-Editor um eine Zeile je Reisetag, der Abwesenheits-Editor
+   um ein Feld je Kalendertag der Spanne. Ab einer Reise über etwa eine Woche
+   lag der Speichern-Knopf unerreichbar unterhalb der Kante — gemessen im
+   Browser, nicht vermutet: 770 px Inhalt in 540 px Sichtfeld.
+
+   `min-block-size: 0` ist der Teil, der die Arbeit macht. Ein Flex-Kind
+   schrumpft nicht unter seine Inhaltsgröße, solange das nicht ausdrücklich
+   erlaubt ist, und `overflow-y` bliebe ohne diese Zeile wirkungslos. Der Kopf
+   der Tafel steht außerhalb und bleibt deshalb stehen. */
+.tafel-rumpf {
+  min-block-size: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Der Kamerasucher des QR-Lesers (components/qr-leser.tsx). Festes 4:3 statt
+   der nativen Videohöhe, damit der Dialog beim Kamerastart nicht springt; die
+   Tintenfläche ist das Sucherloch, solange noch kein Bild kommt. */
+.qr-video {
+  display: block;
+  inline-size: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--radius-container);
+  background: var(--color-background-inverted);
+}
+
+/* Das Zeichen vor einer Auswahlzeile, deren Beschreibung umbricht.
+
+   Astryx zentriert `startContent` über die volle Höhe des Eintrags. Bei einer
+   einzeiligen Zeile steht es damit richtig; sobald die Beschreibung auf zwei
+   Zeilen läuft — bei „Freizeitausgleich" und „Fortbildung" tut sie das —,
+   rutscht das Zeichen in die Lücke zwischen den Zeilen und steht neben nichts.
+   Gemessen: Zeichenoberkante bei 276 px, Beschriftung bei 259 px.
+
+   Es gehört an die erste Zeile, weil es die Beschriftung begleitet und nicht
+   den Absatz. Die drei Pixel Innenabstand setzen die 14-px-Glyphe auf die
+   Grundlinie der 16-px-Schrift. */
+.astryx-radio-list-item > div > span:has(> svg) {
+  align-self: flex-start;
+  padding-block-start: 3px;
+}
+
+/* Die beiden Datumsfelder einer Spanne. Sie tragen je 180 px Mindestbreite aus
+   Astryx' DateInput; nebeneinander passen sie erst ab etwa 400 px Innenbreite. */
+@media (max-width: 520px) {
+  .spanne-felder > * {
+    flex-basis: 100%;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Spannenbänder (Reisen wie Abwesenheiten) auf schmalen Schirmen.
+
+   Eine Zeile trägt vier feste Spalten — Zeitraum, Zahl, Statusmarke, Pfeil —
+   und dazwischen das Band, das als Einziges mitwächst. Auf dem Telefon fraßen
+   die festen Spalten die ganze Zeile: gemessen bei 390 px blieb dem Band eine
+   Breite von **0 px**, und die sechs Achsenzahlen lagen alle auf derselben
+   Stelle übereinander. Das Band ist aber das Einzige, was man hier eigentlich
+   lesen soll.
+
+   Unter 860 px bekommt es deshalb eine eigene Zeile, und die Achse darüber
+   ebenso. Kein `order`: gebrochen wird nur der Umbruch, die Reihenfolge im
+   Dokument bleibt die Lesereihenfolge. */
+@media (max-width: 860px) {
+  .spannen-zeile,
+  .spannen-achse {
+    flex-wrap: wrap;
+    row-gap: var(--spacing-1);
+  }
+  /* Das Band ist das Kind, in dem die figure steckt. */
+  .spannen-zeile > *:has(> figure) {
+    flex-basis: 100%;
+  }
+  /* Die Achse: die Platzhalter der festen Spalten fallen weg, die
+     Beschriftung nimmt die volle Breite — sonst läge sie über nichts. */
+  .spannen-achse > span {
+    display: none;
+  }
+  .spannen-achse > *:not(span) {
+    flex-basis: 100%;
+  }
+}
+
+/* Das Artzeichen am Anfang einer Spanne im Teamkalender. Es steht neben den
+   Tageszellen und nicht in ihnen: in eine 3 px breite Zelle passt kein
+   Zeichen, und auf jedem Tag wiederholt wäre es Tapete. Halb über die Kante
+   gesetzt, damit es die erste Zelle nicht verdeckt. */
+.kalender-artzeichen {
+  position: absolute;
+  inset-block-start: 50%;
+  display: flex;
+  transform: translate(-50%, -50%);
+  background: var(--color-background-body);
+  border-radius: var(--radius-full);
+  padding: 1px;
+  pointer-events: none;
+}
+
+/* Heute im Teamkalender. Dieselbe bronzene Zwei-Pixel-Linie, mit der die
+   Tagesbahn die laufende Stunde markiert (.bahn-jetzt) — nur läuft hier eine
+   Datums- statt einer Stundenachse durch, also steht sie auf einem Tag statt
+   auf einer Minute und braucht keinen Übergang: der Tag wechselt nicht,
+   während man hinsieht. Sie ragt oben und unten über die Bahn hinaus, damit
+   sie über mehrere Zeilen hinweg als eine Linie gelesen wird. */
+.kalender-heute {
+  position: absolute;
+  inset-block: -2px;
+  inline-size: 2px;
+  margin-inline-start: -1px;
+  background: var(--color-text-accent);
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Das Monatsgitter: die Datumsachse, an der Wochengrenze gefaltet.
+
+   Ein echtes `<table>`, weil ein Monatskalender tabellarisch ist — der Wochentag
+   ist die Spalte, die Kalenderwoche die Zeile, und beides bekommt eine
+   Vorlesehilfe damit geschenkt. `border-collapse: separate` mit `border-spacing`
+   statt `gap`: eine Tabelle hat kein `gap`, und Zellen mit eigener Kante dürfen
+   sich nicht berühren, sonst läse sich das Raster als ein einziges Kästchen.
+
+   Das Gitter ersetzt vier Bänder, die dasselbe auf einer durchlaufenden Achse
+   zeichneten. Was davon bleibt, sind die zwei Kanäle: Füllung sagt „kostet
+   etwas", Kante sagt „steht fest". Sie sind in die Marke gewandert. */
+.gitter-rahmen {
+  display: block;
+  overflow-x: auto;
+}
+.monatsgitter {
+  inline-size: 100%;
+  /* Unter dieser Breite werden sieben Spalten zu Streifen. Dann scrollt das
+     Gitter lieber in sich, so wie es jede dichte Tabelle hier tut — die
+     Belegzeilen darunter tragen dieselbe Auskunft ohnehin in Textform. */
+  min-inline-size: 560px;
+  border-collapse: separate;
+  border-spacing: 3px;
+  table-layout: fixed;
+}
+.gitter-kw-kopf,
+.gitter-kw {
+  inline-size: 30px;
+  padding: 0;
+  text-align: end;
+  vertical-align: middle;
+  font-weight: normal;
+}
+.gitter-kw {
+  padding-inline-end: var(--spacing-1);
+}
+.gitter-tagkopf {
+  padding-block: 0 var(--spacing-1);
+  text-align: center;
+  font-weight: normal;
+}
+
+.gitter-zelle {
+  padding: 0;
+  vertical-align: top;
+  block-size: var(--gitter-zellhoehe, 62px);
+}
+/* Die Zelle selbst ist nur der Platz; die Fläche ist das Kind, damit ein Knopf
+   und ein stummes Feld exakt gleich aussehen. */
+.gitter-feld,
+.gitter-griff {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  inline-size: 100%;
+  min-block-size: var(--gitter-zellhoehe, 62px);
+  padding: var(--spacing-0-5);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-inner);
+  background: var(--color-background-surface);
+  text-align: start;
+  font: inherit;
+  color: inherit;
+}
+.gitter-griff {
+  cursor: pointer;
+  /* Ohne diese Zeile existiert die Ziehauswahl auf dem Telefon nicht: der
+     Browser nähme das Ziehen als Scrollen und schickte nie ein pointermove.
+     Scrollen bleibt über den Rahmen und die Seite daneben möglich. */
+  touch-action: none;
+  transition: background-color var(--takt-tupf) var(--schwung-an);
+}
+.gitter-griff:hover {
+  background: var(--color-overlay-hover);
+}
+.gitter-griff:focus-visible {
+  outline: 2px solid var(--color-icon-accent);
+  outline-offset: -2px;
+}
+
+/* Wochenende und Feiertag: der Papiergrund statt der weißen Fläche. Das ist
+   die Regel „Ruhetage kosten nichts", als Struktur statt als Fußnote. */
+.gitter-zelle.ruhe > .gitter-feld,
+.gitter-zelle.ruhe > .gitter-griff {
+  background: var(--color-background-body);
+  border-color: var(--color-border);
+}
+/* Die Nachbarmonate ragen in die erste und letzte Woche hinein. Sie werden
+   gezeichnet, sonst hätte das Gitter Löcher — aber sie treten zurück. */
+.gitter-zelle.fremd > .gitter-feld,
+.gitter-zelle.fremd > .gitter-griff {
+  background: transparent;
+  border-color: transparent;
+}
+.gitter-zelle.fremd .gitter-zahl {
+  opacity: 0.4;
+}
+/* Heute. Bronze wie die Jetzt-Linie der Tagesbahn — dieselbe Bedeutung, andere
+   Achse. Ein Ring und keine Linie, weil ein Tag hier eine Fläche ist. */
+.gitter-zelle.heute > .gitter-feld,
+.gitter-zelle.heute > .gitter-griff {
+  border-color: var(--color-icon-accent);
+  box-shadow: inset 0 0 0 1px var(--color-icon-accent);
+}
+/* Der offene bzw. gefilterte Tag trägt die Goldwäsche — dieselbe Auszeichnung,
+   mit der ein aufgeklappter Stapeleintrag sich meldet. */
+.gitter-zelle.offen > .gitter-feld,
+.gitter-zelle.offen > .gitter-griff,
+.gitter-zelle.gewaehlt > .gitter-griff {
+  background: var(--color-accent-muted);
+  border-color: var(--color-icon-accent);
+}
+.gitter-zelle.betont > .gitter-feld,
+.gitter-zelle.betont > .gitter-griff {
+  border-color: var(--color-text-secondary);
+}
+
+.gitter-zahl {
+  display: block;
+  text-align: end;
+  line-height: 1.1;
+  padding-inline: 1px;
+}
+.gitter-zaehler {
+  position: absolute;
+  inset-block-start: var(--spacing-0-5);
+  inset-inline-start: var(--spacing-1);
+  line-height: 1.1;
+  pointer-events: none;
+}
+.gitter-inhalt {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-block-size: 0;
+  overflow: hidden;
+}
+
+/* Eine Marke in der Zelle: eine Person, ein Reisetag, eine Abwesenheit.
+   Steingrau und niemals Gold — Abwesenheit ist keine gearbeitete Zeit, und
+   dieselbe Regel gibt schon der Abwesenheitsspange im Reiseband ihr Grau. */
+.gitter-marke {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 3px;
+  border: var(--border-width) solid var(--color-text-secondary);
+  border-radius: var(--radius-none);
+  background: var(--color-background-surface);
+  font-size: 0.7rem;
+  line-height: 1.45;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.gitter-marke.beantragt {
+  border-style: dashed;
+}
+/* Ohne Füllung: dieser Tag kostet nichts. Derselbe Kanal wie im alten Band. */
+.gitter-marke.leer {
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+.gitter-marke-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Der Stein steht da, wo kein Sinnbild stehen darf: für Kolleginnen und
+   Kollegen wird die Art einer fremden Abwesenheit gar nicht erst geschickt.
+   Ausdrücklich kein Farbcode für die Arten — Zeichen sind in dieser Anwendung
+   das Vokabular, Farbe ist es nicht. */
+.gitter-punkt {
+  flex-shrink: 0;
+  inline-size: 5px;
+  block-size: 5px;
+  border-radius: 1px;
+  background: var(--color-text-secondary);
+}
+.gitter-zeichen {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+}
+/* „+3 weitere" ist keine Marke, sondern die Auskunft, dass hier gekürzt wurde. */
+.gitter-mehr {
+  padding-inline-start: 4px;
+  line-height: 1.35;
+}
+@media (prefers-reduced-motion: reduce) {
+  .gitter-griff {
+    transition: none;
+  }
+}
+
+/* Das Gitter auf dem Telefon.
+
+   Gemessen bei 390 px: mit der Mindestbreite von 560 px standen vier von sieben
+   Spalten im Bild und drei hinter dem Rand — ein Monatskalender, von dem man
+   den halben Wochenverlauf wegschieben muss, ist keiner mehr. Unter 640 px
+   passt sich das Gitter deshalb an, statt zu scrollen:
+
+   – Die Kalenderwochenspalte fällt weg. Sie ist eine Zugabe für die
+     Lohnbuchhaltung, kein Wegweiser für den Blick.
+   – Die Marken verlieren ihr Wort, aber nicht ihr Zeichen. Das Sinnbild ist in
+     diesem Haus das Vokabular; die Beschriftung wiederholt es nur. Wer den
+     Namen braucht, findet ihn in der Belegliste darunter — die steht ohnehin
+     schon da und trägt alles in Textform.
+   – Die Zahl in der Ecke bleibt: „wie viele an diesem Tag" ist die Auskunft,
+     die auch ohne Namen trägt. */
+@media (max-width: 640px) {
+  .monatsgitter {
+    min-inline-size: 0;
+    border-spacing: 2px;
+  }
+  .gitter-kw-kopf,
+  .gitter-kw {
+    display: none;
+  }
+  .gitter-zelle {
+    block-size: auto;
+  }
+  .gitter-feld,
+  .gitter-griff {
+    min-block-size: 54px;
+    padding: 2px;
+  }
+  .gitter-marke-text {
+    display: none;
+  }
+  .gitter-marke {
+    justify-content: center;
+    padding-inline: 1px;
+  }
+  .gitter-mehr {
+    padding-inline-start: 1px;
+    text-align: center;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Der Spannenstreifen: eine Spanne als Mikrografik in einer festen Spalte.
+
+   Er löst das Bühnenband ab, das eine Spanne über den ganzen Monat zeichnete.
+   Die Lage im Monat sagt jetzt das Gitter; hier steht die andere Frage — wie
+   lang, und wie viel davon kostet etwas. Dieselben zwei Kanäle wie überall:
+   Füllung heißt „kostet etwas", Kante heißt „steht fest". */
+.spannen-streifen {
+  display: flex;
+  gap: 2px;
+  margin: 0;
+  align-items: center;
+}
+.spannen-zelle {
+  inline-size: 6px;
+  block-size: 14px;
+  border: var(--border-width) solid var(--color-text-secondary);
+  border-radius: 1px;
+  background: transparent;
+}
+.spannen-zelle.zaehlt {
+  background: var(--color-background-surface);
+}
+.spannen-zelle.beantragt {
+  border-style: dashed;
+}
+/* Über sechzehn Tagen wird zusammengefasst statt gestaucht: ein Streifen aus
+   2-px-Splittern wäre genau der Fehler, den das Monatsband gemacht hat. */
+.spannen-block {
+  display: block;
+  inline-size: 26px;
+  block-size: 14px;
+  border: var(--border-width) solid var(--color-text-secondary);
+  border-radius: 1px;
+  background: var(--color-background-surface);
+  flex-shrink: 0;
+}
+.spannen-block.beantragt {
+  border-style: dashed;
+  background: transparent;
+}
+
+/* ---------------------------------------------------------------------------
+   Die Belegungskurve unter dem Gitter: wie viele gleichzeitig abwesend sind.
+
+   Das ist die einzige Größe dieser Oberfläche, für die eine durchlaufende Achse
+   tatsächlich das richtige Gerät ist — eine dichte Zahl über die Zeit. Das Band
+   überlebt also, aber in dem Beruf, für den es taugt, und nicht als Träger
+   dünn gesäter Spannen. */
+.belegung-blatt {
+  min-inline-size: 560px;
+}
+.belegung,
+.belegung-achse {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 3px;
+}
+.belegung {
+  position: relative;
+  align-items: end;
+  block-size: 84px;
+  margin: 0;
+}
+.belegung-achse {
+  padding-block-start: var(--spacing-1);
+  text-align: center;
+}
+.belegung-saeule {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  block-size: 100%;
+  color: var(--color-text-secondary);
+}
+.belegung-saeule > i {
+  display: block;
+  inline-size: 100%;
+  max-inline-size: 20px;
+  background: currentColor;
+  border-radius: 3px 3px 0 0;
+}
+.belegung-saeule > b {
+  font-weight: normal;
+  line-height: 1;
+}
+/* Über der Grenze: Orange, nie Gelb — eine Warnung darf die Marke nicht
+   nachahmen. Zahl und Säule wechseln gemeinsam, weil sie eine Aussage sind. */
+.belegung-saeule.ueber {
+  color: var(--color-warning-text);
+}
+.belegung-saeule.ueber > i {
+  background: var(--color-warning);
+}
+.belegung-grenze {
+  position: absolute;
+  inset-inline: 0;
+  border-block-start: var(--border-width) dashed var(--color-warning);
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Das Wochenraster: das Jahr, eine Spalte je Kalenderwoche.
+
+   52 Spalten statt 365 Tagen. Eine Stufenrampe aus *einem* Stein und nicht aus
+   fünf Farben — dieselbe Zwei-Steine-Regel, aus der das Protokollband seine
+   Helligkeiten bezieht: wo zwei Arten desselben Dings zu trennen sind und
+   keine davon gearbeitete Zeit ist, trennt die Helligkeit, nie ein neuer Ton.
+   Die oberen Stufen tragen den vollen Stein und klären damit die 3:1-Schwelle;
+   die unteren sind ausdrücklich Hintergrundgewicht und keine Auskunft, die
+   allein steht — die Zahl daneben nennt die Tage. */
+.wochenraster {
+  min-inline-size: 560px;
+}
+.raster-spur {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 1px;
+  inline-size: 100%;
+  margin: 0;
+}
+.raster-zelle {
+  display: block;
+  block-size: 14px;
+  border-radius: 2px;
+  background: var(--color-background-muted);
+}
+.raster-zelle.stufe-1 {
+  background: color-mix(in srgb, var(--color-text-secondary) 30%, var(--color-background-muted));
+}
+.raster-zelle.stufe-2 {
+  background: color-mix(in srgb, var(--color-text-secondary) 55%, var(--color-background-muted));
+}
+.raster-zelle.stufe-3 {
+  background: color-mix(in srgb, var(--color-text-secondary) 80%, var(--color-background-muted));
+}
+.raster-zelle.stufe-4 {
+  background: var(--color-text-secondary);
+}
+/* Beantragt: dieselbe gestrichelte Kante wie im Gitter, und ohne Füllung —
+   ein Antrag bindet nichts, also trägt er auch kein Gewicht. */
+.raster-zelle.beantragt {
+  background: transparent;
+  border: var(--border-width) dashed var(--color-text-secondary);
+}
+/* Die laufende Woche. Bronze wie überall, wo diese Anwendung „jetzt" sagt. */
+.raster-zelle.jetzt {
+  box-shadow: inset 0 0 0 1px var(--color-icon-accent);
+}
+.raster-achse {
+  block-size: 16px;
+  align-items: center;
+}
+.raster-marke {
+  overflow: visible;
+  white-space: nowrap;
+}
+.raster-probe {
+  inline-size: 14px;
+  flex-shrink: 0;
+}
+/* Die Legendenprobe ist eine Marke ohne Text — sie zeigt nur ihre zwei Kanäle. */
+.legende-probe {
+  inline-size: 30px;
+  block-size: 15px;
+  flex-shrink: 0;
+  justify-content: center;
+}
+
+/* Der Installationshinweis. Er faltet sich auf und wieder zu — dieselbe
+   `grid-template-rows`-Bewegung von 0fr auf 1fr, mit der Astryx den
+   Navigationseintrag öffnet und mit der die Stempelleiste ihre Angaben
+   übergibt. Ausdrücklich keine vierte Bewegungsidee, sondern die dritte
+   Verwendung derselben; deshalb steht hier auch nichts über Dauer und Kurve,
+   was nicht schon im Takt stünde.
+
+   Er sitzt unter der Stempelleiste und über dem Inhalt: die Stelle, an der
+   diese Anwendung spricht (dort steht auch das Aufmerksamkeitsband). Und er
+   spricht erst, wenn davor nichts Dringenderes steht — deshalb ist er im
+   Dokument nach dem Aufmerksamkeitsband. */
+.app-hinweis {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--takt-zug) var(--schwung-zug);
+  background: var(--color-background-surface);
+}
+/* Die Trennlinie gehört zum aufgeklappten Zustand. Als feste Eigenschaft blieb
+   sie nach dem Wegklicken als 1-px-Strich unter der Stempelleiste stehen —
+   direkt neben deren eigener Linie, also als doppelter Strich ohne Inhalt. */
+.app-hinweis[data-offen='true'] {
+  grid-template-rows: 1fr;
+  border-block-end: var(--border-width) solid var(--color-border);
+}
+.app-hinweis > * {
+  min-block-size: 0;
+  overflow: hidden;
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-hinweis {
+    transition: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Das Protokollband — was an welchem Tag geschah, und der Weg zu diesem Tag.
+
+   Zwei Steine und kein Gold: Markengold heißt in diesem Haus gearbeitete Zeit
+   und die Hauptschaltfläche, und ein Protokolleintrag ist weder das eine noch
+   das andere — dieselbe Überlegung, aus der die Abwesenheitsspange ihr
+   Steingrau bezieht. Der dunklere Stein (--color-text-secondary, 5,6:1 auf
+   Weiß) trägt den Eingriff, der hellere (--farbe-pause, 3,2:1) die Routine,
+   und was abgewiesen wurde, sitzt als roter Kopf obenauf. Alle drei stehen in
+   tests/kontrast.test.ts.
+   --------------------------------------------------------------------------- */
+.protokoll-saeule {
+  all: unset;
+  position: absolute;
+  inset-block: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  cursor: pointer;
+  /* Die Trefferfläche ist der ganze Tag, auch wenn die Säule schmal ist. */
+  padding-inline: 1px;
+}
+.protokoll-saeule-spur {
+  display: flex;
+  flex-direction: column-reverse;
+  inline-size: 100%;
+  block-size: 100%;
+  justify-content: flex-start;
+  border-radius: var(--radius-none);
+  overflow: hidden;
+}
+.protokoll-teil {
+  display: block;
+  inline-size: 100%;
+  min-block-size: 2px;
+}
+/* Dieselbe Säule, aber in einer Gitterzelle statt auf einer durchlaufenden
+   Achse: sie sitzt am Fuß der Zelle und wächst nach oben. Die zwei Steine und
+   der rote Kopf sind unverändert — nur der Behälter ist ein anderer. */
+.protokoll-zellsaeule {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-start;
+  inline-size: 22px;
+  block-size: 28px;
+  margin-block-start: auto;
+  border-radius: var(--radius-none);
+  overflow: hidden;
+}
+.protokoll-routine {
+  background: var(--farbe-pause);
+}
+.protokoll-eingriff {
+  background: var(--color-text-secondary);
+}
+.protokoll-fehler {
+  background: var(--color-error);
+}
+/* Überfahren und Auswahl liegen hinter der Säule, damit die Farben der Säule
+   selbst unangetastet bleiben — eine eingefärbte Säule wäre eine andere
+   Aussage. */
+.protokoll-saeule::before {
+  content: '';
+  position: absolute;
+  inset-block: -4px;
+  inset-inline: 0;
+  border-radius: var(--radius-none);
+  background: transparent;
+  transition: background-color var(--takt-tupf) var(--schwung-an);
+}
+.protokoll-saeule:hover::before {
+  background: var(--color-overlay-hover);
+}
+.protokoll-saeule[data-gewaehlt='true']::before {
+  background: var(--color-accent-muted);
+  box-shadow: inset 0 0 0 1px var(--color-icon-accent);
+}
+.protokoll-saeule:focus-visible {
+  outline: 2px solid var(--color-icon-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-none);
+}
+.protokoll-marke {
+  display: inline-block;
+  inline-size: 10px;
+  block-size: 10px;
+  border-radius: var(--radius-none);
+  flex-shrink: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .protokoll-saeule::before {
+    transition: none;
+  }
+}
+
+/* Die Sortierung ist ein Verweis, kein Knopf — sie steht in der Adresse. Also
+   sieht sie auch wie einer aus, nur ohne die Unterstreichung, die in einer
+   Tabellenkopfzeile lärmen würde. */
+.protokoll-sortierung {
+  text-decoration: none;
+  color: inherit;
+  border-radius: var(--radius-inner);
+}
+.protokoll-sortierung:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.protokoll-sortierung:focus-visible {
+  outline: 2px solid var(--color-icon-accent);
+  outline-offset: 2px;
+}
+
+/* Das Siegel: die einzige Stelle dieser Anwendung, an der Schriftzeichen als
+   Daten und nicht als Sprache stehen — ein Hash wird gelesen wie eine
+   Kontonummer, Zeichen für Zeichen. Dafür ist die Festbreitenschrift da (und
+   nur dafür: sie ist hier kein Kostüm für „technisch"). */
+.protokoll-hash {
+  font-family: var(--font-family-code);
+  font-size: 0.9em;
+  color: var(--color-text-secondary);
+  background: var(--color-background-muted);
+  border-radius: var(--radius-none);
+  padding-inline: var(--spacing-1);
+}
+
+/* Auf schmalen Schirmen bricht die Protokollzeile um, statt ihre Spalten zu
+   zerquetschen — dieselbe Krankheit und dieselbe Behandlung wie bei den
+   Spannenbändern. Zeitpunkt und Vorgang bleiben oben, der Gegenstand nimmt die
+   volle Breite. */
+@media (max-width: 860px) {
+  .protokoll-zeile,
+  .protokoll-kopf {
+    flex-wrap: wrap;
+    row-gap: var(--spacing-1);
+  }
+  /* Die Spaltenüberschriften fallen weg — über einer umgebrochenen Zeile
+     stehen sie über nichts. Die erste bleibt: sie ist keine Beschriftung,
+     sondern der Schalter für die Reihenfolge, und eine Fähigkeit, die auf dem
+     Telefon verschwindet, ist eine verlorene Fähigkeit. */
+  .protokoll-kopf > *:not(:first-child) {
+    display: none;
+  }
+  .protokoll-kopf > *:first-child {
+    inline-size: auto;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Der Tagesverweis: die Datumsspalte des Stapels als Weg zur Abwesenheit.
+
+   Das war einmal eine Ziehfläche mit `touch-action: none`. Die Ziehauswahl
+   wohnt seit dem Umbau im Monatsgitter auf /abwesenheit, wo sie auf
+   Kalendertagen liegt und nichts anderes heißen kann; hier bleibt die
+   Abkürzung für den einzelnen Tag. Damit verschwindet auch das
+   `touch-action: none`, das über dieser Spalte das Scrollen gekostet hat. */
+.tagesgriff {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding-block: var(--spacing-1);
+  padding-inline: var(--spacing-1);
+  margin-inline-start: calc(var(--spacing-1) * -1);
+  border: none;
+  border-radius: var(--radius-inner);
+  background: transparent;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+.tagesgriff:hover {
+  background: var(--color-background-muted);
+}
+.tagesgriff:focus-visible {
+  outline: 2px solid var(--color-icon-accent);
+  outline-offset: 2px;
+}
+.tagesgriff-reihe.offen {
+  background: var(--color-accent-muted);
+  border-radius: var(--radius-inner);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tagesgriff {
+    transition: none;
+  }
+}
+.tafel-abgang.tafel-abgang.tafel-abgang.tafel-abgang::backdrop {
+  animation: schleier-hinaus var(--takt-fort) var(--schwung-ab) forwards;
+}
+@keyframes tafel-hinaus {
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+}
+@keyframes schleier-hinaus {
+  to {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tafel-abgang.tafel-abgang.tafel-abgang.tafel-abgang,
+  .tafel-abgang.tafel-abgang.tafel-abgang.tafel-abgang::backdrop {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Seitenwechsel (View Transitions).
+
+   Zwei Bedeutungen, zwei Bewegungen — und das ist der ganze Punkt, denn die
+   Bereichsleiste macht zwei grundverschiedene Dinge, die bisher gleich
+   aussahen:
+
+   – **Der Schritt** (‹ ›) bewegt sich auf der Zeitachse. Auf jeder Bahn dieser
+     Anwendung läuft die Zeit von links nach rechts, also tut sie es hier auch:
+     der nächste Zeitraum kommt von rechts herein, der vorige von links. Wer
+     einen Monat zurückgeht, sieht die Seite nach rechts weichen.
+   – **Der Zoom** (Tag │ Woche │ Monat │ Konto) wechselt die Vergrößerung, nicht
+     die Stelle. Also kein Schieben, sondern ein Maßstabswechsel: nach „weit"
+     tritt man zurück und die Welt wird kleiner, nach „nah" tritt man heran.
+
+   Alles andere — ein Wechsel in einen anderen Bereich der Anwendung — ist ein
+   ruhiges Überblenden mit einem Hauch Hub. Es soll nichts erzählen, es soll
+   nur nicht schneiden.
+
+   Der Abgang ist überall kürzer als der Auftritt und beide überlappen sich:
+   150 ms hinaus, 60 ms später 300 ms herein. Unter einer halben Sekunde bleibt
+   ein Wechsel ein Wechsel und wird nicht zur Wartezeit.
+   --------------------------------------------------------------------------- */
+
+/* Während der Übergang läuft, liegt das Überblendbild über der Seite und
+   schluckt jeden Klick. Es soll durchlassen: wer schnell zweimal navigiert,
+   soll nicht ins Leere klicken. */
+::view-transition {
+  pointer-events: none;
+}
+
+/* Die Leiste und die Stempelleiste stehen still.
+
+   Sie sind auf jeder Route dieselben, und ein mitgleitendes Gerüst nimmt dem
+   Auge den einen festen Bezugspunkt, an dem es merkt, dass der *Inhalt*
+   gewechselt hat und nicht das Fenster. Das alte Standbild wird sofort
+   ausgeblendet, damit es nicht kurz doppelt steht. */
+.astryx-side-nav {
+  view-transition-name: seiten-leiste;
+}
+.stempel-leiste {
+  view-transition-name: stempel-leiste;
+}
+::view-transition-group(seiten-leiste),
+::view-transition-group(stempel-leiste) {
+  animation: none;
+}
+::view-transition-old(seiten-leiste),
+::view-transition-old(stempel-leiste) {
+  display: none;
+}
+::view-transition-new(seiten-leiste),
+::view-transition-new(stempel-leiste) {
+  animation: none;
+}
+::view-transition-group(stempel-leiste) {
+  z-index: 60;
+}
+
+/* Der Inhaltsbereich wird beim Wechsel unterschiedlich hoch sein — ein Tag ist
+   kürzer als ein Monat mit 31 Bahnen. Die Gruppe soll diese Höhe nicht
+   animieren: sonst führe ein Rahmen zwischen zwei Höhen hin und her, während in
+   ihm zwei Standbilder überblenden, und man sähe beides gleichzeitig. Sie
+   nimmt sofort das neue Maß an; die Standbilder behalten ihre eigene Höhe
+   (`block-size: auto` ist der Voreinstellungswert) und blenden ineinander. */
+::view-transition-group(seiten-inhalt) {
+  animation: none;
+}
+
+@keyframes seite-hinaus {
+  to {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+@keyframes seite-herein {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+::view-transition-old(.wechsel) {
+  animation: seite-hinaus var(--takt-fort) var(--schwung-ab) both;
+}
+::view-transition-new(.wechsel) {
+  animation: seite-herein var(--takt-zug) var(--schwung-an) 60ms both;
+}
+
+/* Der Schritt auf der Zeitachse. 56 px sagen die Richtung, ohne dass das Auge
+   einem quer über den Bildschirm fliegenden Block hinterherjagen muss. */
+@keyframes schritt-hinaus {
+  to {
+    opacity: 0;
+    translate: var(--schritt-weg);
+  }
+}
+@keyframes schritt-herein {
+  from {
+    opacity: 0;
+    translate: var(--schritt-her);
+  }
+}
+::view-transition-old(.schritt-vor) {
+  --schritt-weg: -56px;
+  animation: schritt-hinaus var(--takt-fort) var(--schwung-ab) both;
+}
+::view-transition-new(.schritt-vor) {
+  --schritt-her: 56px;
+  animation: schritt-herein var(--takt-zug) var(--schwung-an) 60ms both;
+}
+::view-transition-old(.schritt-zurueck) {
+  --schritt-weg: 56px;
+  animation: schritt-hinaus var(--takt-fort) var(--schwung-ab) both;
+}
+::view-transition-new(.schritt-zurueck) {
+  --schritt-her: -56px;
+  animation: schritt-herein var(--takt-zug) var(--schwung-an) 60ms both;
+}
+
+/* Der Maßstabswechsel. „Weit" heißt zurücktreten: das Alte schrumpft, das Neue
+   kommt von etwas weiter außen herein. „Nah" ist genau die Umkehrung. */
+@keyframes zoom-hinaus {
+  to {
+    opacity: 0;
+    scale: var(--zoom-weg);
+  }
+}
+@keyframes zoom-herein {
+  from {
+    opacity: 0;
+    scale: var(--zoom-her);
+  }
+}
+::view-transition-old(.zoom-weit) {
+  --zoom-weg: 0.96;
+  animation: zoom-hinaus var(--takt-fort) var(--schwung-ab) both;
+}
+::view-transition-new(.zoom-weit) {
+  --zoom-her: 1.04;
+  animation: zoom-herein var(--takt-zug) var(--schwung-an) 60ms both;
+}
+::view-transition-old(.zoom-nah) {
+  --zoom-weg: 1.04;
+  animation: zoom-hinaus var(--takt-fort) var(--schwung-ab) both;
+}
+::view-transition-new(.zoom-nah) {
+  --zoom-her: 0.96;
+  animation: zoom-herein var(--takt-zug) var(--schwung-an) 60ms both;
+}
+
+/* Ein Seitenwechsel simuliert eine Bewegung des ganzen Blickfelds und ist damit
+   der häufigste Auslöser für Bewegungsempfindlichkeit. Hier wird deshalb nicht
+   abgemildert, sondern abgeschaltet: der Inhalt wird getauscht, wie es ohne
+   View Transition auch geschähe. */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+  }
+}
+
+/* Ein angeklickter Bereich sagt, dass er arbeitet.
+
+   Bis die Antwort des Servers da ist, vergeht auf einer dynamischen Route
+   ein Moment, in dem gar nichts passiert — und wer nichts sieht, klickt noch
+   einmal. Der Puls liegt in einer Spanne *innerhalb* des Verweises, weil
+   `useLinkStatus` nur unterhalb eines <Link> laufen darf; :has() holt die
+   Auskunft an den Verweis selbst zurück.
+
+   `display: contents` ist der Teil, der die Arbeit macht: die Spanne steht in
+   Verweisen, die selbst ein Flex-Kasten mit Abstand sind (die Seitenleiste,
+   die Bahnspalte, jede Zeile mit Zeichen und Beschriftung). Ein leerer Kasten
+   wäre dort ein zusätzliches Kind und würde eine Lücke aufreißen — also
+   bekommt er gar keinen. Für `:has()` ändert das nichts, das fragt den Baum,
+   nicht die Darstellung. */
+.link-puls {
+  display: contents;
+}
+
+a:has(.link-puls[data-laedt='true']) {
+  animation: link-pulst 1s var(--schwung-zug) infinite;
+  cursor: progress;
+}
+@keyframes link-pulst {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  a:has(.link-puls[data-laedt='true']) {
+    animation: none;
+    opacity: 0.6;
+  }
+}
+
+/* Der Codewechsel auf /zugangscodes: alle 30 Sekunden ersetzt der Server den
+   Einmalcode, und ohne Zeichen wechselten die Ziffern lautlos unter dem Blick
+   dessen, der sie gerade abtippt — ein veralteter Code scheitert beim Dienst.
+   Der neue Wert steigt deshalb das letzte Stück von unten ein (Zählwerk),
+   getragen von React: der Span ist auf den Code geschlüsselt, ein neuer Wert
+   heißt neues Element, und die Auftritts-Animation läuft beim Einhängen. Eine
+   Animation statt @starting-style: der Übergang von dort wurde vom Browser
+   mit dem Neuaufbau der Zeile zusammengelegt und spielte praktisch nie — eine
+   Animation auf einem frischen Element läuft immer. Nur transform, nie
+   opacity (eine nicht tickende Animation darf keinen Inhalt stranden lassen);
+   --takt-schritt, weil ein Zustand an Ort und Stelle wechselt, --schwung-an,
+   weil etwas ankommt. Bei unverändertem Code behält der Span seine Identität,
+   ein router.refresh() ohne Wechsel bewegt also nichts. */
+.code-wechsel {
+  display: inline-block;
+  animation: code-steigt var(--takt-schritt) var(--schwung-an);
+}
+@keyframes code-steigt {
+  from {
+    transform: translateY(0.35em);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .code-wechsel {
+    animation: none;
+  }
+}
+
+/* Der Ring neben dem Code sagt, wann er wechselt — die Restzeit als
+   schwindender Bogen statt als tickender Text („noch 7 s"), der jede Sekunde
+   eine neue Zahl zu lesen gab. Der Zustand tickt sekündlich aus React; der
+   lineare Übergang auf dem Bogen füllt die Sekunde dazwischen, damit das
+   Schwinden gleichmäßig wirkt (konstante Bewegung → linear). Die letzten fünf
+   Sekunden färbt der Bogen auf Warnorange um: wer jetzt zu tippen beginnt,
+   schafft es womöglich nicht mehr. Beide Bogenfarben stehen mit ≥3:1 auf
+   Weiß in tests/kontrast.test.ts; die Spur darunter ist Zierde und darf der
+   Haarstrich sein. */
+.code-ring-bogen {
+  transition:
+    stroke-dashoffset 1s linear,
+    stroke var(--takt-tupf) var(--schwung-an);
+}
+@media (prefers-reduced-motion: reduce) {
+  .code-ring-bogen {
+    transition: none;
   }
 }
 

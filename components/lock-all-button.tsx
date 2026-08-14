@@ -4,6 +4,7 @@ import {Button, HStack, Text} from '@astryxdesign/core';
 import {useRouter} from 'next/navigation';
 import {useState, useTransition} from 'react';
 import {lockAllAction} from '@/app/actions';
+import {Sinnbild} from './sinnbilder';
 
 interface LockAllButtonProps {
   month: string;
@@ -27,7 +28,7 @@ export function LockAllButton({month, lockableCount}: LockAllButtonProps) {
       else {
         setResult(
           outcome.skipped > 0
-            ? `${outcome.locked} abgeschlossen, ${outcome.skipped} wegen offener Einträge übersprungen.`
+            ? `${outcome.locked} abgeschlossen, ${outcome.skipped} wegen offener Einträge oder ungeprüfter Reisen übersprungen.`
             : `${outcome.locked} Mitarbeiter abgeschlossen.`,
         );
       }
@@ -44,11 +45,24 @@ export function LockAllButton({month, lockableCount}: LockAllButtonProps) {
       {confirming ? (
         <>
           <Text type="supporting">{lockableCount} Mitarbeiter abschließen?</Text>
-          <Button label="Ja, abschließen" variant="primary" size="sm" isLoading={isPending} onClick={run} />
+          <Button
+            label="Ja, abschließen"
+            variant="primary"
+            size="sm"
+            isLoading={isPending}
+            icon={<Sinnbild sinn="gesperrt" />}
+            onClick={run}
+          />
           <Button label="Abbrechen" variant="ghost" size="sm" onClick={() => setConfirming(false)} />
         </>
       ) : lockableCount > 0 ? (
-        <Button label="Alle abschließen" variant="secondary" size="sm" onClick={() => setConfirming(true)} />
+        <Button
+          label="Alle abschließen"
+          variant="secondary"
+          size="sm"
+          icon={<Sinnbild sinn="gesperrt" />}
+          onClick={() => setConfirming(true)}
+        />
       ) : null}
     </HStack>
   );

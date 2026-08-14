@@ -2,6 +2,7 @@
 
 import {Banner, Button, Heading, HStack, Text, VStack} from '@astryxdesign/core';
 import {useEffect} from 'react';
+import {Sinnbild} from '@/components/sinnbilder';
 
 /**
  * Unexpected failure inside the authenticated shell. Says what happened, what
@@ -17,7 +18,7 @@ export default function Error({error, reset}: {error: Error & {digest?: string};
       <VStack gap={0.5}>
         <Heading level={1}>Diese Seite konnte nicht geladen werden</Heading>
         <Text type="supporting" color="secondary">
-          Ihre erfassten Zeiten sind davon nicht betroffen – es ist nichts verloren gegangen.
+          Deine erfassten Zeiten sind davon nicht betroffen – es ist nichts verloren gegangen.
         </Text>
       </VStack>
       <Banner
@@ -25,12 +26,17 @@ export default function Error({error, reset}: {error: Error & {digest?: string};
         title="Unerwarteter Fehler"
         description={
           error.digest
-            ? `Bitte erneut versuchen. Falls es wieder auftritt, nennen Sie der Verwaltung diese Kennung: ${error.digest}`
-            : 'Bitte erneut versuchen. Falls es wieder auftritt, wenden Sie sich an die Verwaltung.'
+            ? `Bitte erneut versuchen. Falls es wieder auftritt, nenne der Verwaltung diese Kennung: ${error.digest}`
+            : 'Bitte erneut versuchen. Falls es wieder auftritt, wende dich an die Verwaltung.'
         }
       />
       <HStack gap={2}>
-        <Button label="Erneut versuchen" variant="primary" onClick={() => reset()} />
+        <Button
+          label="Erneut versuchen"
+          variant="primary"
+          icon={<Sinnbild sinn="erneut" />}
+          onClick={() => reset()}
+        />
       </HStack>
     </VStack>
   );

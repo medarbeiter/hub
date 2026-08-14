@@ -19,5 +19,22 @@
   "@astryx.input.statusButton.warning": {"defaultMessage": "Warnhinweis"},
   "@astryx.input.statusButton.success": {"defaultMessage": "Erfolgsdetails"},
   "@astryx.dropdownMenu.label": {"defaultMessage": "Menü"},
-  "@astryx.toast.dismiss": {"defaultMessage": "Benachrichtigung ausblenden"}
+  "@astryx.toast.dismiss": {"defaultMessage": "Benachrichtigung ausblenden"},
+  "@astryx.toast.viewport": {"defaultMessage": "Benachrichtigungen"},
+  "@astryx.selector.placeholder": {"defaultMessage": "Bitte wählen …"},
+  "@astryx.selector.clearLabel": {"defaultMessage": "{label} leeren"},
+  "@astryx.selector.searchOptions": {"defaultMessage": "Auswahl durchsuchen"},
+  "@astryx.selector.searchPlaceholder": {"defaultMessage": "Suchen …"},
+  "@astryx.dateInput.placeholder": {"defaultMessage": "Datum wählen"},
+  "@astryx.dateInput.clear": {"defaultMessage": "{label} leeren"},
+  "@astryx.dateInput.dialogLabel": {"defaultMessage": "Datum auswählen"},
+  "@astryx.dateInput.openCalendar": {"defaultMessage": "Kalender öffnen"},
+  "@astryx.dateInput.closeCalendar": {"defaultMessage": "Kalender schließen"},
+  "@astryx.dateInput.toggleCalendarClose": {"defaultMessage": "Kalender schließen"},
+  "@astryx.calendar.previousMonth": {"defaultMessage": "Vorheriger Monat"},
+  "@astryx.calendar.nextMonth": {"defaultMessage": "Nächster Monat"},
+  "@astryx.calendar.daySelected": {"defaultMessage": "{date}, ausgewählt"},
+  "@astryx.fileInput.clearLabel": {"defaultMessage": "{label} leeren"},
+  "@astryx.fileInput.triggerWithFiles": {"defaultMessage": "{label}, {fileNames}"},
+  "@astryx.fileInput.required": {"defaultMessage": "Pflichtfeld"}
 }

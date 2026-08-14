@@ -3,9 +3,14 @@ import '@astryxdesign/core/astryx.css';
 import '@/theme/medarbeiter.css';
 import './globals.css';
 
-import type {Metadata} from 'next';
+// Muss vor allem stehen, was ein Datum formatiert: legt Deutsch als Vorgabe
+// für Intl.DateTimeFormat fest (Begründung in der Datei).
+import '@/lib/intl-de';
+
+import type {Metadata, Viewport} from 'next';
 import {Figtree, Poppins} from 'next/font/google';
 import type {ReactNode} from 'react';
+import {IntlDeutschImBrowser} from '@/components/intl-de-client';
 import {Providers} from './providers';
 
 // Self-hosted via next/font: no runtime requests to Google, no CDN failure
@@ -15,10 +20,23 @@ const poppins = Poppins({subsets: ['latin'], weight: ['500', '600', '700'], vari
 const figtree = Figtree({subsets: ['latin'], variable: '--font-figtree', display: 'swap'});
 
 export const metadata: Metadata = {
-  title: 'MedArbeiter – Zeiterfassung',
+  title: 'MedArbeiter Hub',
   description: 'Arbeitszeiterfassung für MedArbeiter: Einstempeln, Pausen, Überstunden und Monatsabschluss.',
-  appleWebApp: {capable: true, title: 'MedArbeiter', statusBarStyle: 'default'},
+  appleWebApp: {capable: true, title: 'MedArbeiter Hub', statusBarStyle: 'default'},
   icons: {apple: '/apple-touch-icon.png'},
+};
+
+/**
+ * Installiert läuft die Anwendung ohne Adressleiste; was der Rahmen des
+ * Fensters dann trägt, ist diese Farbe. Sie steht in `viewport` und nicht in
+ * `metadata` — dort ist `themeColor` seit Next 14 abgekündigt.
+ *
+ * Das Papier des Körpers, nicht das Markengold: die Leiste ist der Rand der
+ * Anwendung, keine Arbeitszeit und keine Hauptschaltfläche.
+ */
+export const viewport: Viewport = {
+  themeColor: '#faf8f3',
+  colorScheme: 'light',
 };
 
 export default function RootLayout({children}: {children: ReactNode}) {
@@ -49,6 +67,7 @@ finish review, the verdict, and DESIGN.md.
 -->`,
           }}
         />
+        <IntlDeutschImBrowser />
         <Providers>{children}</Providers>
       </body>
     </html>

@@ -10,9 +10,12 @@
   },
   "devDependencies": {
     "@astryxdesign/cli": "^0.2.0",
+    "@tailwindcss/postcss": "^4.3.3",
     "@types/bun": "latest",
     "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4"
+    "@types/react-dom": "^19.2.4",
+    "postcss": "^8.5.26",
+    "tailwindcss": "4"
   },
   "peerDependencies": {
     "typescript": "^5"
@@ -20,8 +23,14 @@
   "dependencies": {
     "@astryxdesign/core": "^0.2.0",
     "@astryxdesign/theme-neutral": "^0.2.0",
+    "@heroui/react": "3.2.4",
+    "@heroui/styles": "3.2.4",
+    "@react-email/components": "^1.0.12",
+    "jsqr": "^1.4.0",
     "next": "^16.3.0",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "react-icons": "^5.7.0",
+    "resend": "^6.18.1"
   }
 }

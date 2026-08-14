@@ -26,7 +26,7 @@ function randInt(min: number, max: number): number {
 async function upsertUser(
   email: string,
   name: string,
-  role: 'mitarbeiter' | 'verwaltung',
+  role: import('../lib/rechte').Rolle,
   weeklyMinutes: number,
   password: string,
 ): Promise<number> {
@@ -123,7 +123,36 @@ if (demo) {
     open.run(tim, yesterday, 'arbeit', 13 * 60 + 12);
   }
 
-  console.log(`Demo: ${employees.length} Mitarbeiter (Passwort: demo2026), Zeiten ${firstDay} – ${today}. Alle Demo-Daten sind synthetisch.`);
+  // Drei synthetische Dienstreisen: eine mehrtägige zur Prüfung eingereicht,
+  // eine eintägige knapp unter der Acht-Stunden-Schwelle (zeigt, wie „kein
+  // Anspruch" aussieht) und eine bereits genehmigte mit Beleg.
+  const stempel = new Date().toISOString().slice(0, 19).replace('T', ' ');
+  const reisen = db.query(
+    `INSERT INTO reisen (user_id, start_date, start_min, end_date, end_min, zweck, ziel, status,
+       satz_teiltag_cent, satz_volltag_cent, eingereicht_at, entschieden_at, entschieden_von)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  );
+  if (db.query<{n: number}, []>('SELECT COUNT(*) AS n FROM reisen').get()!.n === 0) {
+    const lena = byEmail('l.wagner@medarbeiter.example');
+    reisen.run(
+      anna, addDays(today, -12), 6 * 60 + 30, addDays(today, -10), 19 * 60 + 40,
+      'Fotoshooting Klinik Nord', 'Hamburg', 'eingereicht', 1000, 2000, stempel, null, null,
+    );
+    reisen.run(
+      jonas, addDays(today, -6), 8 * 60 + 15, addDays(today, -6), 15 * 60 + 30,
+      'Portraittermin Praxis Süd', 'Leipzig', 'entwurf', null, null, null, null, null,
+    );
+    reisen.run(
+      lena, addDays(today, -25), 7 * 60, addDays(today, -24), 17 * 60 + 20,
+      'Imagefilm Pflegeheim', 'Rostock', 'genehmigt', 1000, 2000, stempel, stempel, adminId,
+    );
+    const letzte = db.query<{id: number}, []>('SELECT id FROM reisen ORDER BY id DESC LIMIT 1').get()!.id;
+    db.query(
+      'INSERT INTO reise_belege (reise_id, art, datum, betrag_cent, beschreibung) VALUES (?, ?, ?, ?, ?)',
+    ).run(letzte, 'uebernachtung', addDays(today, -25), 8900, 'Hotel am Hafen, eine Nacht');
+  }
+
+  console.log(`Demo: ${employees.length} Mitarbeiter (Passwort: demo2026), Zeiten ${firstDay} – ${today}, drei Dienstreisen. Alle Demo-Daten sind synthetisch.`);
 }
 
 console.log(`Datenbank: ${process.cwd()}/data/medarbeiter.db`);

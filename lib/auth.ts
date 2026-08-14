@@ -1,6 +1,8 @@
 import {cookies} from 'next/headers';
 import {redirect} from 'next/navigation';
 import {getDb, type User} from './db';
+import {onboardingIstFertig} from './onboarding';
+import {effektiveRechte, hatRecht, type Recht} from './rechte';
 
 const SESSION_COOKIE = 'medarbeiter_session';
 const SESSION_DAYS = 30;
@@ -49,7 +51,13 @@ export async function getSessionUser(): Promise<User | null> {
   const db = getDb();
   const row = db
     .query<User & {expires_at: number}, [string]>(
-      `SELECT u.id, u.email, u.name, u.role, u.weekly_minutes, u.active, u.created_at, s.expires_at
+      // Die Spalten stehen einzeln da, damit `password_hash` nicht mitkommt —
+      // dann müssen aber auch alle anderen mitkommen. `bundesland` fehlte hier,
+      // und weil dieser Weg jede Seite mit ihrem Benutzer versorgt, griff die
+      // Feiertagseinstellung je Mitarbeiter für die eigenen Seiten nie.
+      `SELECT u.id, u.email, u.name, u.role, u.weekly_minutes, u.active, u.created_at,
+              u.bundesland, u.urlaubstage_jahr, u.avatar_key, u.must_change_password,
+              s.expires_at
        FROM sessions s JOIN users u ON u.id = s.user_id
        WHERE s.token = ? AND u.active = 1`,
     )
@@ -60,19 +68,37 @@ export async function getSessionUser(): Promise<User | null> {
     return null;
   }
   const {expires_at: _discard, ...user} = row;
+  // Die wirksamen Rechte reisen mit der Sitzung: Rollenbündel plus die je
+  // Konto vergebenen Zusatzrechte. Jede Prüfung im Baum liest dieselbe Menge.
+  const extra = db
+    .query<{recht: string}, [number]>('SELECT recht FROM benutzer_rechte WHERE user_id = ?')
+    .all(user.id)
+    .map((r) => r.recht);
+  (user as User).rechte = effektiveRechte(user.role, extra);
   return user as User;
 }
 
-/** Redirects to /login when no valid session exists. */
-export async function requireUser(): Promise<User> {
+/** Nur Sitzungsschutz — die Zugangsseite braucht diesen Weg selbst. */
+export async function requireAuthenticatedUser(): Promise<User> {
   const user = await getSessionUser();
   if (!user) redirect('/login');
   return user;
 }
 
-/** Redirects to / when the session user is not Verwaltung. */
-export async function requireVerwaltung(): Promise<User> {
+/**
+ * Schützt die eigentliche Anwendung. Die Prüfung liegt hier statt nur in der
+ * Schale, damit auch Druckansicht, Exporte und Server-Aktionen erst nach der
+ * persönlichen Datenbestätigung erreichbar sind.
+ */
+export async function requireUser(): Promise<User> {
+  const user = await requireAuthenticatedUser();
+  if (!onboardingIstFertig(user.id)) redirect('/login');
+  return user;
+}
+
+/** Leitet auf / um, wenn dem Sitzungsbenutzer das benannte Recht fehlt. */
+export async function requireRecht(recht: Recht): Promise<User> {
   const user = await requireUser();
-  if (user.role !== 'verwaltung') redirect('/');
+  if (!hatRecht(user, recht)) redirect('/');
   return user;
 }

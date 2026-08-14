@@ -1,6 +1,7 @@
 'use client';
 
 import {Button, HStack, Text} from '@astryxdesign/core';
+import {Sinnbild} from './sinnbilder';
 
 export function PrintToolbar() {
   return (
@@ -18,7 +19,13 @@ export function PrintToolbar() {
         <Text type="supporting" color="secondary">
           Druckansicht – über „Drucken" als PDF speichern (ein Blatt je Mitarbeiter).
         </Text>
-        <Button label="Drucken / Als PDF speichern" variant="primary" size="sm" onClick={() => window.print()} />
+        <Button
+          label="Drucken / Als PDF speichern"
+          variant="primary"
+          size="sm"
+          icon={<Sinnbild sinn="drucken" />}
+          onClick={() => window.print()}
+        />
       </HStack>
     </div>
   );
