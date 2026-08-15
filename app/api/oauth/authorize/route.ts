@@ -19,6 +19,7 @@ import {protokolliere} from '@/lib/protokoll';
  * HTTP-Rundlauf, weil sein Ziel eine fremde App und keine RSC-Navigation ist.
  */
 export async function GET(request: NextRequest): Promise<Response> {
+  const basis = process.env.APP_URL?.replace(/\/$/, '') || request.url;
   const suche = request.nextUrl.searchParams;
   const clientId = suche.get('client_id') ?? '';
   const redirectUri = suche.get('redirect_uri') ?? '';
@@ -48,14 +49,14 @@ export async function GET(request: NextRequest): Promise<Response> {
   const user = await getSessionUser();
   if (!user || !onboardingIstFertig(user.id)) {
     const weiter = request.nextUrl.pathname + request.nextUrl.search;
-    return NextResponse.redirect(new URL(`/login?weiter=${encodeURIComponent(weiter)}`, request.url), {
+    return NextResponse.redirect(new URL(`/login?weiter=${encodeURIComponent(weiter)}`, basis), {
       headers: {'Cache-Control': 'no-store'},
     });
   }
 
   // Angemeldet — aber nicht durchgewinkt: die Entscheidung fällt auf der
   // Freigabeseite. Sie und die Aktion dahinter prüfen die Parameter erneut.
-  const freigabe = new URL('/freigeben', request.url);
+  const freigabe = new URL('/freigeben', basis);
   freigabe.searchParams.set('client_id', clientId);
   freigabe.searchParams.set('redirect_uri', redirectUri);
   freigabe.searchParams.set('state', state);
@@ -63,6 +64,7 @@ export async function GET(request: NextRequest): Promise<Response> {
 }
 
 export async function POST(request: NextRequest): Promise<Response> {
+  const basis = process.env.APP_URL?.replace(/\/$/, '') || request.url;
   const form = await request.formData().catch(() => null);
   const clientId = String(form?.get('client_id') ?? '');
   const redirectUri = String(form?.get('redirect_uri') ?? '');
@@ -75,7 +77,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   // Diese Werte stammen aus HTML und werden deshalb trotz der Prüfung beim
   // Anzeigen erneut geprüft. Auf eine ungeprüfte URI wird nie weitergeleitet.
   if (!client || !client.redirect_uris.includes(redirectUri) || !state) {
-    return weiter(new URL('/', request.url));
+    return weiter(new URL('/', basis));
   }
 
   const user = await getSessionUser();
@@ -83,7 +85,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     const autorisierung =
       `/api/oauth/authorize?client_id=${encodeURIComponent(clientId)}` +
       `&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${encodeURIComponent(state)}`;
-    return weiter(new URL(`/login?weiter=${encodeURIComponent(autorisierung)}`, request.url));
+    return weiter(new URL(`/login?weiter=${encodeURIComponent(autorisierung)}`, basis));
   }
 
   const ziel = new URL(redirectUri);
