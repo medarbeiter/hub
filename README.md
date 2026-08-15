@@ -28,6 +28,25 @@ zeigten auf `localhost`. Ohne sie nimmt die Anmeldung den gesehenen Origin, und
 eine Nachricht trägt schlicht keinen Knopf — beides richtiger als eine falsche
 Adresse.
 
+### Coolify mit Docker Compose
+
+1. In Coolify aus diesem Repository eine **Docker-Compose-Ressource** anlegen
+   und `/docker-compose.yml` auswählen.
+2. **Raw Compose** deaktiviert lassen. Coolify verwaltet Traefik und TLS; die
+   Compose-Datei veröffentlicht deshalb keinen Host-Port.
+3. `APP_URL`, `ADMIN_EMAIL`, `ADMIN_NAME` und das geheime/literale
+   `ADMIN_PASSWORD` setzen. Enthält das Passwort ein `$`, es in Coolify als
+   **Literal** markieren. Google und Resend bleiben optional.
+4. Dem Dienst eine Domain auf Container-Port `3000` zuweisen und `APP_URL`
+   exakt auf diese HTTPS-Domain setzen.
+5. Bereitstellen, auf den gesunden Zustand warten, anmelden und das
+   Startpasswort sofort ändern.
+6. Das vollständige Volume `medarbeiter-data` sichern. Eine Wiederherstellung
+   nur mit einer Anwendungs-Replica und nach dem von Coolify dokumentierten
+   Stoppen beziehungsweise Starten durchführen.
+
+Diese SQLite-Bereitstellung muss bei **einer Replica** bleiben.
+
 ### Google-Anbindung
 
 Die Anmeldung funktioniert auch über Google (Knopf und One-Tap-Hinweis auf der

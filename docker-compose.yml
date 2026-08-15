@@ -1,0 +1,31 @@
+services:
+  hub:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
+      APP_URL: ${APP_URL:?APP_URL muss gesetzt sein}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?ADMIN_EMAIL muss gesetzt sein}
+      ADMIN_NAME: ${ADMIN_NAME:?ADMIN_NAME muss gesetzt sein}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD muss gesetzt sein}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+    expose:
+      - "3000"
+    volumes:
+      - medarbeiter-data:/app/data
+    healthcheck:
+      test: ["CMD", "bun", "-e", "const r=await fetch('http://127.0.0.1:3000/api/health');process.exit(r.ok?0:1)"]
+      start_period: 30s
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    stop_grace_period: 30s
+
+volumes:
+  medarbeiter-data:
