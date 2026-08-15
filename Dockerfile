@@ -3,12 +3,17 @@ WORKDIR /app
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 
-FROM oven/bun:1.3.14 AS build
+FROM node:22-bookworm-slim AS build
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
-RUN bun run build
+RUN node node_modules/next/dist/bin/next build
+
+FROM oven/bun:1.3.14 AS bootstrap
+WORKDIR /app
+COPY --from=dependencies /app/node_modules ./node_modules
+COPY . .
 RUN bun build scripts/bootstrap-admin.ts --target=bun --outfile=dist/bootstrap-admin.js
 
 FROM oven/bun:1.3.14 AS runtime
@@ -20,7 +25,7 @@ ENV NODE_ENV=production \
 COPY --from=build --chown=bun:bun /app/.next/standalone ./
 COPY --from=build --chown=bun:bun /app/.next/static ./.next/static
 COPY --from=build --chown=bun:bun /app/public ./public
-COPY --from=build --chown=bun:bun /app/dist/bootstrap-admin.js ./bootstrap-admin.js
+COPY --from=bootstrap --chown=bun:bun /app/dist/bootstrap-admin.js ./bootstrap-admin.js
 RUN mkdir -p /app/data && chown bun:bun /app/data
 USER bun
 EXPOSE 3000
