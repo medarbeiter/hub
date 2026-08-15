@@ -1,9 +1,9 @@
-FROM oven/bun:1.3.13 AS dependencies
+FROM oven/bun:1.3.14 AS dependencies
 WORKDIR /app
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 
-FROM oven/bun:1.3.13 AS build
+FROM oven/bun:1.3.14 AS build
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=dependencies /app/node_modules ./node_modules
@@ -11,7 +11,7 @@ COPY . .
 RUN bun run build
 RUN bun build scripts/bootstrap-admin.ts --target=bun --outfile=dist/bootstrap-admin.js
 
-FROM oven/bun:1.3.13 AS runtime
+FROM oven/bun:1.3.14 AS runtime
 WORKDIR /app
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \

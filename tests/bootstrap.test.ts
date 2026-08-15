@@ -26,8 +26,14 @@ describe('Deployment-Konfiguration', () => {
   test('prüft E-Mail, Namen und die bestehenden Passwortregeln', () => {
     expect(() => deploymentConfig({...valid, ADMIN_EMAIL: 'keine-mail'})).toThrow();
     expect(() => deploymentConfig({...valid, ADMIN_NAME: '  '})).toThrow();
+    expect(() => deploymentConfig({...valid, ADMIN_PASSWORD: '   '})).toThrow();
     expect(() => deploymentConfig({...valid, ADMIN_PASSWORD: 'nur-buchstaben'})).toThrow();
     expect(() => deploymentConfig({...valid, ADMIN_PASSWORD: '123456789012'})).toThrow();
+  });
+
+  test('bewahrt das Startpasswort einschließlich Rand-Leerzeichen unverändert', () => {
+    const password = '  SicheresPasswort2026  ';
+    expect(deploymentConfig({...valid, ADMIN_PASSWORD: password}).adminPassword).toBe(password);
   });
 });
 

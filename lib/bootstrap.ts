@@ -17,7 +17,8 @@ export function deploymentConfig(env: Record<string, string | undefined>): Deplo
   const appUrl = required(env, 'APP_URL').replace(/\/$/, '');
   const adminEmail = required(env, 'ADMIN_EMAIL').toLowerCase();
   const adminName = required(env, 'ADMIN_NAME');
-  const adminPassword = required(env, 'ADMIN_PASSWORD');
+  const adminPassword = env.ADMIN_PASSWORD;
+  if (!adminPassword?.trim()) throw new Error('ADMIN_PASSWORD muss gesetzt sein.');
   let parsed: URL;
   try {
     parsed = new URL(appUrl);
