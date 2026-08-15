@@ -1,6 +1,9 @@
-import {Database} from 'bun:sqlite';
+import type {Database} from 'bun:sqlite';
 import {mkdirSync} from 'node:fs';
+import {createRequire} from 'node:module';
 import {join} from 'node:path';
+
+const runtimeRequire = createRequire(import.meta.url);
 
 declare global {
   // eslint-disable-next-line no-var
@@ -734,6 +737,9 @@ function migrate(db: Database) {
 }
 
 export function createDb(path: string): Database {
+  // Next wertet Servermodule beim Build unter Node aus. Bun-eigene Module
+  // dürfen deshalb erst geladen werden, wenn der Bun-Prozess die DB öffnet.
+  const {Database} = runtimeRequire('bun:sqlite') as typeof import('bun:sqlite');
   const db = new Database(path, {create: true, strict: true});
   db.exec('PRAGMA journal_mode = WAL;');
   // Fremdschlüssel erst NACH den Migrationen: der Neuaufbau einer Elterntabelle
