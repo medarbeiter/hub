@@ -18,9 +18,21 @@
 // wer `zugangscodes.verwalten` trägt, sieht und pflegt jeden Zugang und darf
 // auch für alle oder für Rollen freigeben.
 
-import {getDb, type TotpKonto, type User} from './db';
+import {getDb, type TotpKonto, type User, type ZugangscodeLoeschung} from './db';
 import {hatRecht, istRolle, rolleLabel} from './rechte';
 import {base32Dekodieren, periodeEnde, totpCode, type TotpVerfahren} from './totp';
+
+/** 30 Minuten, den Bestätigungslink zu öffnen — lang genug fürs Postfach, kurz genug fürs Risiko. */
+const LOESCHUNG_TTL_MS = 30 * 60_000;
+
+function sha256Hex(text: string): string {
+  return new Bun.CryptoHasher('sha256').update(text, 'utf8').digest('hex');
+}
+
+/** Opaker Wert nach dem Sitzungsmuster (lib/auth.ts): zweimal randomUUID. */
+function opakerWert(): string {
+  return crypto.randomUUID() + crypto.randomUUID();
+}
 
 export type ZugangSichtbarkeit = TotpKonto['sichtbarkeit'];
 
@@ -227,15 +239,54 @@ export function zugangskontoAendern(actor: Leser, id: number, eingabe: Zugangsko
 }
 
 /**
- * Löscht und gibt die Zeile zurück, wie sie war — fürs Protokoll, das den
- * Gegenstand vor der Tat beschreibt. Ein deutscher Satz, wenn es nicht darf.
+ * Fordert die Löschung an: keine Zeile fällt hier schon, nur ein
+ * Bestätigungslink entsteht (per E-Mail an den Anfragenden selbst — siehe
+ * lib/benachrichtigungen.ts). Ältere offene Anfragen zu diesem Zugang
+ * verfallen dabei, damit nur der zuletzt verschickte Link etwas löscht.
  */
-export function zugangskontoLoeschen(actor: Leser, id: number): TotpKonto | string {
+export function zugangskontoLoeschungAnfordern(
+  actor: Leser,
+  id: number,
+): {konto: TotpKonto; token: string} | string {
   const bestehend = zugangskontoById(id);
   if (!bestehend) return 'Diesen Zugang gibt es nicht mehr.';
   if (!darfZugangBearbeiten(actor, bestehend)) return 'Keine Berechtigung.';
-  const row = getDb().query<TotpKonto, [number]>('DELETE FROM totp_konten WHERE id = ? RETURNING *').get(id);
-  return row ?? 'Diesen Zugang gibt es nicht mehr.';
+  const token = opakerWert();
+  const jetzt = Date.now();
+  const db = getDb();
+  db.query('DELETE FROM zugangscode_loeschungen WHERE totp_id = ? AND eingeloest_am IS NULL').run(id);
+  db.query('DELETE FROM zugangscode_loeschungen WHERE ablauf_am < ?').run(jetzt);
+  db.query(
+    'INSERT INTO zugangscode_loeschungen (totp_id, angefordert_von, token_hash, erstellt_am, ablauf_am) VALUES (?, ?, ?, ?, ?)',
+  ).run(id, actor.id, sha256Hex(token), jetzt, jetzt + LOESCHUNG_TTL_MS);
+  return {konto: bestehend, token};
+}
+
+/**
+ * Löst den Bestätigungslink ein und löscht — nur wer die Anfrage selbst
+ * gestellt hat und die Berechtigung noch trägt, darf so bestätigen; das
+ * Recht kann sich zwischen Anfrage und Klick geändert haben. Gibt die
+ * gelöschte Zeile zurück (fürs Protokoll) oder einen deutschen Satz.
+ */
+export function zugangskontoLoeschungBestaetigen(actor: Leser, token: string): TotpKonto | string {
+  const db = getDb();
+  const anfrage = db
+    .query<ZugangscodeLoeschung, [string]>('SELECT * FROM zugangscode_loeschungen WHERE token_hash = ?')
+    .get(sha256Hex(token));
+  if (!anfrage || anfrage.eingeloest_am !== null || anfrage.ablauf_am < Date.now()) {
+    return 'Dieser Bestätigungslink ist ungültig oder abgelaufen.';
+  }
+  if (anfrage.angefordert_von !== actor.id) return 'Keine Berechtigung.';
+  const bestehend = zugangskontoById(anfrage.totp_id);
+  if (!bestehend) return 'Diesen Zugang gibt es nicht mehr.';
+  if (!darfZugangBearbeiten(actor, bestehend)) return 'Keine Berechtigung.';
+
+  return (
+    db.transaction(() => {
+      db.query('UPDATE zugangscode_loeschungen SET eingeloest_am = ? WHERE id = ?').run(Date.now(), anfrage.id);
+      return db.query<TotpKonto, [number]>('DELETE FROM totp_konten WHERE id = ? RETURNING *').get(anfrage.totp_id);
+    })() ?? 'Diesen Zugang gibt es nicht mehr.'
+  );
 }
 
 /**

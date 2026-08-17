@@ -1834,6 +1834,17 @@ html {
 .gitter-zelle.betont > .gitter-griff {
   border-color: var(--color-text-secondary);
 }
+/* Vor dem frühesten oder nach dem spätesten wählbaren Tag. Der Tag bleibt
+   sichtbar — ein Loch im Gitter wäre schlimmer als ein stummer Tag —, aber er
+   ist tot: kein Zeiger, keine Wäsche beim Überfahren, `disabled` am Knopf. */
+.gitter-zelle.gesperrt > .gitter-griff {
+  cursor: not-allowed;
+  background: transparent;
+  border-color: transparent;
+}
+.gitter-zelle.gesperrt .gitter-zahl {
+  opacity: 0.35;
+}
 
 .gitter-zahl {
   display: block;
@@ -1954,6 +1965,35 @@ html {
     padding-inline-start: 1px;
     text-align: center;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Das Gitter als Datumswähler (`kompakt`).
+
+   Dieselbe Zeichnung, kleinere Auflösung — kein zweites Gitter. Im Wähler gibt
+   es keine Marken, nur die Zahl: sie rückt deshalb in die Mitte der Zelle,
+   statt oben rechts über einem Inhalt zu stehen, den es hier nicht gibt.
+   Die Kalenderwochenspalte bleibt: sie kostet 30 px und beantwortet in einem
+   Zeiterfassungshaus regelmäßig genau die Frage, wegen der man das Feld
+   aufklappt.
+
+   Die 560-px-Mindestbreite des großen Gitters fällt weg — dies steht in einem
+   320 px breiten Popover, nicht auf einer Bühne. */
+.gitter-rahmen.kompakt {
+  overflow-x: visible;
+}
+.gitter-rahmen.kompakt .monatsgitter {
+  min-inline-size: 0;
+  border-spacing: 2px;
+}
+.gitter-rahmen.kompakt .gitter-griff {
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  gap: 0;
+}
+.gitter-rahmen.kompakt .gitter-zahl {
+  text-align: center;
 }
 
 /* ---------------------------------------------------------------------------

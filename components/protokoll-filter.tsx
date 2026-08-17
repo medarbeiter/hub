@@ -3,7 +3,7 @@
 import {Button, HStack, Selector, Switch, TextInput} from '@astryxdesign/core';
 import {useRouter, useSearchParams} from 'next/navigation';
 import {useEffect, useState, useTransition} from 'react';
-import {BEREICH_LABEL, PROTOKOLL_BEREICHE} from '@/lib/protokoll-arten';
+import {BEREICH_LABEL, ERFASSUNGSARTEN, ERFASSUNG_LABEL, PROTOKOLL_BEREICHE} from '@/lib/protokoll-arten';
 import {Sinnbild, umriss} from './sinnbilder';
 
 interface ProtokollFilterProps {
@@ -52,7 +52,7 @@ export function ProtokollFilter({akteure, betroffene, darfNachPersonFiltern}: Pr
   // Bereiche" — ein Knopf, der nichts zu löschen hat.
   const wert = (name: string) => params.get(name);
   /** Was „zurücksetzen" wegnimmt — der Zeitraum gehört ausdrücklich nicht dazu. */
-  const FILTER_SCHLUESSEL = ['bereich', 'akteur', 'person', 'tag', 'suche', 'nur', 'seite'];
+  const FILTER_SCHLUESSEL = ['bereich', 'akteur', 'person', 'tag', 'suche', 'nur', 'erfassung', 'seite'];
   const hatFilter = FILTER_SCHLUESSEL.some((k) => params.get(k));
 
   const zuruecksetzen = () => {
@@ -125,6 +125,23 @@ export function ProtokollFilter({akteure, betroffene, darfNachPersonFiltern}: Pr
           />
         </>
       )}
+
+      {/* Wie die Zeit in den Datensatz kam. „Nachgetragen" ist die Frage
+          einer Betriebsprüfung in einem Wort: welche Stunden hat niemand
+          gestempelt, sondern jemand eingetragen? Zeilen ohne erfasste Zeit
+          (eine Genehmigung, eine Einstellung) fallen dabei heraus — gefragt
+          ist nach Zeit, nicht nach allem, was am selben Tag geschah. */}
+      <Selector
+        label="Erfassung"
+        isLabelHidden
+        size="sm"
+        width={168}
+        placeholder="Jede Erfassung"
+        hasClear
+        value={wert('erfassung')}
+        options={ERFASSUNGSARTEN.map((a) => ({value: a, label: ERFASSUNG_LABEL[a]}))}
+        onChange={(v) => setze({erfassung: v})}
+      />
 
       {/* Die Vorauswahl zeigt Eingriffe. Das Stempeln selbst ist nicht
           versteckt, sondern einen Schalter entfernt — bei fünfzig Leuten sind

@@ -53,6 +53,8 @@ export default async function AbwesenheitPruefenPage({searchParams}: PageProps) 
       notiz: e.abwesenheit.notiz,
       kalendertage: e.tage.length,
       arbeitstage: e.arbeitstage.length,
+      minuten: e.abwesenheit.minuten,
+      ruecksprache: e.abwesenheit.ruecksprache_vorgesetzte === 1,
       auDateiName: e.abwesenheit.au_datei_name,
       auFehlt: e.auFehlt,
       restNachher,

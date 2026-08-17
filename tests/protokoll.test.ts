@@ -9,7 +9,18 @@ import {
   protokollPruefen,
   protokollSeite,
 } from '../lib/protokoll';
-import {AKTIONEN, aktionLabel, EINGRIFFE, istEingriff, PROTOKOLL_BEREICHE} from '../lib/protokoll-arten';
+import {
+  AKTIONEN,
+  aktionLabel,
+  aktionenNachErfassung,
+  EINGRIFFE,
+  erfassungsart,
+  ERFASSUNGSARTEN,
+  ERFASSUNG_ERKLAERUNG,
+  ERFASSUNG_LABEL,
+  istEingriff,
+  PROTOKOLL_BEREICHE,
+} from '../lib/protokoll-arten';
 
 let db: Database;
 
@@ -63,6 +74,78 @@ describe('Das Vokabular', () => {
 
   test('ein unbekannter Schlüssel behält sich selbst, statt zu verschwinden', () => {
     expect(aktionLabel('gibt.es.nicht')).toBe('gibt.es.nicht');
+  });
+});
+
+describe('Wie die Zeit in den Datensatz kam', () => {
+  test('gestempelt heißt: an der Uhr, zum Ereignis', () => {
+    for (const a of ['stempeln.ein', 'stempeln.pause', 'stempeln.fort', 'stempeln.aus'] as const) {
+      expect(erfassungsart(a)).toBe('gestempelt');
+    }
+    // Die 30-Sekunden-Rücknahme ist ein Eingriff, aber kein Nachtrag: sie
+    // geschieht an derselben Uhr und behauptet nichts über die Vergangenheit.
+    expect(istEingriff('stempeln.rueckgaengig')).toBe(true);
+    expect(erfassungsart('stempeln.rueckgaengig')).toBe('gestempelt');
+  });
+
+  test('nachgetragen heißt: von Hand für einen vergangenen Zeitpunkt', () => {
+    for (const a of [
+      'eintrag.anlegen',
+      'eintrag.aendern',
+      'eintrag.ziehen',
+      'eintrag.loeschen',
+      'eintrag.bestaetigen',
+    ] as const) {
+      expect(erfassungsart(a)).toBe('nachgetragen');
+    }
+  });
+
+  test('das vorläufige Schließen ist weder das eine noch das andere', () => {
+    expect(erfassungsart('eintrag.automatisch-geschlossen')).toBe('automatisch');
+  });
+
+  test('was keine Zeit erfasst, trägt auch keine Erfassungsart', () => {
+    // Sonst stünde „Nachgetragen" an einer Genehmigung — ein Wort, das dort
+    // nichts unterscheidet und die Spalte entwertet.
+    for (const a of ['anmelden', 'tagesart.setzen', 'abwesenheit.genehmigen', 'einstellungen.aendern'] as const) {
+      expect(erfassungsart(a)).toBeNull();
+    }
+  });
+
+  test('jede Erfassungsart hat einen deutschen Namen und einen ganzen Satz', () => {
+    for (const art of ERFASSUNGSARTEN) {
+      expect(ERFASSUNG_LABEL[art].length).toBeGreaterThan(0);
+      expect(ERFASSUNG_ERKLAERUNG[art].length).toBeGreaterThan(0);
+      expect(aktionenNachErfassung(art).length).toBeGreaterThan(0);
+    }
+  });
+
+  test('jede Zeitaktion trägt eine Erfassungsart', () => {
+    // Der Sinn der Regel: eine neue Aktion im Bereich „Arbeitszeit" darf nicht
+    // stumm ins Protokoll geraten. `tagesart.setzen` ist die eine Ausnahme —
+    // eine Tagesart ist keine erfasste Zeit, sondern eine Einordnung des Tages.
+    for (const [schluessel, art] of Object.entries(AKTIONEN)) {
+      if (art.bereich !== 'zeit' || schluessel === 'tagesart.setzen') continue;
+      expect(erfassungsart(schluessel)).not.toBeNull();
+    }
+  });
+
+  test('der Filter trennt Gestempeltes von Nachgetragenem', () => {
+    protokolliere({akteur: BERT, aktion: 'stempeln.ein', gegenstand: 'Einstempeln um 08:02'});
+    korrektur(); // Anna trägt an Berts Eintrag nach
+    protokolliere({akteur: ANNA, aktion: 'abwesenheit.genehmigen', gegenstand: 'Urlaub'});
+
+    expect(protokollSeite({erfassung: 'gestempelt'}).eintraege.map((e) => e.aktion)).toEqual(['stempeln.ein']);
+    expect(protokollSeite({erfassung: 'nachgetragen'}).eintraege.map((e) => e.aktion)).toEqual(['eintrag.aendern']);
+    // Die Genehmigung erfasst keine Zeit und fällt aus beiden Auswahlen heraus.
+    expect(protokollSeite({erfassung: 'automatisch'}).gesamt).toBe(0);
+  });
+
+  test('der Filter greift auch, wo die Vorauswahl auf Eingriffe stünde', () => {
+    // Einstempeln ist Routine. Wer nach „Gestempelt" fragt, will es trotzdem
+    // sehen — die Frage selbst ist der Zuschnitt.
+    protokolliere({akteur: BERT, aktion: 'stempeln.ein', gegenstand: 'Einstempeln um 08:02'});
+    expect(protokollSeite({erfassung: 'gestempelt', nurEingriffe: false}).gesamt).toBe(1);
   });
 });
 

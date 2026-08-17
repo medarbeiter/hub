@@ -28,7 +28,8 @@ export type MailArt =
   | 'reise.entschieden'
   | 'monat.abgeschlossen'
   | 'zugang.willkommen'
-  | 'zugang.passwort';
+  | 'zugang.passwort'
+  | 'zugang.zugangscode-loeschen';
 
 export interface MailBedeutung {
   label: string;
@@ -86,6 +87,12 @@ export const MAIL_ARTEN = {
   'zugang.passwort': {
     label: 'Passwort zurückgesetzt',
     beschreibung: 'Dein Passwort wurde von der Verwaltung zurückgesetzt.',
+    empfaenger: 'person',
+    abwaehlbar: false,
+  },
+  'zugang.zugangscode-loeschen': {
+    label: 'Zugangscode löschen',
+    beschreibung: 'Bestätigung, wenn du das Entfernen eines Zugangscodes angestoßen hast.',
     empfaenger: 'person',
     abwaehlbar: false,
   },

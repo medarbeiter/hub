@@ -12,7 +12,7 @@ import {
 } from '@/components/team-kalender';
 import {ZeitRahmen} from '@/components/zeit-rahmen';
 import {abwesenheitenImZeitraum} from '@/lib/abwesenheit';
-import {ART_LABEL, fmtTage, istWirksam, tageDerSpanne} from '@/lib/abwesenheit-arten';
+import {ART_LABEL, fmtTage, istWirksam, sichtbareArt, tageDerSpanne} from '@/lib/abwesenheit-arten';
 import {requireRecht} from '@/lib/auth';
 import {hatRecht} from '@/lib/rechte';
 import {istMonatJahrBereich, type MonatJahrBereich} from '@/lib/bereiche';
@@ -108,7 +108,7 @@ export default async function KalenderPage({searchParams}: PageProps) {
           id: a.id,
           von,
           bis,
-          art: darfArtSehen || selbst ? a.art : null,
+          art: sichtbareArt(a.art, darfArtSehen, selbst),
           beantragt: a.status === 'eingereicht',
           arbeitstage: zaehlendeTage.length,
           zaehlendeTage,

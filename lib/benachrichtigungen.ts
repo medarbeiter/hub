@@ -316,6 +316,18 @@ export function inhaltWillkommen(d: ZugangAngaben): MailInhalt {
   };
 }
 
+export function inhaltZugangscodeLoeschenBestaetigen(d: {name: string; pfad: string}): MailInhalt {
+  return {
+    betreff: `Löschung bestätigen: ${d.name}`,
+    titel: 'Zugangscode löschen?',
+    vorspann: `Du hast das Entfernen von „${d.name}" angestoßen. Der Code verschwindet erst, wenn du den Link unten öffnest – ohne Klick bleibt er bestehen.`,
+    ton: 'warnung',
+    angaben: [{label: 'Zugang', wert: d.name}],
+    ziel: {label: 'Löschung bestätigen', pfad: d.pfad},
+    nachsatz: 'Der Link ist 30 Minuten gültig. War das nicht du, ignoriere diese Nachricht einfach.',
+  };
+}
+
 export function inhaltPasswortZurueckgesetzt(d: {passwort: string; zurueckgesetztVon: string}): MailInhalt {
   return {
     betreff: 'Dein Passwort wurde zurückgesetzt',
@@ -465,6 +477,23 @@ export async function meldeWillkommen(
       passwort,
       rolle: rolleLabel(user.role),
       wochenstunden: user.weekly_minutes / 60,
+    }),
+  });
+}
+
+export async function meldeZugangscodeLoeschenBestaetigen(
+  actor: Pick<User, 'id' | 'name' | 'email'>,
+  name: string,
+  token: string,
+): Promise<VersandErgebnis> {
+  return sendeMail({
+    art: 'zugang.zugangscode-loeschen',
+    an: actor.email,
+    anrede: anrede(actor.name),
+    betrifftId: actor.id,
+    inhalt: inhaltZugangscodeLoeschenBestaetigen({
+      name,
+      pfad: `/api/zugangscode/loeschen-bestaetigen?token=${encodeURIComponent(token)}`,
     }),
   });
 }

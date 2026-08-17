@@ -40,6 +40,9 @@ const MIGRATIONS: Migration[] = [
   migration19ZugangscodeRollenkreis,
   migration20Mailversand,
   migration21OauthAnbieter,
+  migration22ZugangscodeLoeschung,
+  migration23AbwesenheitMinutenUndRuecksprache,
+  migration24EigenesProfilbild,
 ];
 
 /** The `PRAGMA user_version` a fully migrated database carries. */
@@ -580,6 +583,47 @@ function migration21OauthAnbieter(db: Database) {
   `);
 }
 
+function migration22ZugangscodeLoeschung(db: Database) {
+  // Ein Zugangscode wird nicht mehr direkt gelöscht — die Anfrage geht per
+  // E-Mail an den Anfragenden selbst, und erst deren Bestätigungslink löscht.
+  // Token nur als SHA-256, wie bei den OAuth-Codes.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS zugangscode_loeschungen (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      totp_id INTEGER NOT NULL REFERENCES totp_konten(id) ON DELETE CASCADE,
+      angefordert_von INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token_hash TEXT NOT NULL UNIQUE,
+      erstellt_am INTEGER NOT NULL,
+      ablauf_am INTEGER NOT NULL,
+      eingeloest_am INTEGER
+    );
+    CREATE INDEX IF NOT EXISTS idx_zugangscode_loeschungen_totp ON zugangscode_loeschungen(totp_id);
+  `);
+}
+
+function migration23AbwesenheitMinutenUndRuecksprache(db: Database) {
+  // Ein Ausgleichstag ist keine Einheit mehr, wenn zwei Überstunden reichen —
+  // Freizeitausgleich darf sich auch nur Minuten eines einzelnen Tages holen.
+  // NULL bleibt "der ganze Tag", das unveränderte Verhalten jeder anderen Art
+  // und jeder mehrtägigen Freizeitausgleich-Spanne. day_types trägt dieselbe
+  // Spalte, weil neuProjizieren den Wert dorthin schreibt.
+  db.exec('ALTER TABLE abwesenheiten ADD COLUMN minuten INTEGER');
+  db.exec('ALTER TABLE day_types ADD COLUMN minuten INTEGER');
+  // Ein Antrag bestätigt beim Erfassen die Rücksprache mit der/dem direkten
+  // Vorgesetzten — keine zweite Genehmigung, nur die protokollierte Aussage,
+  // dass gefragt wurde.
+  db.exec('ALTER TABLE abwesenheiten ADD COLUMN ruecksprache_vorgesetzte INTEGER NOT NULL DEFAULT 0');
+}
+
+function migration24EigenesProfilbild(db: Database) {
+  // Ein eigenes Foto neben dem Bildbogen. `avatar_key` bleibt und bleibt der
+  // Rückfall: wer kein Bild hochlädt (oder es wieder entfernt), trägt weiter
+  // seine Tierfigur, und ein Konto ohne beides hat trotzdem ein Zeichen.
+  // Die Datei liegt wie Belege und Bescheinigungen außerhalb von public/.
+  db.exec('ALTER TABLE users ADD COLUMN avatar_datei TEXT');
+  db.exec('ALTER TABLE users ADD COLUMN avatar_datei_typ TEXT');
+}
+
 /**
  * Bestehende Tagesarten in Spannen überführen. Aufeinanderfolgende Tage
  * derselben Art werden zu einer Abwesenheit zusammengezogen; ein Wochenende
@@ -791,8 +835,11 @@ export interface User {
   bundesland?: string | null;
   /** Jahresanspruch an Urlaubstagen; der Übertrag steht in `urlaub_uebertrag`. */
   urlaubstage_jahr: number;
-  /** Lokale, nicht-biometrische Profilfigur. */
+  /** Lokale, nicht-biometrische Profilfigur — der Rückfall, wenn kein Foto liegt. */
   avatar_key?: import('./avatar').AvatarKey;
+  /** Pfad unterhalb von data/avatare; gesetzt, wenn ein eigenes Foto hochgeladen wurde. */
+  avatar_datei?: string | null;
+  avatar_datei_typ?: string | null;
   /** Ein von der Verwaltung ausgestelltes Kennwort muss einmal ersetzt werden. */
   must_change_password?: number;
   /**
@@ -810,6 +857,8 @@ export interface DayTypeRow {
   date: string;
   type: DayTypeKind;
   note: string | null;
+  /** Nur bei einem eintägigen Freizeitausgleich gesetzt; sonst NULL = ganzer Tag. */
+  minuten: number | null;
   edited_by: number | null;
   created_at: string;
   updated_at: string;
@@ -838,6 +887,10 @@ export interface Abwesenheit {
   art: AbwesenheitArt;
   status: AbwesenheitStatus;
   notiz: string | null;
+  /** Nur bei einem eintägigen Freizeitausgleich gesetzt; sonst NULL = ganzer Tag. */
+  minuten: number | null;
+  /** 1 = beim Erfassen bestätigt, dass die/der direkte Vorgesetzte schon Bescheid weiß. */
+  ruecksprache_vorgesetzte: number;
   /** Pfad unterhalb von data/au; nur bei Krank, nie öffentlich erreichbar. */
   au_datei: string | null;
   au_datei_name: string | null;
@@ -920,6 +973,17 @@ export interface TotpKonto {
   created_at: string;
   /** Leserkreis: alle Angemeldeten, die Rollen in `totp_konto_rollen` oder die Personen in `totp_konto_personen`. */
   sichtbarkeit: 'alle' | 'rolle' | 'personen';
+}
+
+/** Eine angeforderte Löschung eines Zugangscodes — wirksam erst mit dem Bestätigungslink. */
+export interface ZugangscodeLoeschung {
+  id: number;
+  totp_id: number;
+  angefordert_von: number;
+  token_hash: string;
+  erstellt_am: number;
+  ablauf_am: number;
+  eingeloest_am: number | null;
 }
 
 export interface MonthLock {

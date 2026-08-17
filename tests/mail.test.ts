@@ -69,9 +69,11 @@ describe('das Nachrichten-Vokabular', () => {
   test('Zugangspost lässt sich nicht abbestellen', () => {
     // Die einzige Nachricht, die jemanden VOR der ersten Anmeldung erreichen
     // kann. Ein Schalter dagegen spielte den Zugang gegen sich selbst aus.
+    // Die Löschbestätigung ist selbst das Sicherheitstor und trägt dieselbe Regel.
     expect(ABWAEHLBARE_ARTEN).not.toContain('zugang.willkommen');
     expect(ABWAEHLBARE_ARTEN).not.toContain('zugang.passwort');
-    expect(ABWAEHLBARE_ARTEN.length).toBe(ALLE_MAIL_ARTEN.length - 2);
+    expect(ABWAEHLBARE_ARTEN).not.toContain('zugang.zugangscode-loeschen');
+    expect(ABWAEHLBARE_ARTEN.length).toBe(ALLE_MAIL_ARTEN.length - 3);
   });
 });
 

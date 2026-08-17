@@ -1,7 +1,15 @@
 import {afterEach, beforeEach, describe, expect, test} from 'bun:test';
 import type {Database} from 'bun:sqlite';
 import {createDb, setDbForTesting} from '../lib/db';
-import {ereignisFuer, ereignisStand, syncGoogleAbwesenheiten} from '../lib/google-kalender';
+import {
+  ereignisBeschreibung,
+  ereignisFuer,
+  ereignisStand,
+  syncGoogleAbwesenheiten,
+} from '../lib/google-kalender';
+
+/** Die alten Fälle kannten Notiz und Teiltag noch nicht — beide leer. */
+const LEER = <T,>(a: T) => ({...a, notiz: null, minuten: null});
 
 // ---------------------------------------------------------------------------
 // Ereignis-Bau (rein)
@@ -9,7 +17,7 @@ import {ereignisFuer, ereignisStand, syncGoogleAbwesenheiten} from '../lib/googl
 
 describe('ereignisFuer', () => {
   test('ganztägig mit exklusivem Ende, Name im Titel, Herkunft in der Beschreibung', () => {
-    const e = ereignisFuer({id: 7, art: 'urlaub', von: '2026-08-10', bis: '2026-08-14'}, 'Max Muma');
+    const e = ereignisFuer(LEER({id: 7, art: 'urlaub', von: '2026-08-10', bis: '2026-08-14'}), 'Max Muma');
     expect(e.summary).toBe('Urlaub – Max Muma');
     expect(e.description).toContain('MedArbeiter Hub');
     expect(e.start.date).toBe('2026-08-10');
@@ -20,31 +28,69 @@ describe('ereignisFuer', () => {
   });
 
   test('das exklusive Ende trägt über den Monatswechsel', () => {
-    const e = ereignisFuer({id: 1, art: 'fortbildung', von: '2026-08-31', bis: '2026-08-31'}, 'Max Muma');
+    const e = ereignisFuer(LEER({id: 1, art: 'fortbildung', von: '2026-08-31', bis: '2026-08-31'}), 'Max Muma');
     expect(e.start.date).toBe('2026-08-31');
     expect(e.end.date).toBe('2026-09-01');
   });
 
   test('jede Art trägt ihre eigene Farbe', () => {
     const farbe = (art: 'urlaub' | 'krank' | 'fortbildung' | 'freizeitausgleich') =>
-      ereignisFuer({id: 1, art, von: '2026-08-03', bis: '2026-08-03'}, 'X').colorId;
+      ereignisFuer(LEER({id: 1, art, von: '2026-08-03', bis: '2026-08-03'}), 'X').colorId;
     const farben = ['urlaub', 'krank', 'fortbildung', 'freizeitausgleich'].map((a) => farbe(a as never));
     expect(new Set(farben).size).toBe(4);
   });
 
   test('Krank verlässt das Haus nur als „Abwesend" — keine Gesundheitsangabe bei Google', () => {
-    const e = ereignisFuer({id: 3, art: 'krank', von: '2026-08-03', bis: '2026-08-05'}, 'Max Muma');
+    const e = ereignisFuer(LEER({id: 3, art: 'krank', von: '2026-08-03', bis: '2026-08-05'}), 'Max Muma');
     expect(e.summary).toBe('Abwesend – Max Muma');
     expect(JSON.stringify(e)).not.toContain('rank');
+  });
+
+  test('die Notiz der Person geht mit in die Beschreibung', () => {
+    const e = ereignisFuer(
+      {id: 7, art: 'urlaub', von: '2026-08-10', bis: '2026-08-14', notiz: 'Sommerurlaub', minuten: null},
+      'Max Muma',
+    );
+    expect(e.description).toContain('Sommerurlaub');
+    expect(e.description).toContain('MedArbeiter Hub');
+  });
+
+  test('ein Teiltag nennt seinen Umfang — ein Ganztagsereignis sagt es sonst nicht', () => {
+    const e = ereignisFuer(
+      {id: 8, art: 'freizeitausgleich', von: '2026-08-10', bis: '2026-08-10', notiz: null, minuten: 90},
+      'Max Muma',
+    );
+    expect(e.description).toContain('90 Minuten');
+  });
+
+  /* Der Datensatz führt bei Krank kein Notizfeld. Diese Zeile kann also nur aus
+     einer Hand-Änderung an der Datenbank kommen — und genau hier verlassen die
+     Daten das Haus, also hält die Grenze und nicht das Schreibrecht. */
+  test('eine Krank-Notiz erreicht Google auch dann nicht, wenn sie in der Zeile steht', () => {
+    const e = ereignisFuer(
+      {id: 9, art: 'krank', von: '2026-08-03', bis: '2026-08-05', notiz: 'Grippe', minuten: null},
+      'Max Muma',
+    );
+    expect(e.description).not.toContain('Grippe');
+    expect(e.description).toBe(ereignisBeschreibung({art: 'krank', von: 'x', bis: 'y', notiz: null, minuten: null}));
   });
 });
 
 describe('ereignisStand', () => {
   test('ändert sich mit Titel, Spanne und Name, sonst nicht', () => {
-    const a = {art: 'urlaub' as const, von: '2026-08-10', bis: '2026-08-14'};
+    const a = {art: 'urlaub' as const, von: '2026-08-10', bis: '2026-08-14', notiz: null, minuten: null};
     expect(ereignisStand(a, 'Max')).toBe(ereignisStand({...a}, 'Max'));
     expect(ereignisStand(a, 'Max')).not.toBe(ereignisStand({...a, bis: '2026-08-15'}, 'Max'));
     expect(ereignisStand(a, 'Max')).not.toBe(ereignisStand(a, 'Maxi'));
+  });
+
+  /* Ohne die Beschreibung im Fingerabdruck bliebe eine geänderte Notiz drüben
+     für immer die alte: der Abgleich sähe keinen Unterschied und fragte die
+     API nie. */
+  test('eine geänderte Notiz löst einen Abgleich aus', () => {
+    const a = {art: 'urlaub' as const, von: '2026-08-10', bis: '2026-08-14', notiz: null, minuten: null};
+    expect(ereignisStand(a, 'Max')).not.toBe(ereignisStand({...a, notiz: 'Sommerurlaub'}, 'Max'));
+    expect(ereignisStand(a, 'Max')).not.toBe(ereignisStand({...a, minuten: 90}, 'Max'));
   });
 });
 

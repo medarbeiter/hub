@@ -19,6 +19,8 @@
 //      Krankmeldung im Google-Kalender nennt die Art nicht — sonst läge eine
 //      Gesundheitsangabe nach Art. 9 DSGVO auf fremden Servern. Dieselbe
 //      Abstufung, mit der der Teamkalender Kolleginnen nur das „dass" zeigt.
+//      Das gilt für die Beschreibung genauso wie für den Titel: jede andere Art
+//      trägt ihre Notiz mit hinüber, Krank trägt nichts (`ereignisBeschreibung`).
 
 import {type Abwesenheit, getDb} from './db';
 import {ausserHausLabel, istWirksam} from './abwesenheit-arten';
@@ -65,16 +67,43 @@ export function ereignisTitel(art: Abwesenheit['art'], name: string): string {
   return `${ausserHausLabel(art)} – ${name}`;
 }
 
+/** Was die Abwesenheit über sich selbst sagt — ohne den Herkunftshinweis. */
+type EreignisQuelle = Pick<Abwesenheit, 'art' | 'von' | 'bis' | 'notiz' | 'minuten'>;
+
+const HERKUNFT =
+  'Automatisch übertragen aus dem MedArbeiter Hub. Änderungen bitte dort vornehmen – der nächste Abgleich stellt diesen Stand wieder her.';
+
+/**
+ * Der Text unter dem Ereignis: was die Person selbst zur Abwesenheit notiert
+ * hat, und bei einem Teiltag der Umfang — ein ganztägiges Ereignis für 90
+ * Minuten Freizeitausgleich wäre drüben sonst nicht von einem ganzen Tag zu
+ * unterscheiden. Der Herkunftshinweis bleibt am Ende stehen.
+ *
+ * Bei Krank steht hier ausdrücklich nichts. Der Datensatz führt dort schon kein
+ * Notizfeld (`notizFuer` in lib/abwesenheit.ts erzwingt NULL), aber dies ist
+ * die Stelle, an der Daten das Haus verlassen — und eine von Hand gesetzte
+ * Zeile darf hier keine Gesundheitsangabe nach Art. 9 DSGVO auf fremde Server
+ * tragen. Dieselbe Abstufung wie beim Titel: das „dass", nie das „warum".
+ */
+export function ereignisBeschreibung(a: EreignisQuelle): string {
+  if (a.art === 'krank') return HERKUNFT;
+  const zeilen = [
+    a.notiz?.trim() || null,
+    a.minuten != null ? `Umfang: ${a.minuten} Minuten (Teiltag).` : null,
+    HERKUNFT,
+  ];
+  return zeilen.filter(Boolean).join('\n\n');
+}
+
 /**
  * Ganztägige Ereignisse; das Ende ist bei Google exklusiv, also der Tag nach
  * dem letzten. Die Abwesenheits-ID steht als private Eigenschaft am Ereignis,
  * damit es auch drüben als unseres erkennbar bleibt.
  */
-export function ereignisFuer(a: Pick<Abwesenheit, 'id' | 'art' | 'von' | 'bis'>, name: string): KalenderEreignis {
+export function ereignisFuer(a: EreignisQuelle & Pick<Abwesenheit, 'id'>, name: string): KalenderEreignis {
   return {
     summary: ereignisTitel(a.art, name),
-    description:
-      'Automatisch übertragen aus dem MedArbeiter Hub. Änderungen bitte dort vornehmen – der nächste Abgleich stellt diesen Stand wieder her.',
+    description: ereignisBeschreibung(a),
     start: {date: a.von},
     end: {date: tagNach(a.bis)},
     transparency: 'opaque',
@@ -88,10 +117,11 @@ export function ereignisFuer(a: Pick<Abwesenheit, 'id' | 'art' | 'von' | 'bis'>,
  * Der Fingerabdruck des Geschriebenen — weicht er ab, wird die API angefragt.
  * Name und Farbe stehen mit darin: ändert sich die Darstellung (oder wird eine
  * Person umbenannt), holt der nächste Abgleich jedes Ereignis von selbst auf
- * den neuen Stand.
+ * den neuen Stand. Die Beschreibung gehört mit dazu, seit sie die Notiz trägt:
+ * sonst bliebe eine geänderte Notiz drüben für immer die alte.
  */
-export function ereignisStand(a: Pick<Abwesenheit, 'art' | 'von' | 'bis'>, name: string): string {
-  return `${ereignisTitel(a.art, name)}|${a.von}|${a.bis}|${EREIGNIS_FARBE[a.art]}`;
+export function ereignisStand(a: EreignisQuelle, name: string): string {
+  return `${ereignisTitel(a.art, name)}|${a.von}|${a.bis}|${EREIGNIS_FARBE[a.art]}|${ereignisBeschreibung(a)}`;
 }
 
 async function googleAufruf(token: string, pfad: string, methode: string, body?: KalenderEreignis): Promise<Response> {

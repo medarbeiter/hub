@@ -3,16 +3,17 @@
 import {
   Banner,
   Button,
+  CheckboxInput,
   DialogHeader,
   Divider,
   FileInput,
   HStack,
+  NumberInput,
   StackItem,
   Text,
   TextInput,
   VStack,
 } from '@astryxdesign/core';
-import {DateInput} from '@astryxdesign/core/DateInput';
 import {RadioList, RadioListItem} from '@astryxdesign/core/RadioList';
 import {useRouter} from 'next/navigation';
 import {useEffect, useState, useTransition} from 'react';
@@ -28,7 +29,8 @@ import {
   type Anspruch,
 } from '@/lib/abwesenheit-arten';
 import type {AbwesenheitArt} from '@/lib/db';
-import {dailySollMinutes, fmtDateLong, fmtDurationSigned, fmtWeekdayShort} from '@/lib/format';
+import {dailySollMinutes, fmtDateLong, fmtDuration, fmtDurationSigned, fmtWeekdayShort} from '@/lib/format';
+import {DatumFeld} from './datum-feld';
 import {Sinnbild} from './sinnbilder';
 import {TafelDialog} from './tafel-dialog';
 
@@ -38,6 +40,9 @@ export interface AbwesenheitEntwurf {
   bis: string;
   art: AbwesenheitArt;
   notiz: string | null;
+  /** Nur bei einem eintägigen Freizeitausgleich gesetzt; sonst der ganze Tag. */
+  minuten: number | null;
+  ruecksprache_vorgesetzte: number;
 }
 
 interface AbwesenheitEditorProps {
@@ -79,6 +84,9 @@ export function AbwesenheitEditor(props: AbwesenheitEditorProps) {
   const [bis, setBis] = useState(props.endDatum ?? props.startDatum);
   const [notiz, setNotiz] = useState('');
   const [auDatei, setAuDatei] = useState<File | null>(null);
+  const [nurMinuten, setNurMinuten] = useState(false);
+  const [minuten, setMinuten] = useState(60);
+  const [ruecksprache, setRuecksprache] = useState(false);
 
   useEffect(() => {
     if (!props.isOpen) return;
@@ -88,6 +96,9 @@ export function AbwesenheitEditor(props: AbwesenheitEditorProps) {
     setBis(a ? a.bis : (props.endDatum ?? props.startDatum));
     setNotiz(a?.notiz ?? '');
     setAuDatei(null);
+    setNurMinuten(a?.minuten != null);
+    setMinuten(a?.minuten ?? 60);
+    setRuecksprache(a ? a.ruecksprache_vorgesetzte === 1 : false);
     setFehler(null);
   }, [props.abwesenheit, props.startDatum, props.endDatum, props.isOpen]);
 
@@ -104,6 +115,8 @@ export function AbwesenheitEditor(props: AbwesenheitEditorProps) {
       fd.set('von', von);
       fd.set('bis', bis);
       fd.set('notiz', art === 'krank' ? '' : notiz);
+      if (minutenAktiv) fd.set('minuten', String(minuten));
+      if (istAntrag(art)) fd.set('ruecksprache', ruecksprache ? 'ja' : '');
       if (art === 'krank' && auDatei) fd.set('au', auDatei);
       const {error} = await abwesenheitSaveAction({error: null}, fd);
       if (error) {
@@ -122,11 +135,22 @@ export function AbwesenheitEditor(props: AbwesenheitEditorProps) {
   const tage = gueltig ? tageDerSpanne(von, bis) : [];
   const werktage = gueltig ? anspruchstage(von, bis, sollAmTag) : [];
 
+  /* Ein Teiltag gibt es nur beim Freizeitausgleich, und nur an einem einzigen
+     Arbeitstag: eine Woche „à 90 Minuten" wäre keine Abwesenheit mehr, sondern
+     eine zweite Zeiterfassung neben der Stempeluhr. */
+  const teiltagMoeglich = art === 'freizeitausgleich' && gueltig && von === bis && werktage.length === 1;
+  const minutenAktiv = teiltagMoeglich && nurMinuten;
+  const sollDesTages = gueltig ? sollAmTag(von) : 0;
+
   // Was diese Spanne kostet, je nachdem, woraus sie bezahlt wird.
   const restVorher = restanspruch(props.anspruch);
   const restNachher = restVorher - werktage.length;
   const sollMinutenDerSpanne = werktage.reduce((s, t) => s + sollAmTag(t), 0);
-  const saldoNachher = props.saldoMin - sollMinutenDerSpanne;
+  const ausgabeMinuten = minutenAktiv ? minuten : sollMinutenDerSpanne;
+  const saldoNachher = props.saldoMin - ausgabeMinuten;
+
+  const minutenGueltig = !minutenAktiv || (minuten > 0 && minuten <= sollDesTages);
+  const rueckspracheGueltig = !istAntrag(art) || ruecksprache;
 
   const istBearbeitung = props.abwesenheit !== null;
 
@@ -158,38 +182,65 @@ export function AbwesenheitEditor(props: AbwesenheitEditorProps) {
           ))}
         </RadioList>
 
-        {/* Astryx' DateInput bringt eine Mindestbreite von 180 px mit, die
-            `width="100%"` nicht unterschreitet: nebeneinander brauchen die
-            beiden Felder 372 px und ragten auf dem Telefon aus der Tafel
-            heraus (gemessen: 346 px Inhalt in 319 px Sichtfeld, mit
+        {/* Zwei Datumsfelder nebeneinander brauchen zusammen mehr Platz, als
+            ein Telefon hat (gemessen: 346 px Inhalt in 319 px Sichtfeld, mit
             Querbalken). Unter 520 px stehen sie deshalb untereinander. */}
         <HStack gap={3} vAlign="start" wrap="wrap" className="spanne-felder">
           <StackItem size="fill">
-            <DateInput
+            <DatumFeld
               label="Erster Tag"
-              value={von as never}
-              onChange={(value) => {
-                const neu = value ?? von;
+              value={von}
+              onChange={(neu) => {
                 setVon(neu);
                 if (bis < neu) setBis(neu);
               }}
               placeholder="Datum wählen"
-              format={(value) => fmtDateLong(value)}
               width="100%"
             />
           </StackItem>
           <StackItem size="fill">
-            <DateInput
+            <DatumFeld
               label="Letzter Tag"
-              value={bis as never}
-              onChange={(value) => setBis(value ?? bis)}
-              min={von as never}
+              value={bis}
+              onChange={setBis}
+              min={von}
               placeholder="Datum wählen"
-              format={(value) => fmtDateLong(value)}
               width="100%"
             />
           </StackItem>
         </HStack>
+
+        {/* Nur der Freizeitausgleich kennt einen Teiltag. Er wird aus dem
+            Zeitkonto bezahlt, und ein Zeitkonto rechnet ohnehin in Minuten —
+            bei Urlaub gäbe es dagegen keinen halben Anspruchstag zu buchen. */}
+        {teiltagMoeglich && (
+          <VStack gap={2}>
+            <CheckboxInput
+              label="Nur einen Teil des Tages"
+              description={`Sonst wird das ganze Soll dieses Tages ausgegeben (${fmtDuration(sollDesTages)} Std.).`}
+              value={nurMinuten}
+              onChange={setNurMinuten}
+              width="100%"
+            />
+            {nurMinuten && (
+              <NumberInput
+                label="Minuten"
+                description={`Höchstens ${sollDesTages} Minuten – das Soll dieses Tages.`}
+                value={minuten}
+                onChange={setMinuten}
+                min={1}
+                max={sollDesTages}
+                step={15}
+                width={220}
+                status={
+                  minutenGueltig
+                    ? undefined
+                    : {type: 'error', message: `Bitte 1 bis ${sollDesTages} Minuten angeben.`}
+                }
+              />
+            )}
+          </VStack>
+        )}
 
         {art !== 'krank' && (
           <TextInput
@@ -289,10 +340,24 @@ export function AbwesenheitEditor(props: AbwesenheitEditorProps) {
                 saldoVorher={props.saldoMin}
                 saldoNachher={saldoNachher}
                 anspruch={props.anspruch}
+                teiltagMinuten={minutenAktiv ? minuten : null}
               />
             </VStack>
           )}
         </VStack>
+
+        {/* Nur beim Antrag: eine Meldung wird nicht vorher abgestimmt — wer
+            krank ist, fragt niemanden um Erlaubnis. Die Bestätigung ist keine
+            zweite Genehmigung, sondern die protokollierte Aussage, dass die
+            Rücksprache stattgefunden hat. */}
+        {istAntrag(art) && (
+          <CheckboxInput
+            label="Ich bestätige, dass ich dies bereits mit meiner/meinem direkten Vorgesetzten besprochen habe."
+            value={ruecksprache}
+            onChange={setRuecksprache}
+            width="100%"
+          />
+        )}
 
         <HStack gap={2} justify="end">
           <Button label="Abbrechen" variant="secondary" onClick={() => props.onOpenChange(false)} />
@@ -309,7 +374,7 @@ export function AbwesenheitEditor(props: AbwesenheitEditorProps) {
             }
             variant="primary"
             isLoading={isSaving}
-            isDisabled={!gueltig}
+            isDisabled={!gueltig || !minutenGueltig || !rueckspracheGueltig}
             onClick={speichern}
           />
         </HStack>
@@ -344,6 +409,7 @@ function Folge(props: {
   saldoVorher: number;
   saldoNachher: number;
   anspruch: Anspruch;
+  teiltagMinuten: number | null;
 }) {
   if (props.art === 'urlaub') {
     const reicht = props.restNachher >= 0;
@@ -388,8 +454,10 @@ function Folge(props: {
           </Text>
         </HStack>
         <Text type="supporting" size="sm" color="secondary" hasTabularNumbers>
-          Zurzeit: {fmtDurationSigned(props.saldoVorher)} Std. Jeder Ausgleichstag gibt das Soll
-          dieses Tages aus.
+          Zurzeit: {fmtDurationSigned(props.saldoVorher)} Std.{' '}
+          {props.teiltagMinuten !== null
+            ? `Dieser Teiltag gibt ${props.teiltagMinuten} Minuten aus; die übrige Arbeitszeit des Tages wird wie sonst gestempelt.`
+            : 'Jeder Ausgleichstag gibt das Soll dieses Tages aus.'}
         </Text>
       </VStack>
     );

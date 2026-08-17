@@ -36,6 +36,11 @@ const SOLL_TREATMENT: Record<DayTypeKind, 'bezahlt' | 'gearbeitet' | 'abgebaut'>
 export interface ResolvedDayType {
   type: DayTypeKind;
   note: string | null;
+  /**
+   * Only set for a single-day Freizeitausgleich booked in minutes. NULL means
+   * the whole day, which is what every other type and every longer span is.
+   */
+  minuten: number | null;
   /** True when this comes from the holiday calendar, not from a stored row. */
   computed: boolean;
   label: string;
@@ -65,11 +70,17 @@ export function resolveDayTypes(user: User, fromISO: string, toISO: string): Map
   const land = bundeslandFor(user);
   if (land) {
     for (const [date, name] of holidaysInRange(fromISO, toISO, land)) {
-      result.set(date, {type: 'feiertag', note: name, computed: true, label: name});
+      result.set(date, {type: 'feiertag', note: name, minuten: null, computed: true, label: name});
     }
   }
   for (const [date, row] of storedDayTypes(user.id, fromISO, toISO)) {
-    result.set(date, {type: row.type, note: row.note, computed: false, label: DAY_TYPE_LABEL[row.type]});
+    result.set(date, {
+      type: row.type,
+      note: row.note,
+      minuten: row.minuten,
+      computed: false,
+      label: DAY_TYPE_LABEL[row.type],
+    });
   }
   return result;
 }
@@ -79,11 +90,17 @@ export function resolveDayType(user: User, dateISO: string): ResolvedDayType | n
     .query<DayTypeRow, [number, string]>('SELECT * FROM day_types WHERE user_id = ? AND date = ?')
     .get(user.id, dateISO);
   if (stored) {
-    return {type: stored.type, note: stored.note, computed: false, label: DAY_TYPE_LABEL[stored.type]};
+    return {
+      type: stored.type,
+      note: stored.note,
+      minuten: stored.minuten,
+      computed: false,
+      label: DAY_TYPE_LABEL[stored.type],
+    };
   }
   const land = bundeslandFor(user);
   const name = land ? holidayName(dateISO, land) : null;
-  return name ? {type: 'feiertag', note: name, computed: true, label: name} : null;
+  return name ? {type: 'feiertag', note: name, minuten: null, computed: true, label: name} : null;
 }
 
 /**

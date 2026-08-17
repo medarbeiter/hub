@@ -15,12 +15,12 @@ import {
   TextInput,
   VStack,
 } from '@astryxdesign/core';
-import {useRouter} from 'next/navigation';
+import {useRouter, useSearchParams} from 'next/navigation';
 import {useActionState, useEffect, useRef, useState, useTransition} from 'react';
 import {
   zugangscodeAendernAction,
   zugangscodeAnlegenAction,
-  zugangscodeLoeschenAction,
+  zugangscodeLoeschungAnfordernAction,
   type ActionState,
 } from '@/app/actions';
 import {ALLE_ROLLEN, ROLLEN} from '@/lib/rechte';
@@ -388,6 +388,25 @@ export function ZugangscodeTafel({
   const [loeschen, setLoeschen] = useState<ZugangscodeZeile | null>(null);
   const [kopiertId, setKopiertId] = useState<number | null>(null);
 
+  // Rückkehr vom Bestätigungslink der Löschungs-E-Mail — einmal gemeldet,
+  // dann aus der Adresse getilgt (fire-once, wie überall in melde.tsx).
+  const suchparameter = useSearchParams();
+  useEffect(() => {
+    const bestaetigt = suchparameter.get('zugangscode_bestaetigt');
+    const fehler = suchparameter.get('zugangscode_fehler');
+    if (!bestaetigt && !fehler) return;
+    melde(
+      bestaetigt
+        ? {ton: 'erfolg', titel: 'Zugang entfernt', text: `„${bestaetigt}" wurde gelöscht.`}
+        : {ton: 'fehler', titel: fehler!, dauerhaft: true},
+    );
+    const url = new URL(window.location.href);
+    url.searchParams.delete('zugangscode_bestaetigt');
+    url.searchParams.delete('zugangscode_fehler');
+    router.replace(`${url.pathname}${url.search}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Erster Render mit der Serverzeit (Server- und Browserbaum stimmen überein),
   // danach tickt die Browseruhr plus Versatz.
   const versatz = useRef(0);
@@ -424,10 +443,17 @@ export function ZugangscodeTafel({
 
   const entfernen = (zeile: ZugangscodeZeile) =>
     startTransition(async () => {
-      const result = await zugangscodeLoeschenAction(zeile.id);
-      if (result.error) melde({ton: 'fehler', titel: result.error, dauerhaft: true});
+      const result = await zugangscodeLoeschungAnfordernAction(zeile.id);
       setLoeschen(null);
-      router.refresh();
+      if (result.error) {
+        melde({ton: 'fehler', titel: result.error, dauerhaft: true});
+        return;
+      }
+      melde({
+        ton: 'hinweis',
+        titel: 'Bestätigungsmail verschickt',
+        text: 'Der Zugang wird erst entfernt, wenn du den Link darin öffnest.',
+      });
     });
 
   const gruppen = GRUPPEN.map((g) => ({...g, zeilen: codes.filter((c) => c.gruppe === g.schluessel)})).filter(
@@ -581,18 +607,18 @@ export function ZugangscodeTafel({
         />
         <VStack gap={4} padding={4}>
           <Text type="body" as="p">
-            Der Code verschwindet damit für seinen ganzen Leserkreis. Die Bestätigung in zwei Schritten
-            beim Dienst selbst bleibt bestehen – ohne hinterlegten Schlüssel kann sich dort dann niemand
-            mehr anmelden. Entferne den Zugang nur, wenn er beim Dienst neu eingerichtet wurde oder das
-            Konto nicht mehr gebraucht wird.
+            Aus der Anwendung heraus wird nichts direkt gelöscht: du bekommst eine Bestätigungsmail an
+            deine eigene Adresse, und erst der Link darin entfernt den Code – für seinen ganzen
+            Leserkreis. Die Bestätigung in zwei Schritten beim Dienst selbst bleibt bestehen – ohne
+            hinterlegten Schlüssel kann sich dort dann niemand mehr anmelden.
           </Text>
           <HStack gap={2} justify="end">
             <Button label="Abbrechen" variant="secondary" onClick={() => setLoeschen(null)} />
             <Button
-              label="Entfernen"
+              label="Bestätigungsmail senden"
               variant="destructive"
               isLoading={isPending}
-              icon={<Sinnbild sinn="entfernen" />}
+              icon={<Sinnbild sinn="email" />}
               onClick={() => loeschen && entfernen(loeschen)}
             />
           </HStack>

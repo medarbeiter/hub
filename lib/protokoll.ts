@@ -29,7 +29,15 @@
 import {getDb, type ProtokollRow, type User} from './db';
 import {hatRecht} from './rechte';
 import {fmtDate, fmtDateRange, fmtEuro, fmtTime} from './format';
-import {AKTIONEN, EINGRIFFE, istAktion, type ProtokollAktion, type ProtokollBereich} from './protokoll-arten';
+import {
+  AKTIONEN,
+  aktionenNachErfassung,
+  EINGRIFFE,
+  istAktion,
+  type Erfassungsart,
+  type ProtokollAktion,
+  type ProtokollBereich,
+} from './protokoll-arten';
 
 // ---------------------------------------------------------------------------
 // Die Kette
@@ -202,6 +210,16 @@ export interface ProtokollFilter {
   nurEingriffe?: boolean;
   /** Nur, was abgewiesen wurde. */
   nurFehler?: boolean;
+  /**
+   * Nur Zeilen, deren Zeit auf diesem Weg in den Datensatz kam. `'nachgetragen'`
+   * ist die Frage, die eine Betriebsprüfung stellt: **welche Stunden hat
+   * niemand gestempelt, sondern jemand eingetragen?**
+   *
+   * Zeilen ohne Erfassungsart (eine Genehmigung, eine Einstellung) fallen
+   * dabei heraus — und das ist richtig: gefragt ist nach erfasster Zeit, nicht
+   * nach allem, was am selben Tag geschah.
+   */
+  erfassung?: Erfassungsart | null;
   /** Freitext über Gegenstand, Handelnde und Betroffene. */
   suche?: string | null;
   sortierung?: 'neu' | 'alt';
@@ -267,6 +285,17 @@ function bedingungen(f: ProtokollFilter): Bedingungen {
   if (f.nurEingriffe) {
     teile.push(`aktion IN (${EINGRIFFE.map(() => '?').join(', ')})`);
     werte.push(...EINGRIFFE);
+  }
+  if (f.erfassung) {
+    const aktionen = aktionenNachErfassung(f.erfassung);
+    // Eine leere Menge müsste `aktion IN ()` erzeugen — in SQLite ein
+    // Syntaxfehler, und ein Filter, der die Seite zerlegt, statt nichts zu
+    // finden, wäre der schlechteste beider Ausgänge.
+    if (aktionen.length === 0) teile.push('0');
+    else {
+      teile.push(`aktion IN (${aktionen.map(() => '?').join(', ')})`);
+      werte.push(...aktionen);
+    }
   }
   if (f.nurFehler) {
     teile.push(`ergebnis = 'fehler'`);
@@ -473,9 +502,21 @@ export function beschreibeSegment(segmentId: number): Gegenstand | null {
 export function beschreibeAbwesenheit(id: number): Gegenstand | null {
   const row = getDb()
     .query<
-      {user_id: number; von: string; bis: string; art: string; status: string; notiz: string | null},
+      {
+        user_id: number;
+        von: string;
+        bis: string;
+        art: string;
+        status: string;
+        notiz: string | null;
+        minuten: number | null;
+        ruecksprache_vorgesetzte: number;
+      },
       [number]
-    >('SELECT user_id, von, bis, art, status, notiz FROM abwesenheiten WHERE id = ?')
+    >(
+      `SELECT user_id, von, bis, art, status, notiz, minuten, ruecksprache_vorgesetzte
+       FROM abwesenheiten WHERE id = ?`,
+    )
     .get(id);
   if (!row) return null;
   const art = row.art.charAt(0).toUpperCase() + row.art.slice(1);
@@ -483,7 +524,15 @@ export function beschreibeAbwesenheit(id: number): Gegenstand | null {
     text: `${art} ${fmtDateRange(row.von, row.bis)}`,
     betroffen: person(row.user_id),
     datum: row.von,
-    werte: {Art: art, Von: fmtDate(row.von), Bis: fmtDate(row.bis), Status: row.status, Notiz: row.notiz},
+    werte: {
+      Art: art,
+      Von: fmtDate(row.von),
+      Bis: fmtDate(row.bis),
+      Status: row.status,
+      Notiz: row.notiz,
+      Umfang: row.minuten !== null ? `${row.minuten} Min.` : null,
+      Rücksprache: row.ruecksprache_vorgesetzte === 1 ? 'bestätigt' : 'nein',
+    },
   };
 }
 

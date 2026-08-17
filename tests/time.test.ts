@@ -196,14 +196,18 @@ describe('auto-close of forgotten entries', () => {
 
   test('does nothing while no cutoff is configured', () => {
     openOn(OLD, 8 * 60);
-    expect(autoCloseForgotten(userId, TODAY)).toBe(0);
+    expect(autoCloseForgotten(userId, TODAY)).toEqual([]);
     expect(segments(OLD)[0]!.end_min).toBeNull();
   });
 
   test('closes at the cutoff and flags the entry', () => {
     setSetting('auto_close_cutoff_min', String(18 * 60));
-    openOn(OLD, 8 * 60);
-    expect(autoCloseForgotten(userId, TODAY)).toBe(1);
+    const id = openOn(OLD, 8 * 60);
+    // Reports what it closed, not just how many: the caller has to log each
+    // one as machine-set, and a count cannot say which day that was.
+    expect(autoCloseForgotten(userId, TODAY)).toEqual([
+      {id, date: OLD, startMin: 8 * 60, endMin: 18 * 60},
+    ]);
     const row = segments(OLD)[0]!;
     expect(row.end_min).toBe(18 * 60);
     expect(row.auto_closed).toBe(1);
@@ -212,7 +216,7 @@ describe('auto-close of forgotten entries', () => {
   test('leaves entries that started after the cutoff open', () => {
     setSetting('auto_close_cutoff_min', String(18 * 60));
     openOn(OLD, 20 * 60);
-    expect(autoCloseForgotten(userId, TODAY)).toBe(0);
+    expect(autoCloseForgotten(userId, TODAY)).toEqual([]);
     expect(segments(OLD)[0]!.end_min).toBeNull();
   });
 
@@ -220,14 +224,14 @@ describe('auto-close of forgotten entries', () => {
     setSetting('auto_close_cutoff_min', String(18 * 60));
     openOn(OLD, 8 * 60);
     db.query('INSERT INTO month_locks (user_id, month, locked_by) VALUES (?, ?, ?)').run(userId, '2026-08', userId);
-    expect(autoCloseForgotten(userId, TODAY)).toBe(0);
+    expect(autoCloseForgotten(userId, TODAY)).toEqual([]);
     expect(segments(OLD)[0]!.end_min).toBeNull();
   });
 
   test('never touches a running night shift from yesterday', () => {
     setSetting('auto_close_cutoff_min', String(18 * 60));
     openOn(YESTERDAY, 22 * 60);
-    expect(autoCloseForgotten(userId, TODAY)).toBe(0);
+    expect(autoCloseForgotten(userId, TODAY)).toEqual([]);
     expect(segments(YESTERDAY)[0]!.end_min).toBeNull();
   });
 

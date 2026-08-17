@@ -50,6 +50,10 @@ export interface AbwesenheitInput {
   bis: string;
   art: AbwesenheitArt;
   notiz?: string;
+  /** Nur bei Freizeitausgleich an einem einzelnen Tag; sonst wird der ganze Tag ausgegeben. */
+  minuten?: number;
+  /** Bestätigt beim Erfassen eines Antrags die Rücksprache mit der/dem direkten Vorgesetzten. */
+  ruecksprache_vorgesetzte?: boolean;
 }
 
 export interface AbwesenheitMitTagen {
@@ -269,17 +273,17 @@ export function neuProjizieren(userId: number, vonISO: string, bisISO: string): 
     .sort((a, b) => VORRANG[a.art] - VORRANG[b.art]);
 
   const schreiben = db.query(
-    `INSERT INTO day_types (user_id, date, type, note, edited_by, abwesenheit_id)
-     VALUES (?, ?, ?, ?, ?, ?)
+    `INSERT INTO day_types (user_id, date, type, note, minuten, edited_by, abwesenheit_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(user_id, date) DO UPDATE SET type = excluded.type, note = excluded.note,
-       edited_by = excluded.edited_by, abwesenheit_id = excluded.abwesenheit_id,
+       minuten = excluded.minuten, edited_by = excluded.edited_by, abwesenheit_id = excluded.abwesenheit_id,
        updated_at = datetime('now')`,
   );
   for (const a of spannen) {
     for (const tag of tageDerSpanne(a.von, a.bis)) {
       if (tag < vonISO || tag > bisISO) continue;
       if (vonHand.has(tag)) continue; // eine Kalenderkorrektur überschreibt niemand
-      schreiben.run(a.user_id, tag, a.art, a.notiz, a.edited_by, a.id);
+      schreiben.run(a.user_id, tag, a.art, a.notiz, a.minuten, a.edited_by, a.id);
     }
   }
 }
@@ -343,6 +347,15 @@ function pruefeInput(userId: number, input: AbwesenheitInput, exceptId?: number)
   }
   if (input.bis < input.von) return 'Das Ende darf nicht vor dem Beginn liegen.';
   if (laengeInTagen(input.von, input.bis) > 365) return 'Eine Abwesenheit darf höchstens ein Jahr umfassen.';
+  if (input.art === 'freizeitausgleich' && input.minuten !== undefined) {
+    if (input.von !== input.bis) return 'Minuten sind nur bei einem einzelnen Tag Freizeitausgleich möglich.';
+    const user = getDb().query<User, [number]>('SELECT * FROM users WHERE id = ?').get(userId);
+    if (!user) return 'Person nicht gefunden.';
+    const soll = sollFunktion(user, input.von, input.bis)(input.von);
+    if (!Number.isInteger(input.minuten) || input.minuten <= 0 || input.minuten > soll) {
+      return `Bitte eine Anzahl zwischen 1 und ${soll} Minuten angeben.`;
+    }
+  }
   const konflikt = ueberschneidung(userId, input.von, input.bis, input.art, exceptId);
   if (konflikt) {
     return `Überschneidung mit ${ART_LABEL[konflikt.art]} (${fmtDateRange(konflikt.von, konflikt.bis)}).`;
@@ -363,16 +376,33 @@ export function createAbwesenheit(
   if (monatGesperrt(userId, input.von, input.bis)) {
     return {error: 'Dieser Monat ist abgeschlossen. Bitte wende dich an die Verwaltung.'};
   }
+  // Nur beim Anlegen: ein Antrag entsteht aus einem Gespräch, und diese
+  // Bestätigung ist der Beleg dafür. Beim Ändern wird sie nicht erneut verlangt
+  // — sonst müsste die Verwaltung, die einen genehmigten Urlaub korrigiert, ein
+  // Gespräch bestätigen, das nicht ihres war. Der Wert der Zeile bleibt.
+  if (istAntrag(input.art) && !input.ruecksprache_vorgesetzte) {
+    return {error: 'Bitte bestätige, dass du dies bereits mit deiner/deinem direkten Vorgesetzten besprochen hast.'};
+  }
   const invalid = pruefeInput(userId, input);
   if (invalid) return {error: invalid};
 
   const status = startStatus(input.art);
   const row = getDb()
-    .query<{id: number}, [number, string, string, string, string, string | null, number]>(
-      `INSERT INTO abwesenheiten (user_id, von, bis, art, status, notiz, edited_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+    .query<{id: number}, [number, string, string, string, string, string | null, number | null, number, number]>(
+      `INSERT INTO abwesenheiten (user_id, von, bis, art, status, notiz, minuten, ruecksprache_vorgesetzte, edited_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
     )
-    .get(userId, input.von, input.bis, input.art, status, notizFuer(input), actor.id);
+    .get(
+      userId,
+      input.von,
+      input.bis,
+      input.art,
+      status,
+      notizFuer(input),
+      minutenFuer(input),
+      input.ruecksprache_vorgesetzte ? 1 : 0,
+      actor.id,
+    );
   if (!row) return {error: 'Die Abwesenheit konnte nicht gespeichert werden.'};
   projiziereNeuFuer(userId, input);
   return {id: row.id};
@@ -387,6 +417,12 @@ export function createAbwesenheit(
 function notizFuer(input: AbwesenheitInput): string | null {
   if (input.art === 'krank') return null;
   return input.notiz?.trim() || null;
+}
+
+/** Nur ein eintägiger Freizeitausgleich kann in Minuten statt im ganzen Tag stehen. */
+function minutenFuer(input: AbwesenheitInput): number | null {
+  if (input.art !== 'freizeitausgleich' || input.von !== input.bis) return null;
+  return input.minuten ?? null;
 }
 
 export function updateAbwesenheit(actor: User, id: number, input: AbwesenheitInput): string | null {
@@ -410,10 +446,22 @@ export function updateAbwesenheit(actor: User, id: number, input: AbwesenheitInp
 
   getDb()
     .query(
-      `UPDATE abwesenheiten SET von = ?, bis = ?, notiz = ?, status = ?, edited_by = ?,
-       updated_at = datetime('now') WHERE id = ?`,
+      `UPDATE abwesenheiten SET von = ?, bis = ?, notiz = ?, minuten = ?, ruecksprache_vorgesetzte = ?,
+       status = ?, edited_by = ?, updated_at = datetime('now') WHERE id = ?`,
     )
-    .run(input.von, input.bis, notizFuer(input), status, actor.id, id);
+    .run(
+      input.von,
+      input.bis,
+      notizFuer(input),
+      minutenFuer(input),
+      // Weggelassen heißt „unverändert", nicht „widerrufen": die Bestätigung ist
+      // eine Tatsache über den gestellten Antrag und keine Angabe, die eine
+      // Korrektur nebenbei zurücknimmt.
+      input.ruecksprache_vorgesetzte === undefined ? a.ruecksprache_vorgesetzte : input.ruecksprache_vorgesetzte ? 1 : 0,
+      status,
+      actor.id,
+      id,
+    );
   projiziereNeuFuer(a.user_id, a, input);
   // Eine verschobene Krankmeldung trifft womöglich einen anderen Urlaub als vorher.
   if (a.art === 'krank' && a.au_datei) paragraf9Anwenden(actor, id);
@@ -627,14 +675,16 @@ export function paragraf9Anwenden(actor: User, krankId: number): {zurueck: numbe
       for (const rest of reste) {
         nachher += anspruchstage(rest.von, rest.bis, soll).length;
         db.query(
-          `INSERT INTO abwesenheiten (user_id, von, bis, art, status, notiz, eingereicht_at,
-             entschieden_at, entschieden_von, selbst_genehmigt, edited_by)
-           VALUES (?, ?, ?, 'urlaub', 'genehmigt', ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO abwesenheiten (user_id, von, bis, art, status, notiz, ruecksprache_vorgesetzte,
+             eingereicht_at, entschieden_at, entschieden_von, selbst_genehmigt, edited_by)
+           VALUES (?, ?, ?, 'urlaub', 'genehmigt', ?, ?, ?, ?, ?, ?, ?)`,
         ).run(
           urlaub.user_id,
           rest.von,
           rest.bis,
           urlaub.notiz,
+          // Der Rest ist derselbe Antrag, nur kürzer: die Rücksprache gilt weiter.
+          urlaub.ruecksprache_vorgesetzte,
           urlaub.eingereicht_at,
           urlaub.entschieden_at,
           urlaub.entschieden_von,

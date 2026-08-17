@@ -20,6 +20,7 @@ import {
   parseEuro,
   mondayOf,
   monthOf,
+  parseDatumEingabe,
   weekdayIndex,
 } from '../lib/format';
 
@@ -246,5 +247,47 @@ describe('Kalenderwoche und Wochenbeschriftung', () => {
   test('Wochenspanne nennt den Monat nur einmal, wenn sie ihn nicht verlässt', () => {
     expect(fmtWeekRange('2026-08-03')).toBe('3. – 9. August');
     expect(fmtWeekRange('2026-07-27')).toBe('27. Juli – 2. August');
+  });
+});
+
+describe('parseDatumEingabe', () => {
+  const bezug = '2026-08-17';
+
+  test('deutsche Kurzform mit und ohne führende Null', () => {
+    expect(parseDatumEingabe('4.8.', bezug)).toBe('2026-08-04');
+    expect(parseDatumEingabe('04.08.', bezug)).toBe('2026-08-04');
+    expect(parseDatumEingabe('4.8', bezug)).toBe('2026-08-04');
+  });
+
+  test('mit Jahr, zwei- wie vierstellig', () => {
+    expect(parseDatumEingabe('4.8.2027', bezug)).toBe('2027-08-04');
+    expect(parseDatumEingabe('4.8.27', bezug)).toBe('2027-08-04');
+  });
+
+  test('Schrägstrich und Bindestrich lesen sich deutsch: Tag zuerst', () => {
+    expect(parseDatumEingabe('4/8', bezug)).toBe('2026-08-04');
+    expect(parseDatumEingabe('4-8-2026', bezug)).toBe('2026-08-04');
+  });
+
+  test('die ISO-Form kommt aus Adressen und Zwischenablage', () => {
+    expect(parseDatumEingabe('2026-12-24', bezug)).toBe('2026-12-24');
+  });
+
+  test('ohne Jahr gilt das Jahr des Bezugstags', () => {
+    expect(parseDatumEingabe('31.12.', '2027-03-02')).toBe('2027-12-31');
+  });
+
+  test('kein Tag im Kalender heißt null, nicht stillschweigend weiterrutschen', () => {
+    expect(parseDatumEingabe('31.2.2026', bezug)).toBeNull();
+    expect(parseDatumEingabe('29.2.2026', bezug)).toBeNull();
+    expect(parseDatumEingabe('29.2.2028', bezug)).toBe('2028-02-29');
+    expect(parseDatumEingabe('4.13.', bezug)).toBeNull();
+    expect(parseDatumEingabe('0.8.', bezug)).toBeNull();
+  });
+
+  test('Unlesbares ändert nichts', () => {
+    expect(parseDatumEingabe('', bezug)).toBeNull();
+    expect(parseDatumEingabe('morgen', bezug)).toBeNull();
+    expect(parseDatumEingabe('4. August', bezug)).toBeNull();
   });
 });

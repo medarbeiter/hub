@@ -6,6 +6,7 @@ import {googleKonfiguriert, googleKontoFuer} from '@/lib/google';
 import {onboardingProfil, persoenlicheEinstellungen} from '@/lib/onboarding';
 import {GoogleVerbindung} from '@/components/google-verbindung';
 import {PersoenlicheEinstellungenForm} from '@/components/persoenliche-einstellungen';
+import {ProfilbildFeld} from '@/components/profilbild-feld';
 import {ProfilDaten} from '@/components/profil-daten';
 import {ZeitRahmen} from '@/components/zeit-rahmen';
 
@@ -38,6 +39,12 @@ export default async function ProfilPage({
       stand="Diese Stammdaten hast du bestätigt. Änderungen nimmt die Verwaltung vor."
       belege={
         <VStack gap={4}>
+          {/* Eigenes Blatt und eigenes Formular: die Datei liegt im State und
+              das Hochladen hat seinen eigenen Ausgang — ein Feld im großen
+              Formular hieße, es ginge beim Speichern der Startansicht mit. */}
+          <Card padding={4} maxWidth={680}>
+            <ProfilbildFeld hatBild={Boolean(user.avatar_datei)} userId={user.id} />
+          </Card>
           <PersoenlicheEinstellungenForm initial={persoenlicheEinstellungen(user.id)} />
           <GoogleVerbindung
             konto={konto ? {email: konto.google_email, seit: fmtDate(konto.verbunden_at.slice(0, 10))} : null}

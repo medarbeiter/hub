@@ -33,6 +33,28 @@ export function ausserHausLabel(art: AbwesenheitArt): string {
   return art === 'krank' ? 'Abwesend' : ART_LABEL[art];
 }
 
+/**
+ * Die Art, so wie sie eine bestimmte Person sehen darf — `null` heißt „nur das
+ * dass, nicht das warum". Das Gegenstück zu `ausserHausLabel` nach innen: im
+ * Teamkalender sieht jede Kollegin, *dass* jemand fehlt, aber nur die
+ * betroffene Person selbst und wer das Recht `kalender.gruende` trägt erfahren,
+ * *warum*.
+ *
+ * Entscheidend ist, dass diese Funktion auf dem Server läuft und ihr Ergebnis
+ * in die Nutzlast geht: die Art einer fremden Abwesenheit darf den Browser gar
+ * nicht erreichen. Ein Ausblenden im CSS oder im JSX wäre keine Abstufung,
+ * sondern ein Vorhang vor Daten, die schon ausgeliefert sind — und die man in
+ * den Entwicklerwerkzeugen aufschlagen kann. Deshalb steht die Regel hier und
+ * ist geprüft, statt an der einen Stelle im Seitencode zu wohnen.
+ */
+export function sichtbareArt(
+  art: AbwesenheitArt,
+  darfGruendeSehen: boolean,
+  istSelbst: boolean,
+): AbwesenheitArt | null {
+  return darfGruendeSehen || istSelbst ? art : null;
+}
+
 export const STATUS_LABEL: Record<AbwesenheitStatus, string> = {
   entwurf: 'Entwurf',
   eingereicht: 'Eingereicht',
@@ -136,4 +158,14 @@ export function restanspruch(a: Anspruch): number {
 
 export function fmtTage(anzahl: number): string {
   return `${anzahl} ${anzahl === 1 ? 'Tag' : 'Tage'}`;
+}
+
+/**
+ * Der Umfang einer Abwesenheit, in der Einheit, in der sie erfasst wurde. Ein
+ * Freizeitausgleich über 90 Minuten als „1 Tag" auszuweisen wäre die eine
+ * Stelle, an der die Liste etwas anderes behauptet als der Antrag — deshalb
+ * gibt es genau einen Formatierer dafür, den jede Ansicht benutzt.
+ */
+export function fmtUmfang(arbeitstage: number, minuten: number | null): string {
+  return minuten != null ? `${minuten} Min.` : fmtTage(arbeitstage);
 }

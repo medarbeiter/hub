@@ -12,11 +12,11 @@ import {
   TextInput,
   VStack,
 } from '@astryxdesign/core';
-import {DateInput} from '@astryxdesign/core/DateInput';
 import {useRouter} from 'next/navigation';
 import {useState, useTransition} from 'react';
 import {belegAddAction} from '@/app/actions';
 import {fmtDateLong, fmtDateRange, parseEuro} from '@/lib/format';
+import {DatumFeld} from './datum-feld';
 import {Sinnbild, umriss} from './sinnbilder';
 import {TafelDialog} from './tafel-dialog';
 
@@ -100,14 +100,13 @@ export function BelegDialog({isOpen, onOpenChange, reiseId, vonISO, bisISO}: Bel
         />
 
         <HStack gap={3} vAlign="start">
-          <DateInput
+          <DatumFeld
             label="Belegdatum"
-            value={datum as never}
-            onChange={(value) => setDatum(value ?? vonISO)}
-            min={vonISO as never}
-            max={bisISO as never}
+            value={datum}
+            onChange={setDatum}
+            min={vonISO}
+            max={bisISO}
             placeholder="Datum wählen"
-            format={(value) => fmtDateLong(value)}
             width="100%"
           />
           <InputGroup label="Betrag">

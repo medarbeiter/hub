@@ -178,7 +178,7 @@ import {
 
 import type {AbwesenheitStatus, ReiseStatus} from '@/lib/db';
 import type {TagArt} from '@/lib/pauschale';
-import type {ProtokollBereich} from '@/lib/protokoll-arten';
+import type {Erfassungsart, ProtokollBereich} from '@/lib/protokoll-arten';
 
 /** Die zwei Formen, in denen ein Zeichen auftreten darf. */
 export type Form = 'voll' | 'umriss';
@@ -564,6 +564,25 @@ export const PROTOKOLL_BEREICH_SINN: Record<ProtokollBereich, Sinn> = {
   abschluss: 'abschluss',
   stammdaten: 'mitarbeiter',
   einstellungen: 'einstellungen',
+};
+
+/**
+ * Wie die Zeit in den Datensatz kam — die drei Zeichen sind bewusst schon
+ * vergeben:
+ *
+ *   `uhrzeit`    – die Uhr. Gestempelt heißt: an der Uhr, zum Ereignis.
+ *   `bearbeiten` – der Stift. Nachgetragen heißt: von Hand geschrieben.
+ *   `erneut`     – die Maschine hat es selbst getan, ohne dass jemand danach
+ *                  gefragt hat.
+ *
+ * Keine neuen Glyphen: die Unterscheidung ist neu, die Bedeutungen sind es
+ * nicht — eine Uhr für „gemessen“ und ein Stift für „geschrieben“ liest jeder
+ * ohne Legende.
+ */
+export const ERFASSUNG_SINN: Record<Erfassungsart, Sinn> = {
+  gestempelt: 'uhrzeit',
+  nachgetragen: 'bearbeiten',
+  automatisch: 'erneut',
 };
 
 export const ABWESENHEIT_STATUS_SINN: Record<AbwesenheitStatus, Sinn> = {
