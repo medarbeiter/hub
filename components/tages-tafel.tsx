@@ -3,7 +3,7 @@
 import {Banner, Button, Heading, HStack, Text, VStack} from '@astryxdesign/core';
 import {Verweis as Link} from './verweis';
 import {useRouter} from 'next/navigation';
-import {useState, useTransition} from 'react';
+import {useEffect, useMemo, useState, useTransition} from 'react';
 import {segmentConfirmAction, segmentResizeAction, segmentSaveAction} from '@/app/actions';
 import type {Issue} from '@/lib/attention';
 import type {DayTypeKind} from '@/lib/db';
@@ -62,6 +62,27 @@ export function TagesTafel(props: TagesTafelProps) {
   const [isConfirming, startConfirm] = useTransition();
   const router = useRouter();
 
+  /**
+   * Was gerade gezeichnet wurde, bevor der Server es bestätigt hat.
+   *
+   * Ohne das verschwand die aufgezogene Strecke im Augenblick des Loslassens
+   * und kam eine Serverrunde später als Block zurück: die Bahn stand für einen
+   * Moment wieder leer da, und wer schnell war, zog dieselbe Zeit ein zweites
+   * Mal auf. Der Entwurf trägt eine negative Kennung — dieselbe Vereinbarung,
+   * die `openEditor` schon kennt: nicht anklickbar, nicht zu ziehen, bis er
+   * eine echte Kennung hat.
+   */
+  const [entwurf, setEntwurf] = useState<TimelineSegment | null>(null);
+
+  // Die Serverantwort löst den Entwurf ab — auch dann, wenn sie ihn abgelehnt
+  // hat: dann steht die Bahn wieder auf dem Stand, der wirklich gilt.
+  useEffect(() => setEntwurf(null), [props.segments]);
+
+  const segments = useMemo(
+    () => (entwurf ? [...props.segments, entwurf].sort((a, b) => a.start_min - b.start_min) : props.segments),
+    [props.segments, entwurf],
+  );
+
   const openEditor = (segment: TimelineSegment | null) => {
     if (segment && segment.id < 0) return; // optimistic placeholder, not yet saved
     setEditing(segment);
@@ -79,6 +100,13 @@ export function TagesTafel(props: TagesTafelProps) {
   /** Drawing a stretch on the lane records it straight away, as Arbeit — the
       common case. The row it produces is one click from any correction. */
   const onCreate = (startMin: number, endMin: number) => {
+    setEntwurf({
+      id: -Date.now(),
+      date: props.date,
+      kind: 'arbeit',
+      start_min: startMin,
+      end_min: endMin,
+    });
     startTransition(async () => {
       const form = new FormData();
       form.set('userId', String(props.userId));
@@ -87,7 +115,10 @@ export function TagesTafel(props: TagesTafelProps) {
       form.set('start', fmtTime(startMin));
       form.set('end', fmtTime(endMin));
       const result = await segmentSaveAction({error: null}, form);
-      if (result.error) melde({ton: 'fehler', titel: result.error, dauerhaft: true});
+      if (result.error) {
+        setEntwurf(null);
+        melde({ton: 'fehler', titel: result.error, dauerhaft: true});
+      }
       router.refresh();
     });
   };
@@ -189,7 +220,7 @@ export function TagesTafel(props: TagesTafelProps) {
       <VStack paddingBlock={2}>
         <Tagesbahn
           date={props.date}
-          segments={props.segments}
+          segments={segments}
           isToday={props.isToday}
           nowMin={props.nowMin}
           span={props.span}
@@ -204,7 +235,7 @@ export function TagesTafel(props: TagesTafelProps) {
       </VStack>
 
       <BelegListe
-        segments={props.segments}
+        segments={segments}
         canEdit={props.canEdit}
         onEdit={openEditor}
         isToday={props.isToday}
@@ -257,7 +288,7 @@ export function TagesTafel(props: TagesTafelProps) {
         userId={props.userId}
         date={editing?.date ?? props.date}
         segment={editing}
-        tagesSegmente={props.segments}
+        tagesSegmente={segments}
         nowMin={props.isToday ? props.nowMin : null}
       />
     </VStack>
