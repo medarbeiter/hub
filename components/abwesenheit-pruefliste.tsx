@@ -4,7 +4,7 @@ import {Badge, Button, HStack, Text, TextInput, VStack} from '@astryxdesign/core
 import {useRouter} from 'next/navigation';
 import {useState, useTransition} from 'react';
 import {abwesenheitGenehmigenAction, abwesenheitZurueckweisenAction} from '@/app/actions';
-import {ART_LABEL, STATUS_LABEL, fmtTage} from '@/lib/abwesenheit-arten';
+import {ART_LABEL, STATUS_LABEL, fmtTage, fmtUmfang} from '@/lib/abwesenheit-arten';
 import type {AbwesenheitArt, AbwesenheitStatus} from '@/lib/db';
 import {fmtDateRange} from '@/lib/format';
 import {useMelde} from './melde';
@@ -22,6 +22,10 @@ export interface PruefZeile {
   notiz: string | null;
   kalendertage: number;
   arbeitstage: number;
+  /** Nur bei einem eintägigen Freizeitausgleich gesetzt; sonst der ganze Tag. */
+  minuten: number | null;
+  /** Ob der Antrag die Rücksprache mit der/dem Vorgesetzten bestätigt hat. */
+  ruecksprache: boolean;
   auDateiName: string | null;
   auFehlt: boolean;
   /** Wie der Anspruch der Person nach dieser Entscheidung stünde. */
@@ -84,7 +88,7 @@ export function AbwesenheitPruefListe({zeilen}: {zeilen: PruefZeile[]}) {
         ),
         werte: [
           <Text key="tage" type="body" size="sm" hasTabularNumbers>
-            {z.arbeitstage}
+            {z.minuten != null ? `${z.minuten} Min.` : z.arbeitstage}
           </Text>,
           <Text key="rest" type="supporting" size="sm" color="inherit" hasTabularNumbers>
             <span style={{color: (z.restNachher ?? 0) < 0 ? 'var(--color-error)' : undefined}}>
@@ -122,13 +126,28 @@ function Entscheidung({zeile: z}: {zeile: PruefZeile}) {
       <HStack gap={3} vAlign="center" wrap="wrap">
         <Text type="supporting" color="secondary" hasTabularNumbers>
           {z.kalendertage} {z.kalendertage === 1 ? 'Kalendertag' : 'Kalendertage'} ·{' '}
-          {fmtTage(z.arbeitstage)} mit Soll
+          {fmtUmfang(z.arbeitstage, z.minuten)} mit Soll
         </Text>
         {z.notiz && (
           <Text type="supporting" color="secondary">
             „{z.notiz}"
           </Text>
         )}
+        {/* Eine Tatsache über den Antrag, nicht ein Ereignis: sie steht neben
+            ihm und wird nicht gemeldet. Die Rücksprache ist keine Genehmigung —
+            sie sagt nur, ob die Verwaltung die erste ist, die davon hört. */}
+        <HStack gap={1.5} vAlign="center">
+          <Sinnbild
+            sinn={z.ruecksprache ? 'genehmigen' : 'hinweis'}
+            groesse="zeile"
+            ton={z.ruecksprache ? 'sekundaer' : 'warnung'}
+          />
+          <Text type="supporting" size="sm" color="secondary">
+            {z.ruecksprache
+              ? 'Rücksprache mit der/dem Vorgesetzten bestätigt'
+              : 'Ohne bestätigte Rücksprache erfasst'}
+          </Text>
+        </HStack>
       </HStack>
 
       {z.auDateiName && (

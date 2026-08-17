@@ -224,7 +224,15 @@ export function AbwesenheitAnsicht(props: AbwesenheitAnsichtProps) {
             bisISO={props.bisISO}
             isPending={isPending}
             onBearbeiten={(a) => {
-              setBearbeitet({id: a.id, von: a.von, bis: a.bis, art: a.art, notiz: a.notiz});
+              setBearbeitet({
+                id: a.id,
+                von: a.von,
+                bis: a.bis,
+                art: a.art,
+                notiz: a.notiz,
+                minuten: a.minuten,
+                ruecksprache_vorgesetzte: a.ruecksprache_vorgesetzte,
+              });
               setEditorOffen(true);
             }}
             onEinreichen={(id) => lauf(() => abwesenheitEinreichenAction(id))}

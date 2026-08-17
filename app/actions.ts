@@ -88,7 +88,7 @@ import {
   zurueckziehen as abwesenheitZurueckziehen,
   type AbwesenheitInput,
 } from '@/lib/abwesenheit';
-import {ABWESENHEIT_ARTEN, ART_LABEL, restanspruch} from '@/lib/abwesenheit-arten';
+import {ABWESENHEIT_ARTEN, ART_LABEL, istAntrag, restanspruch} from '@/lib/abwesenheit-arten';
 import {
   BELEG_ARTEN,
   addBeleg,
@@ -117,6 +117,7 @@ import {
   startPfad,
 } from '@/lib/onboarding';
 import {avatarLabel, istAvatar} from '@/lib/avatar';
+import {setzeProfilbild, speichereAvatarDatei} from '@/lib/profilbild';
 import type {EinrichtungsDaten} from '@/lib/onboarding';
 import {googleKontoFuer, trenneGoogleKonto} from '@/lib/google';
 import {
@@ -134,7 +135,7 @@ import {
   zugangskontoAendern,
   zugangskontoAnlegen,
   zugangskontoById,
-  zugangskontoLoeschen,
+  zugangskontoLoeschungAnfordern,
   zugangskontoName,
   type ZugangskontoEingabe,
 } from '@/lib/zugangscodes';
@@ -151,6 +152,7 @@ import {
   meldeReiseEingereicht,
   meldeReiseEntschieden,
   meldeWillkommen,
+  meldeZugangscodeLoeschenBestaetigen,
 } from '@/lib/benachrichtigungen';
 import {ABWAEHLBARE_ARTEN, istMailArt, mailArtLabel, type MailArt} from '@/lib/mail-arten';
 
@@ -397,6 +399,42 @@ export async function personalSettingsSaveAction(
     revalidatePath('/', 'layout');
   }
   return {error};
+}
+
+/**
+ * Das eigene Profilbild setzen oder entfernen. Nur für das eigene Konto: ein
+ * Bild von sich ist die eine Angabe, die niemand für jemand anderen wählt —
+ * auch die Verwaltung nicht.
+ *
+ * Protokolliert wird der Vorgang, nicht die Datei: „gesetzt" oder „entfernt",
+ * dieselbe Haltung, mit der das Zurücksetzen eines Passworts die Tatsache und
+ * nicht den Wert festhält.
+ */
+export async function profilbildAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const user = await requireUser();
+  const entfernen = formData.get('entfernen') !== null;
+  const eingang = formData.get('bild');
+
+  let gespeichert: {datei: string; typ: string} | null = null;
+  if (!entfernen) {
+    if (!(eingang instanceof File) || eingang.size === 0) return {error: 'Bitte ein Bild wählen.'};
+    const ergebnis = await speichereAvatarDatei(eingang);
+    if (typeof ergebnis === 'string') return {error: ergebnis};
+    gespeichert = ergebnis;
+  }
+
+  setzeProfilbild(user.id, gespeichert);
+  protokolliere({
+    akteur: user,
+    aktion: 'profil.bild',
+    gegenstand: `Profilbild von ${user.name}`,
+    betroffen: {id: user.id, name: user.name},
+    nachher: {Profilbild: gespeichert ? 'gesetzt' : 'entfernt'},
+    fehler: null,
+  });
+  revalidatePath('/profil');
+  revalidatePath('/', 'layout');
+  return OK;
 }
 
 // ---------------------------------------------------------------------------
@@ -1248,7 +1286,17 @@ function abwesenheitInputFromForm(formData: FormData): AbwesenheitInput | string
   if (!/^\d{4}-\d{2}-\d{2}$/.test(von) || !/^\d{4}-\d{2}-\d{2}$/.test(bis)) {
     return 'Bitte den ersten und den letzten Tag angeben.';
   }
-  return {von, bis, art: art as AbwesenheitArt, notiz: String(formData.get('notiz') ?? '')};
+  const rohMinuten = formData.get('minuten');
+  const minuten = rohMinuten === null ? undefined : Number(rohMinuten);
+  if (minuten !== undefined && !Number.isInteger(minuten)) return 'Bitte die Minuten als ganze Zahl angeben.';
+  return {
+    von,
+    bis,
+    art: art as AbwesenheitArt,
+    notiz: String(formData.get('notiz') ?? ''),
+    minuten,
+    ruecksprache_vorgesetzte: Boolean(formData.get('ruecksprache')),
+  };
 }
 
 export async function abwesenheitSaveAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -1266,6 +1314,8 @@ export async function abwesenheitSaveAction(_prev: ActionState, formData: FormDa
     Von: fmtDate(input.von),
     Bis: fmtDate(input.bis),
     Notiz: input.art === 'krank' ? null : input.notiz || null,
+    Umfang: input.minuten !== undefined ? `${input.minuten} Min.` : null,
+    Rücksprache: istAntrag(input.art) ? (input.ruecksprache_vorgesetzte ? 'bestätigt' : 'nein') : null,
   };
 
   if (id) {
@@ -1551,22 +1601,18 @@ export async function zugangscodeAendernAction(_prev: ActionState, formData: For
   return OK;
 }
 
-export async function zugangscodeLoeschenAction(id: number): Promise<ActionState> {
+export async function zugangscodeLoeschungAnfordernAction(id: number): Promise<ActionState> {
   const actor = await requireRecht('zugangscodes.erfassen');
-  // Der Leserkreis wird vor dem Löschen beschrieben — der Personenkreis fällt
-  // mit der Zeile (ON DELETE CASCADE) und wäre danach nicht mehr benennbar.
-  const vorher = zugangskontoById(id);
-  const kreis = vorher ? sichtbarkeitText(vorher) : null;
-  const geloescht = zugangskontoLoeschen(actor, id);
-  if (typeof geloescht === 'string') return {error: geloescht};
+  const angefordert = zugangskontoLoeschungAnfordern(actor, id);
+  if (typeof angefordert === 'string') return {error: angefordert};
+  const name = zugangskontoName(angefordert.konto);
+  await meldeZugangscodeLoeschenBestaetigen(actor, name, angefordert.token);
   protokolliere({
     akteur: actor,
-    aktion: 'zugangscode.loeschen',
-    gegenstand: `Zugangscode ${zugangskontoName(geloescht)}`,
+    aktion: 'zugangscode.loeschen-angefordert',
+    gegenstand: `Zugangscode ${name}`,
     betroffen: null,
-    vorher: {Dienst: geloescht.dienst, Konto: geloescht.konto, 'Sichtbar für': kreis ?? 'Alle Angemeldeten'},
   });
-  revalidatePath('/zugangscodes');
   return OK;
 }
 

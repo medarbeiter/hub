@@ -2,7 +2,16 @@ import {getSessionUser} from '@/lib/auth';
 import {hatRecht, rolleLabel} from '@/lib/rechte';
 import {fmtDate, fmtDuration, fmtEuroPlain, fmtTime, monthOf, todayISO} from '@/lib/format';
 import {protokollSeite} from '@/lib/protokoll';
-import {aktionLabel, BEREICH_LABEL, istBereich, type ProtokollBereich} from '@/lib/protokoll-arten';
+import {
+  aktionLabel,
+  BEREICH_LABEL,
+  erfassungsart,
+  ERFASSUNG_LABEL,
+  istBereich,
+  istErfassungsart,
+  type Erfassungsart,
+  type ProtokollBereich,
+} from '@/lib/protokoll-arten';
 import {REISE_STATUS_LABEL, reisenForMonth} from '@/lib/spesen';
 import {activeUsers, isMonthLocked, monthRecord} from '@/lib/time';
 
@@ -134,14 +143,21 @@ function protokollCsv(url: URL): Response {
   const von = tag ?? (/^\d{4}-\d{2}-\d{2}$/.test(p.get('von') ?? '') ? p.get('von')! : undefined);
   const bis = tag ?? (/^\d{4}-\d{2}-\d{2}$/.test(p.get('bis') ?? '') ? p.get('bis')! : undefined);
 
+  const erfassung = istErfassungsart(p.get('erfassung') ?? undefined)
+    ? (p.get('erfassung') as Erfassungsart)
+    : null;
+
   const filter = {
     vonISO: von,
     bisISO: bis,
     bereich: istBereich(p.get('bereich') ?? undefined) ? (p.get('bereich') as ProtokollBereich) : null,
     betroffenId: p.get('person') ? Number(p.get('person')) || null : null,
     akteurId: p.get('akteur') ? Number(p.get('akteur')) || null : null,
+    erfassung,
     suche: p.get('suche'),
-    nurEingriffe: p.get('nur') !== 'alles',
+    // Wie auf der Seite: eine gewählte Erfassungsart *ist* der Zuschnitt, und
+    // die Vorauswahl auf Eingriffe würde gerade das Gestempelte wegnehmen.
+    nurEingriffe: p.get('nur') !== 'alles' && erfassung === null,
     sortierung: 'alt' as const,
   };
 
@@ -161,14 +177,19 @@ function protokollCsv(url: URL): Response {
   }
 
   const lines: string[] = [
-    'Zeitpunkt;Bereich;Vorgang;Gegenstand;Betrifft;Ausgeführt von;Rolle;Geschäftstag;Vorher;Nachher;Ergebnis;Meldung;Siegel',
+    'Zeitpunkt;Bereich;Vorgang;Erfassung;Gegenstand;Betrifft;Ausgeführt von;Rolle;Geschäftstag;Vorher;Nachher;Ergebnis;Meldung;Siegel',
   ];
   for (const e of eintraege) {
+    const art = erfassungsart(e.aktion);
     lines.push(
       [
         e.ts,
         istBereich(e.bereich) ? BEREICH_LABEL[e.bereich] : e.bereich,
         aktionLabel(e.aktion),
+        // Leer, wo der Vorgang gar keine Zeit erfasst — eine Genehmigung ist
+        // weder gestempelt noch nachgetragen, und ein Wort hinzuschreiben,
+        // das nichts unterscheidet, macht die Spalte wertlos.
+        art ? ERFASSUNG_LABEL[art] : '',
         feld(e.gegenstand),
         feld(e.betroffen_name ?? ''),
         feld(e.akteur_name),

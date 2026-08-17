@@ -12,7 +12,6 @@ import {
   TimeInput,
   VStack,
 } from '@astryxdesign/core';
-import {DateInput} from '@astryxdesign/core/DateInput';
 import {createISOTimeString} from '@astryxdesign/core/utils';
 import {useActionState, useEffect, useRef, useState} from 'react';
 import {reiseSaveAction, type ActionState} from '@/app/actions';
@@ -25,6 +24,7 @@ import {
   isoToMin,
 } from '@/lib/format';
 import {berechneSpesen, pruefeSpanne, type SatzStufe} from '@/lib/pauschale';
+import {DatumFeld} from './datum-feld';
 import {Sinnbild, TAGART_SINN} from './sinnbilder';
 import {TafelDialog} from './tafel-dialog';
 
@@ -142,16 +142,14 @@ export function ReiseEditor(props: ReiseEditorProps) {
           <VStack gap={1.5}>
             <HStack gap={3} vAlign="start">
               <StackItem size="fill">
-                <DateInput
+                <DatumFeld
                   label="Abfahrt am"
-                  value={startDate as never}
-                  onChange={(value) => {
-                    const neu = value ?? startDate;
+                  value={startDate}
+                  onChange={(neu) => {
                     setStartDate(neu);
                     if (endDate < neu) setEndDate(neu);
                   }}
                   placeholder="Datum wählen"
-                  format={(value) => fmtDateLong(value)}
                   width="100%"
                 />
               </StackItem>
@@ -169,13 +167,12 @@ export function ReiseEditor(props: ReiseEditorProps) {
 
             <HStack gap={3} vAlign="start">
               <StackItem size="fill">
-                <DateInput
+                <DatumFeld
                   label="Rückkehr am"
-                  value={endDate as never}
-                  onChange={(value) => setEndDate(value ?? endDate)}
-                  min={startDate as never}
+                  value={endDate}
+                  onChange={setEndDate}
+                  min={startDate}
                   placeholder="Datum wählen"
-                  format={(value) => fmtDateLong(value)}
                   width="100%"
                 />
               </StackItem>

@@ -6,7 +6,8 @@ import {
   alleZugangskonten,
   zugangskontoAendern,
   zugangskontoAnlegen,
-  zugangskontoLoeschen,
+  zugangskontoLoeschungAnfordern,
+  zugangskontoLoeschungBestaetigen,
   zugangskontoName,
 } from '../lib/zugangscodes';
 
@@ -129,11 +130,19 @@ describe('zugangscodes (Datensatz)', () => {
     // Die Leseform der Seite trägt das Geheimnis nicht — nie an den Browser.
     expect('secret' in codes[0]!).toBe(false);
 
-    const geloescht = zugangskontoLoeschen(ADMIN, konto.id);
+    const angefordert = zugangskontoLoeschungAnfordern(ADMIN, konto.id);
+    expect(typeof angefordert).not.toBe('string');
+    if (typeof angefordert === 'string') return;
+    // Ohne den Link bleibt der Zugang bestehen.
+    expect(alleZugangskonten()).toHaveLength(1);
+
+    const geloescht = zugangskontoLoeschungBestaetigen(ADMIN, angefordert.token);
     expect(typeof geloescht).not.toBe('string');
     if (typeof geloescht === 'string') return;
     expect(geloescht.dienst).toBe('Google');
     expect(alleZugangskonten()).toHaveLength(0);
+    // Derselbe Link löscht kein zweites Mal.
+    expect(typeof zugangskontoLoeschungBestaetigen(ADMIN, angefordert.token)).toBe('string');
   });
 
   test('derselbe Dienst mit demselben Konto wird nicht doppelt angelegt', () => {
@@ -229,7 +238,7 @@ describe('zugangscodes (Datensatz)', () => {
     // Bearbeiten und löschen darf die Erstellerin und die Verwaltung — nicht der Mitleser.
     if (typeof geteilt === 'string') return;
     expect(zugangskontoAendern(kai, geteilt.id, {dienst: 'Gekapert', konto: null, secret: '', verfahren: VERFAHREN, sichtbarkeit: 'personen', personen: [3]})).toBe('Keine Berechtigung.');
-    expect(typeof zugangskontoLoeschen(kai, geteilt.id)).toBe('string');
+    expect(typeof zugangskontoLoeschungAnfordern(kai, geteilt.id)).toBe('string');
     expect(zugangskontoAendern(mia, geteilt.id, {dienst: 'Umbenannt', konto: null, secret: '', verfahren: VERFAHREN, sichtbarkeit: 'personen', personen: []})).toBeNull();
     const danach = aktuelleZugangscodes(mia, 0);
     expect(danach[0]!.dienst).toBe('Umbenannt');

@@ -24,7 +24,13 @@ import {
   todayISO,
 } from '@/lib/format';
 import {protokollBeteiligte, protokollProTag, protokollSeite, type ProtokollFilter as Filter} from '@/lib/protokoll';
-import {BEREICH_LABEL, istBereich, istEingriff} from '@/lib/protokoll-arten';
+import {
+  BEREICH_LABEL,
+  ERFASSUNG_LABEL,
+  istBereich,
+  istEingriff,
+  istErfassungsart,
+} from '@/lib/protokoll-arten';
 
 export const dynamic = 'force-dynamic';
 
@@ -86,13 +92,19 @@ export default async function ProtokollPage({searchParams}: PageProps) {
       : null;
 
   const seite = Math.max(1, Number(params.seite ?? '1') || 1);
-  const nurEingriffe = params.nur !== 'alles';
+  const erfassung = istErfassungsart(params.erfassung) ? params.erfassung : null;
+  // Wer nach der Erfassungsart fragt, will die Zeilen dieser Art sehen — auch
+  // die gestempelten, die als Routine gelten. Sonst wählte man „Gestempelt"
+  // und bekäme eine leere Seite: die Vorauswahl zeigt Eingriffe, und
+  // Einstempeln ist keiner. Die Frage selbst ist der Zuschnitt.
+  const nurEingriffe = params.nur !== 'alles' && erfassung === null;
 
   const basis: Filter = {
     sichtbarFuer: user,
     bereich: istBereich(params.bereich) ? params.bereich : null,
     betroffenId: istVerwaltung && params.person ? Number(params.person) || null : null,
     akteurId: istVerwaltung && params.akteur ? Number(params.akteur) || null : null,
+    erfassung,
     suche: params.suche ?? null,
   };
 
@@ -188,6 +200,7 @@ export default async function ProtokollPage({searchParams}: PageProps) {
           {istBereich(params.bereich ?? '') && (
             <Badge variant="neutral" label={BEREICH_LABEL[params.bereich as keyof typeof BEREICH_LABEL]} />
           )}
+          {erfassung && <Badge variant="neutral" label={ERFASSUNG_LABEL[erfassung]} />}
           {fehlerImZeitraum > 0 && (
             <Badge
               variant="error"
@@ -282,6 +295,15 @@ export default async function ProtokollPage({searchParams}: PageProps) {
                 Jede Änderung am Datensatz mit Zeitpunkt, handelnder Person und den Werten davor und
                 danach – auch die Versuche, die abgewiesen wurden.
               </Text>
+              {/* Die Auskunft, wegen der ein Prüfer das Protokoll aufschlägt:
+                  eine gestempelte Stunde ist gemessen, eine nachgetragene
+                  behauptet. Beides ist zulässig – aber es muss dastehen. */}
+              <Text type="supporting" size="sm" color="secondary">
+                Bei jeder erfassten Zeit steht, wie sie hierher kam: <b>Gestempelt</b> an der Uhr zum
+                Zeitpunkt selbst, <b>Nachgetragen</b> später von Hand eingegeben, <b>Automatisch</b> von
+                der Anwendung vorläufig gesetzt. Die Auswahl „Erfassung“ oben zeigt jeweils nur eine
+                davon.
+              </Text>
               <Text type="supporting" size="sm" color="secondary">
                 {istVerwaltung
                   ? 'Die Vorauswahl zeigt die Eingriffe. Das laufende Stempeln steht ebenfalls im Protokoll und lässt sich dazuschalten – es wäre sonst die Mehrheit aller Zeilen.'
@@ -332,6 +354,7 @@ function csvAdresse(
   if (params.person) p.set('person', params.person);
   if (params.akteur) p.set('akteur', params.akteur);
   if (params.suche) p.set('suche', params.suche);
+  if (params.erfassung) p.set('erfassung', params.erfassung);
   if (!nurEingriffe) p.set('nur', 'alles');
   return `/api/export?${p.toString()}`;
 }

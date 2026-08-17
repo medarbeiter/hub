@@ -96,6 +96,7 @@ export function periodRecord(
             records[index - 1]?.date === addDays(record.date, -1) ? records[index - 1]!.segments : undefined,
           sollMin: record.sollMin,
           dayType: record.dayType,
+          dayTypeMinuten: record.dayTypeMinuten,
         })
       : [];
     return {

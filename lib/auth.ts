@@ -56,7 +56,7 @@ export async function getSessionUser(): Promise<User | null> {
       // und weil dieser Weg jede Seite mit ihrem Benutzer versorgt, griff die
       // Feiertagseinstellung je Mitarbeiter für die eigenen Seiten nie.
       `SELECT u.id, u.email, u.name, u.role, u.weekly_minutes, u.active, u.created_at,
-              u.bundesland, u.urlaubstage_jahr, u.avatar_key, u.must_change_password,
+              u.bundesland, u.urlaubstage_jahr, u.avatar_key, u.avatar_datei, u.must_change_password,
               s.expires_at
        FROM sessions s JOIN users u ON u.id = s.user_id
        WHERE s.token = ? AND u.active = 1`,

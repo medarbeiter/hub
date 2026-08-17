@@ -52,6 +52,8 @@ export default async function AbwesenheitPage({searchParams}: PageProps) {
       art: a.art,
       status: a.status,
       notiz: a.notiz,
+      minuten: a.minuten,
+      ruecksprache_vorgesetzte: a.ruecksprache_vorgesetzte,
       tage: mit.tage,
       arbeitstage: mit.arbeitstage,
       locked: mit.locked,

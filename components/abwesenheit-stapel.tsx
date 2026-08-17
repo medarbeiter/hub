@@ -2,7 +2,7 @@
 
 import {Badge, Button, Divider, HStack, StackItem, Text, VStack} from '@astryxdesign/core';
 import {useState} from 'react';
-import {ART_LABEL, STATUS_LABEL, fmtTage, istAntrag} from '@/lib/abwesenheit-arten';
+import {ART_LABEL, STATUS_LABEL, fmtTage, fmtUmfang, istAntrag} from '@/lib/abwesenheit-arten';
 import type {AbwesenheitArt, AbwesenheitStatus} from '@/lib/db';
 import {fmtDate, fmtDateRange} from '@/lib/format';
 import {Ausklapp} from './ausklapp';
@@ -40,6 +40,9 @@ export interface AbwesenheitAnsicht {
   art: AbwesenheitArt;
   status: AbwesenheitStatus;
   notiz: string | null;
+  /** Nur bei einem eintägigen Freizeitausgleich gesetzt; sonst der ganze Tag. */
+  minuten: number | null;
+  ruecksprache_vorgesetzte: number;
   /** Kalendertage der Spanne. */
   tage: string[];
   /** Davon die Tage mit einem Soll. */
@@ -175,7 +178,7 @@ export function AbwesenheitStapel(props: AbwesenheitStapelProps) {
 
                   <HStack gap={1} vAlign="center" justify="end" wrap="nowrap" width={SPALTE_TAGE}>
                     <Text type="body" size="sm" hasTabularNumbers>
-                      {fmtTage(a.arbeitstage.length)}
+                      {fmtUmfang(a.arbeitstage.length, a.minuten)}
                     </Text>
                   </HStack>
 
@@ -240,7 +243,7 @@ function SpannenStreifen({abwesenheit: a}: {abwesenheit: AbwesenheitAnsicht}) {
       className="spannen-streifen"
       aria-label={`${fmtDate(a.von)} bis ${fmtDate(a.bis)}: ${a.tage.length} ${
         a.tage.length === 1 ? 'Kalendertag' : 'Kalendertage'
-      }, davon ${fmtTage(a.arbeitstage.length)} mit Soll`}
+      }, davon ${fmtUmfang(a.arbeitstage.length, a.minuten)} mit Soll`}
     >
       {a.tage.map((tag) => (
         <span
@@ -279,7 +282,7 @@ function AbwesenheitTafel({
         </Text>
         <Text type="supporting" color="secondary" hasTabularNumbers>
           {a.tage.length} {a.tage.length === 1 ? 'Kalendertag' : 'Kalendertage'} ·{' '}
-          {fmtTage(a.arbeitstage.length)} mit Soll
+          {fmtUmfang(a.arbeitstage.length, a.minuten)} mit Soll
         </Text>
       </HStack>
 

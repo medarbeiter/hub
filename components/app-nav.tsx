@@ -43,6 +43,9 @@ interface AppNavProps {
   /** Wirksame Rechte der Sitzung — die Leiste zeigt nur, was der Rechteschnitt hergibt. */
   rechte: Recht[];
   avatar: AvatarKey;
+  /** Ob die angemeldete Person ein eigenes Profilbild hinterlegt hat. */
+  eigenesBild: boolean;
+  userId: number;
   heute: string;
   zaehler: NavZaehler;
 }
@@ -77,7 +80,7 @@ const NextLink = (props: ComponentProps<'a'>) => (
   </Link>
 );
 
-export function AppNav({name, role, rechte, avatar, heute, zaehler}: AppNavProps) {
+export function AppNav({name, role, rechte, avatar, eigenesBild, userId, heute, zaehler}: AppNavProps) {
   const pathname = usePathname();
   const clock = useClockOptional();
   const darf = (recht: Recht) => rechte.includes(recht);
@@ -172,7 +175,14 @@ export function AppNav({name, role, rechte, avatar, heute, zaehler}: AppNavProps
       footer={
         <>
           <NavTagesstand kontoSaldoMin={zaehler.kontoSaldoMin} eingeklappt={eingeklappt} />
-          <Kontozeile name={name} role={role} avatar={avatar} eingeklappt={eingeklappt} />
+          <Kontozeile
+            name={name}
+            role={role}
+            avatar={avatar}
+            eigenesBild={eigenesBild}
+            userId={userId}
+            eingeklappt={eingeklappt}
+          />
         </>
       }
     >
@@ -685,11 +695,15 @@ function Kontozeile({
   name,
   role,
   avatar,
+  eigenesBild,
+  userId,
   eingeklappt,
 }: {
   name: string;
   role: Rolle;
   avatar: AvatarKey;
+  eigenesBild: boolean;
+  userId: number;
   eingeklappt: boolean;
 }) {
   const abmelden = (
@@ -713,7 +727,7 @@ function Kontozeile({
           title={`${name} · Persönliche Einstellungen`}
           aria-label="Persönliche Einstellungen öffnen"
         >
-          <Namenszeichen avatar={avatar} />
+          <Namenszeichen avatar={avatar} eigenesBild={eigenesBild} userId={userId} />
         </NextLink>
         {abmelden}
       </VStack>
@@ -735,7 +749,7 @@ function Kontozeile({
           className="kontozeile-profil"
           aria-label="Persönliche Einstellungen öffnen"
         >
-          <Namenszeichen avatar={avatar} />
+          <Namenszeichen avatar={avatar} eigenesBild={eigenesBild} userId={userId} />
           <VStack gap={0}>
             <Text type="label" size="sm" weight="medium" maxLines={1}>
               {name}
@@ -757,6 +771,14 @@ function Kontozeile({
  * weitere Personenangabe; der Name daneben beziehungsweise die Beschriftung
  * des Links sagt weiterhin, wer angemeldet ist.
  */
-function Namenszeichen({avatar}: {avatar: AvatarKey}) {
-  return <TierAvatar avatar={avatar} />;
+function Namenszeichen({
+  avatar,
+  eigenesBild,
+  userId,
+}: {
+  avatar: AvatarKey;
+  eigenesBild: boolean;
+  userId: number;
+}) {
+  return <TierAvatar avatar={avatar} eigenesBild={eigenesBild} userId={userId} />;
 }

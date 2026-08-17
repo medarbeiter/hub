@@ -45,12 +45,64 @@ export const BEREICH_LABEL: Record<ProtokollBereich, string> = {
  *   Sperre, jede Änderung an Stammdaten oder Einstellungen. Das ist das
  *   Signal. Deshalb zeigt die Seite es zuerst und blendet die Routine auf
  *   einen Klick dazu, statt sie zu verschweigen.
+ *
+ * `erfassung` trennt die zweite Achse — siehe `ERFASSUNGSARTEN` unten.
  */
 interface AktionsArt {
   bereich: ProtokollBereich;
   label: string;
   eingriff: boolean;
+  /** Wie die Zeit in den Datensatz kam. Fehlt bei allem, was keine Zeit ist. */
+  erfassung?: Erfassungsart;
 }
+
+/**
+ * **Wie die Zeit in den Datensatz kam.** Die zweite Achse neben `eingriff` —
+ * und die, nach der eine Betriebsprüfung als erstes fragt.
+ *
+ * `eingriff` trennt „das Signal vom Rauschen“; das hier trennt etwas anderes:
+ * den **Beweiswert** einer Zeile. Eine gestempelte Zeit ist zum Ereignis
+ * entstanden, eine nachgetragene ist eine spätere Behauptung über die
+ * Vergangenheit — beide sind zulässig, aber sie wiegen nicht gleich, und wer
+ * den Nachweis liest, darf das nicht erst aus dem Vorgangsnamen erschließen
+ * müssen.
+ *
+ *   **gestempelt**   — zum Zeitpunkt des Ereignisses über die Stempeluhr
+ *                      ausgelöst. Das Rücknehmen innerhalb der 30 Sekunden
+ *                      gehört dazu: es geschieht an derselben Uhr, im selben
+ *                      Augenblick, und korrigiert einen Fehlgriff — keine
+ *                      Aussage über einen vergangenen Tag.
+ *   **nachgetragen** — von Hand für einen bereits vergangenen Zeitpunkt
+ *                      eingetragen, geändert, gezogen, gelöscht oder
+ *                      bestätigt. Eine Person behauptet hier etwas über die
+ *                      Vergangenheit.
+ *   **automatisch**  — die Anwendung selbst hat den Wert gesetzt (der
+ *                      vorläufige Feierabend eines vergessenen
+ *                      Ausstempelns). Weder gestempelt noch behauptet: eine
+ *                      Annahme der Maschine, die ein Mensch noch bestätigen
+ *                      muss.
+ *
+ * Nur Vorgänge, die eine erfasste Zeit *sind*, tragen die Angabe. Eine
+ * Tagesart, eine Genehmigung oder eine Einstellung hat kein gestempeltes
+ * Gegenstück — dort wäre „nachgetragen“ keine Unterscheidung, sondern nur ein
+ * Wort mehr in der Zeile.
+ */
+export const ERFASSUNGSARTEN = ['gestempelt', 'nachgetragen', 'automatisch'] as const;
+
+export type Erfassungsart = (typeof ERFASSUNGSARTEN)[number];
+
+export const ERFASSUNG_LABEL: Record<Erfassungsart, string> = {
+  gestempelt: 'Gestempelt',
+  nachgetragen: 'Nachgetragen',
+  automatisch: 'Automatisch',
+};
+
+/** Der ganze Satz — für das aufgeklappte Fach, wo Platz für einen Grund ist. */
+export const ERFASSUNG_ERKLAERUNG: Record<Erfassungsart, string> = {
+  gestempelt: 'Zum Zeitpunkt des Ereignisses an der Stempeluhr ausgelöst.',
+  nachgetragen: 'Nachträglich von Hand erfasst — eine Angabe über einen vergangenen Zeitpunkt.',
+  automatisch: 'Von der Anwendung gesetzt, nicht von einer Person ausgelöst.',
+};
 
 export const AKTIONEN = {
   // ── Zugang ───────────────────────────────────────────────────────────────
@@ -67,22 +119,44 @@ export const AKTIONEN = {
      steht nur die Tatsache im Protokoll — das Geheimnis selbst nie. */
   'zugangscode.anlegen': {bereich: 'zugang', label: 'Zugangscode hinterlegt', eingriff: true},
   'zugangscode.aendern': {bereich: 'zugang', label: 'Zugangscode geändert', eingriff: true},
+  'zugangscode.loeschen-angefordert': {bereich: 'zugang', label: 'Löschung angefordert', eingriff: true},
   'zugangscode.loeschen': {bereich: 'zugang', label: 'Zugangscode entfernt', eingriff: true},
   abmelden: {bereich: 'zugang', label: 'Abgemeldet', eingriff: false},
 
   // ── Arbeitszeit ──────────────────────────────────────────────────────────
-  'stempeln.ein': {bereich: 'zeit', label: 'Eingestempelt', eingriff: false},
-  'stempeln.pause': {bereich: 'zeit', label: 'Pause begonnen', eingriff: false},
-  'stempeln.fort': {bereich: 'zeit', label: 'Pause beendet', eingriff: false},
-  'stempeln.aus': {bereich: 'zeit', label: 'Ausgestempelt', eingriff: false},
-  'stempeln.rueckgaengig': {bereich: 'zeit', label: 'Stempelung zurückgenommen', eingriff: true},
-  'eintrag.anlegen': {bereich: 'zeit', label: 'Eintrag angelegt', eingriff: true},
-  'eintrag.aendern': {bereich: 'zeit', label: 'Eintrag geändert', eingriff: true},
+  /* Die vier Uhrhandlungen: zum Ereignis ausgelöst, deshalb `gestempelt`. */
+  'stempeln.ein': {bereich: 'zeit', label: 'Eingestempelt', eingriff: false, erfassung: 'gestempelt'},
+  'stempeln.pause': {bereich: 'zeit', label: 'Pause begonnen', eingriff: false, erfassung: 'gestempelt'},
+  'stempeln.fort': {bereich: 'zeit', label: 'Pause beendet', eingriff: false, erfassung: 'gestempelt'},
+  'stempeln.aus': {bereich: 'zeit', label: 'Ausgestempelt', eingriff: false, erfassung: 'gestempelt'},
+  /* Ein Eingriff, aber kein Nachtrag: die Rücknahme geschieht binnen 30
+     Sekunden an derselben Uhr und behauptet nichts über die Vergangenheit. */
+  'stempeln.rueckgaengig': {
+    bereich: 'zeit',
+    label: 'Stempelung zurückgenommen',
+    eingriff: true,
+    erfassung: 'gestempelt',
+  },
+  /* Alles Folgende ist von Hand für einen vergangenen Zeitpunkt erfasst —
+     eine Angabe, keine Messung. Genau das muss im Nachweis stehen. */
+  'eintrag.anlegen': {bereich: 'zeit', label: 'Eintrag angelegt', eingriff: true, erfassung: 'nachgetragen'},
+  'eintrag.aendern': {bereich: 'zeit', label: 'Eintrag geändert', eingriff: true, erfassung: 'nachgetragen'},
   /* Vom getippten Ändern getrennt, weil es eine andere Handlung ist: eine
      gezogene Kante ist eine Schätzung, ein eingegebener Wert eine Angabe. */
-  'eintrag.ziehen': {bereich: 'zeit', label: 'Eintrag gezogen', eingriff: true},
-  'eintrag.loeschen': {bereich: 'zeit', label: 'Eintrag gelöscht', eingriff: true},
-  'eintrag.bestaetigen': {bereich: 'zeit', label: 'Eintrag bestätigt', eingriff: true},
+  'eintrag.ziehen': {bereich: 'zeit', label: 'Eintrag gezogen', eingriff: true, erfassung: 'nachgetragen'},
+  'eintrag.loeschen': {bereich: 'zeit', label: 'Eintrag gelöscht', eingriff: true, erfassung: 'nachgetragen'},
+  'eintrag.bestaetigen': {bereich: 'zeit', label: 'Eintrag bestätigt', eingriff: true, erfassung: 'nachgetragen'},
+  /* Kein Mensch hat gehandelt: die Anwendung schließt einen vergessenen
+     Eintrag am eingestellten Feierabend vorläufig. Weder gestempelt (niemand
+     stand an der Uhr) noch nachgetragen (niemand hat etwas behauptet) —
+     deshalb die dritte Art. Die Zeile *muss* stehen: sonst erschiene ein von
+     der Maschine geratenes Ende später als gemessene Zeit. */
+  'eintrag.automatisch-geschlossen': {
+    bereich: 'zeit',
+    label: 'Vorläufig geschlossen',
+    eingriff: true,
+    erfassung: 'automatisch',
+  },
   'tagesart.setzen': {bereich: 'zeit', label: 'Tagesart gesetzt', eingriff: true},
 
   // ── Abwesenheit ──────────────────────────────────────────────────────────
@@ -124,6 +198,9 @@ export const AKTIONEN = {
   // ── Persönliches Profil ─────────────────────────────────────────────────
   'profil.bestaetigen': {bereich: 'stammdaten', label: 'Stammdaten bestätigt', eingriff: true},
   'profil.einstellungen': {bereich: 'einstellungen', label: 'Persönliche Einstellungen geändert', eingriff: true},
+  /* Die Tatsache, nie die Datei: protokolliert wird „gesetzt" oder „entfernt",
+     wie beim Passwort der Vorgang und nicht der Wert. */
+  'profil.bild': {bereich: 'einstellungen', label: 'Profilbild geändert', eingriff: true},
 
   // ── Einstellungen ────────────────────────────────────────────────────────
   'einstellungen.aendern': {bereich: 'einstellungen', label: 'Einstellungen geändert', eingriff: true},
@@ -165,4 +242,32 @@ export function aktionLabel(aktion: string): string {
 
 export function istEingriff(aktion: string): boolean {
   return istAktion(aktion) && AKTIONEN[aktion].eingriff;
+}
+
+/**
+ * Wie die Zeit dieser Zeile in den Datensatz kam — `null`, wenn der Vorgang
+ * gar keine Zeit erfasst (eine Genehmigung, eine Einstellung, eine Anmeldung).
+ *
+ * Damit lässt sich die Frage, wegen der ein Protokoll aufgeschlagen wird —
+ * „steht diese Stunde da, weil jemand gestempelt hat, oder weil jemand sie
+ * eingetippt hat?“ — an einer Stelle beantworten und nicht an fünf.
+ *
+ * Gelesen wird über `ARTEN` statt über `AKTIONEN` selbst: `as const` friert
+ * jeden Eintrag auf seine eigenen Felder ein, und wo `erfassung` fehlt, kennt
+ * der Typ die Eigenschaft gar nicht. Die eine geweitete Sicht ist billiger als
+ * ein `erfassung: undefined` an sechzig Stellen.
+ */
+const ARTEN: Record<ProtokollAktion, AktionsArt> = AKTIONEN;
+
+export function erfassungsart(aktion: string): Erfassungsart | null {
+  return istAktion(aktion) ? ARTEN[aktion].erfassung ?? null : null;
+}
+
+/** Die Aktionen einer Erfassungsart — der Filter „nur Nachträge“. */
+export function aktionenNachErfassung(art: Erfassungsart): ProtokollAktion[] {
+  return (Object.keys(ARTEN) as ProtokollAktion[]).filter((a) => ARTEN[a].erfassung === art);
+}
+
+export function istErfassungsart(value: string | undefined): value is Erfassungsart {
+  return value !== undefined && (ERFASSUNGSARTEN as readonly string[]).includes(value);
 }

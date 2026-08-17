@@ -37,3 +37,22 @@ export function avatarLabel(key: AvatarKey): string {
 export function avatarBild(key: AvatarKey): string {
   return AVATARE.find((avatar) => avatar.key === key)?.bild ?? AVATARE[0]!.bild;
 }
+
+/**
+ * Was als eigenes Profilbild hochgeladen werden darf. Nur Rasterbilder — kein
+ * SVG: eine Vektordatei kann Skripte tragen, und ein Profilbild wird von jedem
+ * angemeldeten Konto abgerufen. Kein PDF, anders als beim Beleg: hier wird ein
+ * Bild angezeigt, kein Dokument geöffnet.
+ */
+export const AVATAR_TYPEN: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+};
+
+export const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
+
+/** Die Quelle des Profilbildes: das eigene Foto, sonst die Tierfigur. */
+export function avatarQuelle(user: {id: number; avatar_key?: AvatarKey; avatar_datei?: string | null}): string {
+  return user.avatar_datei ? `/api/avatar/${user.id}` : avatarBild(user.avatar_key ?? AVATARE[0]!.key);
+}

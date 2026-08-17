@@ -230,13 +230,24 @@ export function stamp(
  * and flag them `auto_closed` — they surface as "please confirm", never as
  * accepted fact. Disabled by default (no cutoff configured). Entries that
  * started after the cutoff are left open: guessing an end time for them would
- * invent hours rather than approximate them. Returns how many were closed.
+ * invent hours rather than approximate them.
+ *
+ * Returns what it closed, not just how many: the caller has to log each one,
+ * and a bare count cannot say *which* day got a machine-guessed end. That
+ * distinction is the whole point of the Erfassungsart in the audit log — an
+ * end nobody stamped and nobody typed must not read like either.
+ *
+ * The logging deliberately does NOT happen here: lib/time.ts must not depend
+ * on lib/protokoll.ts (same reason lib/spesen-tafel.ts exists).
  */
-export function autoCloseForgotten(userId: number, today: string = todayISO()): number {
+export function autoCloseForgotten(
+  userId: number,
+  today: string = todayISO(),
+): Array<{id: number; date: string; startMin: number; endMin: number}> {
   const cutoff = autoCloseCutoffMin();
-  if (cutoff === null) return 0;
+  if (cutoff === null) return [];
   const db = getDb();
-  let closed = 0;
+  const geschlossen: Array<{id: number; date: string; startMin: number; endMin: number}> = [];
   for (const open of stalePastOpenSegments(userId, today)) {
     if (open.start_min >= cutoff) continue;
     if (isMonthLocked(userId, monthOf(open.date))) continue;
@@ -244,9 +255,9 @@ export function autoCloseForgotten(userId: number, today: string = todayISO()): 
       cutoff,
       open.id,
     );
-    closed++;
+    geschlossen.push({id: open.id, date: open.date, startMin: open.start_min, endMin: cutoff});
   }
-  return closed;
+  return geschlossen;
 }
 
 /** Accept a provisionally closed entry as correct. */
@@ -368,6 +379,8 @@ export interface DayRecord {
   sollMin: number;
   dayType: DayTypeKind | null;
   dayTypeLabel: string | null;
+  /** Set only for a Freizeitausgleich booked in minutes; NULL = the whole day. */
+  dayTypeMinuten: number | null;
 }
 
 export function dayRecord(user: User, dateISO: string): DayRecord {
@@ -381,6 +394,7 @@ export function dayRecord(user: User, dateISO: string): DayRecord {
     sollMin: effectiveSollMin(user, dateISO, type),
     dayType: type,
     dayTypeLabel: resolved?.label ?? null,
+    dayTypeMinuten: resolved?.minuten ?? null,
   };
 }
 

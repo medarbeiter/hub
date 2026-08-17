@@ -337,6 +337,56 @@ export function fmtDateRange(vonISO: string, bisISO: string): string {
 }
 
 /**
+ * Ein getipptes Datum lesen — „4.8.“, „04.08.2026“, „4/8“, „2026-08-04“.
+ *
+ * Das Feld, in das getippt wird, gehört zu `components/datum-feld.tsx` und
+ * damit diesem Haus: Astryx' DateInput nimmt seinen Kalender von einer
+ * Komponente, deren Woche am Sonntag beginnt. Wer das Feld selbst stellt, muss
+ * auch das Lesen selbst können.
+ *
+ * Deutsch heißt hier Tag zuerst, immer — auch bei „4/8“, denn das Feld trägt
+ * nur eine Sprache. Ohne Jahr wird das Jahr des Bezugsdatums genommen (in aller
+ * Regel heute): wer im August „4.8.“ tippt, meint diesen August.
+ *
+ * Gibt `null` zurück, wenn daraus kein wirklicher Tag wird — der 31. Februar
+ * ist keiner, und stillschweigend auf den 3. März zu rutschen wäre schlimmer
+ * als die Eingabe stehen zu lassen.
+ */
+export function parseDatumEingabe(text: string, bezug: string): string | null {
+  const roh = text.trim();
+  if (roh === '') return null;
+
+  // Die ISO-Form kommt aus Adressen und aus der Zwischenablage.
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(roh);
+  if (iso) return gueltigerTag(Number(iso[1]), Number(iso[2]), Number(iso[3]));
+
+  const teile = /^(\d{1,2})\s*[.\/-]\s*(\d{1,2})\s*(?:[.\/-]\s*(\d{2}|\d{4}))?\.?$/.exec(roh);
+  if (!teile) return null;
+
+  const tag = Number(teile[1]);
+  const monat = Number(teile[2]);
+  const jahrRoh = teile[3];
+  const jahr =
+    jahrRoh === undefined
+      ? Number(bezug.slice(0, 4))
+      : jahrRoh.length === 2
+        ? 2000 + Number(jahrRoh)
+        : Number(jahrRoh);
+
+  return gueltigerTag(jahr, monat, tag);
+}
+
+/** Nur zurückgeben, was der Kalender auch hergibt — sonst null. */
+function gueltigerTag(jahr: number, monat: number, tag: number): string | null {
+  if (monat < 1 || monat > 12 || tag < 1 || tag > 31) return null;
+  const d = new Date(Date.UTC(jahr, monat - 1, tag));
+  if (d.getUTCFullYear() !== jahr || d.getUTCMonth() !== monat - 1 || d.getUTCDate() !== tag) {
+    return null;
+  }
+  return isoDate(d);
+}
+
+/**
  * The time-of-day greeting. Warmth belongs in the words: this line is the
  * page's heading, not a label above one.
  */

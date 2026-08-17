@@ -49,6 +49,12 @@ export interface DayInput {
   sollMin: number;
   /** Urlaub, Krank, Feiertag …: the day is accounted for without stamped time. */
   dayType?: string | null;
+  /**
+   * Set only for a Freizeitausgleich booked in minutes. Such a day is *partly*
+   * accounted for: the remaining hours were still meant to be worked, so it
+   * must not be excused the way a whole day off is.
+   */
+  dayTypeMinuten?: number | null;
 }
 
 /**
@@ -63,8 +69,16 @@ export function dayIssues(day: DayInput): Issue[] {
   const hasOpen = day.segments.some((s) => s.end_min === null);
   const hasUnconfirmed = day.segments.some((s) => s.auto_closed === 1);
 
+  const teilweiseAbgedeckt = day.dayTypeMinuten != null;
   if (day.segments.length === 0) {
-    if (day.sollMin > 0 && !day.dayType) add('fehlt', 'Kein Eintrag an einem Arbeitstag.');
+    if (day.sollMin > 0 && (!day.dayType || teilweiseAbgedeckt)) {
+      add(
+        'fehlt',
+        teilweiseAbgedeckt
+          ? `Nur ${fmtDuration(day.dayTypeMinuten!)} Std. Freizeitausgleich – die übrige Arbeitszeit fehlt.`
+          : 'Kein Eintrag an einem Arbeitstag.',
+      );
+    }
     return issues;
   }
   if (hasOpen) add('offen', 'Ausstempeln wurde vergessen – der Tag hat kein Ende.');
@@ -171,7 +185,12 @@ export function excusedDays(user: User, today: string): (dateISO: string) => boo
   // One resolution pass over the widest range the scan can ask for.
   const from = `${monthOf(addDays(`${monthOf(today)}-01`, -1))}-01`;
   const types = resolveDayTypes(user, from, today);
-  return (dateISO) => types.has(dateISO);
+  // A Freizeitausgleich booked in minutes covers only part of the day, so it
+  // does not excuse the day the way a whole day off does.
+  return (dateISO) => {
+    const resolved = types.get(dateISO);
+    return resolved !== undefined && resolved.minuten == null;
+  };
 }
 
 /** Days (not issues) that need correcting, most recent first — the fix queue. */

@@ -11,7 +11,9 @@ import {SprungmarkeDeutsch} from '@/components/sprungmarke';
 import {attentionIssues, correctionQueue, excusedDays} from '@/lib/attention';
 import {navZaehler} from '@/lib/schnellzugriff';
 import {persoenlicheEinstellungen} from '@/lib/onboarding';
-import {autoCloseForgotten, clockState, dayRecord, nowMinutes, todayISO} from '@/lib/time';
+import {fmtDate} from '@/lib/format';
+import {protokolliere} from '@/lib/protokoll';
+import {autoCloseForgotten, clockState, dayRecord, fmtTime, nowMinutes, todayISO} from '@/lib/time';
 
 export default async function AppLayout({children}: {children: ReactNode}) {
   const user = await requireUser();
@@ -20,7 +22,24 @@ export default async function AppLayout({children}: {children: ReactNode}) {
 
   // Sweep first so a provisionally closed entry shows up as "please confirm"
   // in the same render rather than one navigation later.
-  autoCloseForgotten(user.id, today);
+  //
+  // Und jede so gesetzte Kante kommt ins Protokoll. Sie war bis dahin die
+  // einzige Stelle, an der ein Ende in den Datensatz geriet, ohne dass
+  // irgendwo stand, woher es kam: nicht gestempelt, nicht eingetragen,
+  // sondern geraten. Wer den Nachweis liest, muss die drei auseinanderhalten
+  // können — deshalb trägt die Zeile `erfassung: 'automatisch'`.
+  for (const eintrag of autoCloseForgotten(user.id, today)) {
+    protokolliere({
+      akteur: null,
+      akteurName: 'MedArbeiter',
+      aktion: 'eintrag.automatisch-geschlossen',
+      gegenstand: `Arbeit am ${fmtDate(eintrag.date)}, ${fmtTime(eintrag.startMin)}–${fmtTime(eintrag.endMin)}`,
+      betroffen: {id: user.id, name: user.name},
+      datum: eintrag.date,
+      vorher: {Ende: 'offen'},
+      nachher: {Ende: fmtTime(eintrag.endMin), Stand: 'vorläufig, noch zu bestätigen'},
+    });
+  }
 
   const record = dayRecord(user, today);
   const clock = clockState(user.id);
@@ -61,6 +80,8 @@ export default async function AppLayout({children}: {children: ReactNode}) {
               role={user.role}
               rechte={user.rechte ?? []}
               avatar={persoenlich.avatar}
+              eigenesBild={Boolean(user.avatar_datei)}
+              userId={user.id}
               heute={today}
               zaehler={navZaehler(user, queue.length)}
             />

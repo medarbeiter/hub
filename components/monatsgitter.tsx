@@ -58,6 +58,17 @@ interface MonatsgitterProps {
    * Dichtesäule, deshalb bestellt jede Oberfläche ihr eigenes Maß.
    */
   zellhoehe?: number;
+  /**
+   * Tage, die nicht gewählt werden dürfen — vor dem `min`, nach dem `max`.
+   * Sie werden gezeichnet (sonst hätte das Gitter Löcher), aber der Griff ist
+   * tot und sagt das auch einer Vorlesehilfe.
+   */
+  gesperrt?: (datum: string) => boolean;
+  /**
+   * Das Gitter als Datumswähler: eine Zahl je Zelle, mittig, ohne Raum für
+   * Marken. Dieselbe Zeichnung, kleinere Auflösung — kein zweites Gitter.
+   */
+  kompakt?: boolean;
 }
 
 /**
@@ -80,12 +91,12 @@ interface MonatsgitterProps {
  * jede Oberfläche selbst mitbringt.
  */
 export function Monatsgitter(props: MonatsgitterProps) {
-  const {gitter, ruhetage, heute, zelle, onTag, wahl, aktiverTag} = props;
-  const hoehe = props.zellhoehe ?? 62;
+  const {gitter, ruhetage, heute, zelle, onTag, wahl, aktiverTag, gesperrt, kompakt} = props;
+  const hoehe = props.zellhoehe ?? (kompakt ? 34 : 62);
   const interaktiv = Boolean(onTag || wahl);
 
   return (
-    <span className="gitter-rahmen">
+    <span className={['gitter-rahmen', kompakt ? 'kompakt' : ''].filter(Boolean).join(' ')}>
       <table className="monatsgitter" style={{['--gitter-zellhoehe' as string]: `${hoehe}px`}}>
         <thead>
           <tr>
@@ -118,6 +129,7 @@ export function Monatsgitter(props: MonatsgitterProps) {
               {woche.tage.map((tag) => {
                 const inhalt = zelle(tag.datum);
                 const istRuhe = ruhetage.has(tag.datum);
+                const istGesperrt = gesperrt?.(tag.datum) ?? false;
                 const gewaehlt = wahl?.istGewaehlt(tag.datum) ?? false;
                 const klassen = [
                   'gitter-zelle',
@@ -127,6 +139,7 @@ export function Monatsgitter(props: MonatsgitterProps) {
                   aktiverTag === tag.datum ? 'offen' : '',
                   gewaehlt ? 'gewaehlt' : '',
                   inhalt.betont ? 'betont' : '',
+                  istGesperrt ? 'gesperrt' : '',
                 ]
                   .filter(Boolean)
                   .join(' ');
@@ -164,10 +177,11 @@ export function Monatsgitter(props: MonatsgitterProps) {
                     {interaktiv ? (
                       <button
                         type="button"
-                        data-gittertag={tag.datum}
+                        data-gittertag={istGesperrt ? undefined : tag.datum}
                         className="gitter-griff"
                         aria-label={beschriftung}
                         aria-pressed={aktiverTag === tag.datum ? true : undefined}
+                        disabled={istGesperrt}
                         onPointerDown={(e) => {
                           if (e.button !== 0 || !wahl) return;
                           wahl.beginnen(tag.datum);

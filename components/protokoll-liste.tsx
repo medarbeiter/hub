@@ -4,9 +4,16 @@ import {Badge, Divider, HStack, StackItem, Text, VStack} from '@astryxdesign/cor
 import {Verweis as Link} from './verweis';
 import {useSearchParams} from 'next/navigation';
 import {useState} from 'react';
-import {aktionLabel, BEREICH_LABEL, istBereich} from '@/lib/protokoll-arten';
+import {
+  aktionLabel,
+  BEREICH_LABEL,
+  erfassungsart,
+  ERFASSUNG_ERKLAERUNG,
+  ERFASSUNG_LABEL,
+  istBereich,
+} from '@/lib/protokoll-arten';
 import {Ausklapp} from './ausklapp';
-import {Aufklapppfeil, PROTOKOLL_BEREICH_SINN, Sinnbild} from './sinnbilder';
+import {Aufklapppfeil, ERFASSUNG_SINN, PROTOKOLL_BEREICH_SINN, Sinnbild} from './sinnbilder';
 
 /**
  * Eine Protokollzeile, so wie die Seite sie braucht: fertig aufbereitet, mit
@@ -117,7 +124,7 @@ export function ProtokollListe({zeilen, mitBetroffen}: ProtokollListeProps) {
         </span>
         <span style={{inlineSize: SPALTE_AKTION, flexShrink: 0}}>
           <Text type="label" size="sm" color="secondary">
-            Vorgang
+            Vorgang · Erfassung
           </Text>
         </span>
         <StackItem size="fill">
@@ -137,6 +144,7 @@ export function ProtokollListe({zeilen, mitBetroffen}: ProtokollListeProps) {
       <VStack as="ol" gap={0} className="bahn-stapel">
         {zeilen.map((z) => {
           const istOffen = offen === z.id;
+          const erfassung = erfassungsart(z.aktion);
           return (
             <VStack as="li" key={z.id} gap={0} className="bahn-reihe">
               <button
@@ -161,17 +169,45 @@ export function ProtokollListe({zeilen, mitBetroffen}: ProtokollListeProps) {
                     </VStack>
                   </span>
 
+                  {/* Der Vorgang und — direkt darunter — wie die Zeit in den
+                      Datensatz kam. Zwei Zeilen wie in der Zeitspalte, und
+                      bewusst hier statt beim Gegenstand: „Eintrag geändert /
+                      Nachgetragen" ist ein Satz über die Handlung, nicht über
+                      die Sache. Ohne die zweite Zeile musste man aus dem Namen
+                      des Vorgangs erschließen, ob eine Stunde gemessen oder
+                      behauptet wurde — genau die Frage, wegen der jemand ein
+                      Protokoll aufschlägt. */}
                   <span style={{inlineSize: SPALTE_AKTION, flexShrink: 0}}>
-                    <HStack gap={1.5} vAlign="center" wrap="nowrap">
-                      <Sinnbild
-                        sinn={istBereich(z.bereich) ? PROTOKOLL_BEREICH_SINN[z.bereich] : 'protokoll'}
-                        groesse="zeile"
-                        ton={z.fehler ? 'fehler' : 'sekundaer'}
-                      />
-                      <Text type="supporting" size="sm" maxLines={1}>
-                        {aktionLabel(z.aktion)}
-                      </Text>
-                    </HStack>
+                    <VStack gap={0}>
+                      <HStack gap={1.5} vAlign="center" wrap="nowrap">
+                        <Sinnbild
+                          sinn={istBereich(z.bereich) ? PROTOKOLL_BEREICH_SINN[z.bereich] : 'protokoll'}
+                          groesse="zeile"
+                          ton={z.fehler ? 'fehler' : 'sekundaer'}
+                        />
+                        <Text type="supporting" size="sm" maxLines={1}>
+                          {aktionLabel(z.aktion)}
+                        </Text>
+                      </HStack>
+                      {erfassung && (
+                        <HStack gap={1.5} vAlign="center" wrap="nowrap">
+                          <Sinnbild sinn={ERFASSUNG_SINN[erfassung]} groesse="zeile" ton="sekundaer" />
+                          <Text
+                            type="supporting"
+                            size="sm"
+                            /* Das Gestempelte ist der Normalfall und tritt
+                               zurück; das von Hand Erfasste und das von der
+                               Maschine Gesetzte stehen in voller Tinte, weil
+                               sie das sind, was jemand sucht. */
+                            color={erfassung === 'gestempelt' ? 'secondary' : undefined}
+                            weight={erfassung === 'gestempelt' ? undefined : 'semibold'}
+                            maxLines={1}
+                          >
+                            {ERFASSUNG_LABEL[erfassung]}
+                          </Text>
+                        </HStack>
+                      )}
+                    </VStack>
                   </span>
 
                   <StackItem size="fill">
@@ -227,6 +263,7 @@ function ZeilenTafel({zeile}: {zeile: ProtokollZeile}) {
   const felder = [...new Set([...zeile.vorher.map(([k]) => k), ...zeile.nachher.map(([k]) => k)])];
   const vorher = new Map(zeile.vorher);
   const nachher = new Map(zeile.nachher);
+  const erfassung = erfassungsart(zeile.aktion);
 
   return (
     <VStack gap={3} paddingInline={2} paddingBlock={3}>
@@ -244,12 +281,33 @@ function ZeilenTafel({zeile}: {zeile: ProtokollZeile}) {
             />
           }
         />
+        {erfassung && (
+          <Badge
+            variant="neutral"
+            label={ERFASSUNG_LABEL[erfassung]}
+            icon={<Sinnbild sinn={ERFASSUNG_SINN[erfassung]} groesse="zeile" />}
+          />
+        )}
         {zeile.datum && (
           <Text type="supporting" size="sm" color="secondary" hasTabularNumbers>
             betrifft den {zeile.datum}
           </Text>
         )}
       </HStack>
+
+      {/* Der ganze Satz, nicht nur das Wort. Hier ist Platz dafür, und die
+          Unterscheidung zwischen gemessener und behaupteter Zeit ist genau
+          die, die ein Prüfer erklärt haben will. */}
+      {erfassung && (
+        <HStack gap={1.5} vAlign="start" wrap="nowrap">
+          <span style={{display: 'flex', paddingBlockStart: 'var(--spacing-0-5)'}}>
+            <Sinnbild sinn={ERFASSUNG_SINN[erfassung]} groesse="zeile" ton="sekundaer" />
+          </span>
+          <Text type="supporting" size="sm" color="secondary">
+            {ERFASSUNG_ERKLAERUNG[erfassung]}
+          </Text>
+        </HStack>
+      )}
 
       {zeile.fehler && (
         <HStack gap={1.5} vAlign="start" wrap="nowrap">

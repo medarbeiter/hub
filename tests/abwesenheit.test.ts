@@ -15,7 +15,8 @@ import {
   zurueckweisen,
   zurueckziehen,
 } from '../lib/abwesenheit';
-import {restanspruch} from '../lib/abwesenheit-arten';
+import {restanspruch, sichtbareArt} from '../lib/abwesenheit-arten';
+import {dayIssues} from '../lib/attention';
 import {setSetting} from '../lib/settings';
 import {lockMonth, zeitkontoSummary} from '../lib/time';
 
@@ -45,9 +46,13 @@ beforeEach(() => {
 
 afterEach(() => setDbForTesting(undefined));
 
-/** Legt eine Abwesenheit an und gibt ihre Kennung zurück — im Test nie fehlerhaft. */
+/**
+ * Legt eine Abwesenheit an und gibt ihre Kennung zurück — im Test nie fehlerhaft.
+ * Die Rücksprache ist bestätigt: sie ist beim Antrag Pflicht, und was hier
+ * geprüft wird, sind die Regeln danach.
+ */
 function anlegen(art: 'urlaub' | 'krank' | 'freizeitausgleich' | 'fortbildung', von: string, bis: string, actor = anna) {
-  const result = createAbwesenheit(actor, anna.id, {art, von, bis});
+  const result = createAbwesenheit(actor, anna.id, {art, von, bis, ruecksprache_vorgesetzte: true});
   if ('error' in result) throw new Error(result.error);
   return result.id;
 }
@@ -137,7 +142,7 @@ describe('Projektion: die Spanne schreibt die Tage', () => {
 describe('Überschneidung', () => {
   test('zwei Urlaube dürfen sich nicht überlappen', () => {
     anlegen('urlaub', MO, MI);
-    const result = createAbwesenheit(anna, anna.id, {art: 'urlaub', von: DI, bis: FR});
+    const result = createAbwesenheit(anna, anna.id, {art: 'urlaub', von: DI, bis: FR, ruecksprache_vorgesetzte: true});
     expect(result).toEqual({error: expect.stringContaining('Überschneidung mit Urlaub')});
   });
 
@@ -160,7 +165,7 @@ describe('Überschneidung', () => {
     const id = anlegen('urlaub', MO, MI);
     einreichen(anna, id);
     zurueckweisen(chef, id, 'Zu kurzfristig.');
-    expect(createAbwesenheit(anna, anna.id, {art: 'urlaub', von: DI, bis: FR})).toEqual({id: 2});
+    expect(createAbwesenheit(anna, anna.id, {art: 'urlaub', von: DI, bis: FR, ruecksprache_vorgesetzte: true})).toEqual({id: 2});
   });
 
   test('die eigene Spanne blockiert die eigene Änderung nicht', () => {
@@ -204,7 +209,7 @@ describe('Urlaubsanspruch', () => {
     setSetting('bundesland', 'SN');
     const user = {...anna, bundesland: 'SN'};
     // Mo 27.04. bis Fr 01.05.2026 — der 1. Mai fällt hier auf einen Freitag.
-    const id = createAbwesenheit(user, anna.id, {art: 'urlaub', von: '2026-04-27', bis: '2026-05-01'});
+    const id = createAbwesenheit(user, anna.id, {art: 'urlaub', von: '2026-04-27', bis: '2026-05-01', ruecksprache_vorgesetzte: true});
     if ('error' in id) throw new Error(id.error);
     einreichen(anna, id.id);
     genehmigen(chef, id.id);
@@ -253,7 +258,7 @@ describe('Statusmaschine und Berechtigung', () => {
   });
 
   test('die Verwaltung genehmigt sich selbst, aber sichtbar', () => {
-    const result = createAbwesenheit(chef, chef.id, {art: 'urlaub', von: MO, bis: DI});
+    const result = createAbwesenheit(chef, chef.id, {art: 'urlaub', von: MO, bis: DI, ruecksprache_vorgesetzte: true});
     if ('error' in result) throw new Error(result.error);
     expect(einreichen(chef, result.id)).toBeNull();
     expect(genehmigen(chef, result.id)).toBeNull();
@@ -272,7 +277,7 @@ describe('Statusmaschine und Berechtigung', () => {
     if ('error' in result) throw new Error(result.error);
     expect(abwesenheitById(result.id)!.notiz).toBeNull();
     // Bei einem Urlaub ist die Notiz dagegen eine ganz gewöhnliche Angabe.
-    const urlaub = createAbwesenheit(anna, anna.id, {art: 'urlaub', von: MO2, bis: FR2, notiz: 'Sommerurlaub'});
+    const urlaub = createAbwesenheit(anna, anna.id, {art: 'urlaub', von: MO2, bis: FR2, notiz: 'Sommerurlaub', ruecksprache_vorgesetzte: true});
     if ('error' in urlaub) throw new Error(urlaub.error);
     expect(abwesenheitById(urlaub.id)!.notiz).toBe('Sommerurlaub');
   });
@@ -430,5 +435,114 @@ describe('Migration: aus Tagen werden Spannen', () => {
     uebernehmeTagesartenInSpannen(db);
     expect(db.query<{n: number}, []>('SELECT COUNT(*) AS n FROM abwesenheiten').get()!.n).toBe(0);
     expect(tagesarten()).toEqual([{date: MO, type: 'feiertag', abwesenheit_id: null}]);
+  });
+});
+
+describe('Freizeitausgleich in Minuten', () => {
+  test('ein einzelner Tag darf in Minuten stehen und gibt nur diese aus', () => {
+    const result = createAbwesenheit(anna, anna.id, {
+      art: 'freizeitausgleich',
+      von: MO,
+      bis: MO,
+      minuten: 90,
+      ruecksprache_vorgesetzte: true,
+    });
+    if ('error' in result) throw new Error(result.error);
+    expect(abwesenheitById(result.id)!.minuten).toBe(90);
+    expect(einreichen(anna, result.id)).toBeNull();
+    expect(genehmigen(chef, result.id)).toBeNull();
+    // Die Projektion trägt den Umfang bis auf den Tag durch.
+    expect(db.query<{minuten: number | null}, []>('SELECT minuten FROM day_types').get()!.minuten).toBe(90);
+  });
+
+  test('mehr als das Soll dieses Tages geht nicht', () => {
+    expect(
+      createAbwesenheit(anna, anna.id, {
+        art: 'freizeitausgleich',
+        von: MO,
+        bis: MO,
+        minuten: 999,
+        ruecksprache_vorgesetzte: true,
+      }),
+    ).toEqual({error: expect.stringContaining('Minuten angeben')});
+  });
+
+  test('über mehrere Tage bleibt es der ganze Tag — Minuten wären dort keine Abwesenheit mehr', () => {
+    expect(
+      createAbwesenheit(anna, anna.id, {
+        art: 'freizeitausgleich',
+        von: MO,
+        bis: DI,
+        minuten: 90,
+        ruecksprache_vorgesetzte: true,
+      }),
+    ).toEqual({error: expect.stringContaining('einzelnen Tag')});
+  });
+
+  test('keine andere Art kennt Minuten — sie werden nicht gespeichert', () => {
+    const result = createAbwesenheit(anna, anna.id, {
+      art: 'urlaub',
+      von: MO,
+      bis: MO,
+      minuten: 90,
+      ruecksprache_vorgesetzte: true,
+    });
+    if ('error' in result) throw new Error(result.error);
+    expect(abwesenheitById(result.id)!.minuten).toBeNull();
+  });
+
+  /* Ein Teiltag deckt den Tag nur zur Hälfte: die übrige Arbeitszeit war zu
+     leisten. Ohne diese Regel verschwände ein vergessener Stempel lautlos und
+     der Tag kostete das ganze Soll statt der beantragten Minuten. */
+  test('ein Teiltag ohne Stempelung bleibt ein Loch im Nachweis', () => {
+    expect(
+      dayIssues({date: MO, segments: [], sollMin: 480, dayType: 'freizeitausgleich', dayTypeMinuten: 90}).map(
+        (i) => i.kind,
+      ),
+    ).toEqual(['fehlt']);
+    // Ein ganzer Ausgleichstag ist dagegen vollständig erklärt.
+    expect(dayIssues({date: MO, segments: [], sollMin: 480, dayType: 'freizeitausgleich'})).toEqual([]);
+  });
+});
+
+describe('Rücksprache mit der/dem Vorgesetzten', () => {
+  test('ein Antrag ohne Bestätigung wird nicht angelegt', () => {
+    expect(createAbwesenheit(anna, anna.id, {art: 'urlaub', von: MO, bis: DI})).toEqual({
+      error: expect.stringContaining('besprochen'),
+    });
+    expect(createAbwesenheit(anna, anna.id, {art: 'freizeitausgleich', von: MO, bis: DI})).toEqual({
+      error: expect.stringContaining('besprochen'),
+    });
+  });
+
+  test('eine Meldung verlangt sie nicht — wer krank ist, fragt niemanden', () => {
+    expect(createAbwesenheit(anna, anna.id, {art: 'krank', von: MO, bis: DI})).toEqual({id: 1});
+    expect(createAbwesenheit(anna, anna.id, {art: 'fortbildung', von: MO2, bis: FR2})).toEqual({id: 2});
+  });
+
+  test('sie wird gespeichert und von einer Korrektur nicht widerrufen', () => {
+    const id = anlegen('urlaub', MO, DI);
+    expect(abwesenheitById(id)!.ruecksprache_vorgesetzte).toBe(1);
+    // Die Verwaltung korrigiert die Spanne, ohne das Gespräch zu bestätigen.
+    expect(updateAbwesenheit(chef, id, {art: 'urlaub', von: MO, bis: MI})).toBeNull();
+    expect(abwesenheitById(id)!.ruecksprache_vorgesetzte).toBe(1);
+  });
+});
+
+/* Der Teamkalender stuft in der Nutzlast ab, nicht im CSS: die Art einer
+   fremden Abwesenheit darf den Browser nicht erreichen. Deshalb ist die Regel
+   eine Funktion und keine Bedingung im Seitencode. */
+describe('Teamkalender: das dass, nicht das warum', () => {
+  test('ohne das Recht bleibt die Art einer fremden Abwesenheit ungenannt', () => {
+    expect(sichtbareArt('krank', false, false)).toBeNull();
+    expect(sichtbareArt('urlaub', false, false)).toBeNull();
+  });
+
+  test('die betroffene Person sieht ihre eigene Art immer', () => {
+    expect(sichtbareArt('krank', false, true)).toBe('krank');
+  });
+
+  test('wer die Gründe sehen darf, sieht sie', () => {
+    expect(sichtbareArt('krank', true, false)).toBe('krank');
   });
 });
