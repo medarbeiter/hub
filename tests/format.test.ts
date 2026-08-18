@@ -16,11 +16,14 @@ import {
   fmtEuro,
   fmtEuroPlain,
   fmtTime,
+  hausZeit,
   isoToMin,
   parseEuro,
   mondayOf,
   monthOf,
+  nowMinutes,
   parseDatumEingabe,
+  todayISO,
   weekdayIndex,
 } from '../lib/format';
 
@@ -291,3 +294,54 @@ describe('parseDatumEingabe', () => {
     expect(parseDatumEingabe('4. August', bezug)).toBeNull();
   });
 });
+
+describe('Hauszeit: die Stempeluhr hängt nicht an der Zeitzone des Prozesses', () => {
+  // Der Fehler, der das hier erzwungen hat: eingestempelt um 7:58, erfasst als
+  // 5:58. `new Date().getHours()` las die Zeitzone der *Maschine* — auf dem
+  // Entwicklungsrechner Berlin, im Container ohne `TZ` aber UTC.
+
+  test('7:58 Ortszeit im Sommer sind 7:58, nicht 5:58', () => {
+    // 05:58 UTC = 07:58 MESZ (UTC+2).
+    const augenblick = new Date('2026-08-18T05:58:00Z');
+    const {datum, stunde, minute} = hausZeit(augenblick);
+    expect(datum).toBe('2026-08-18');
+    expect(stunde).toBe(7);
+    expect(minute).toBe(58);
+  });
+
+  test('im Winter gilt MEZ: eine Stunde, nicht zwei', () => {
+    // 06:58 UTC = 07:58 MEZ (UTC+1).
+    const {stunde, minute} = hausZeit(new Date('2026-01-18T06:58:00Z'));
+    expect(stunde).toBe(7);
+    expect(minute).toBe(58);
+  });
+
+  test('Mitternacht ist 0 und nicht 24 — sonst wären es 1440 Minuten', () => {
+    // 22:00 UTC am 17.8. = 00:00 MESZ am 18.8.
+    const {datum, stunde} = hausZeit(new Date('2026-08-17T22:00:00Z'));
+    expect(datum).toBe('2026-08-18');
+    expect(stunde).toBe(0);
+  });
+
+  test('der Tageswechsel folgt der Ortszeit, nicht UTC', () => {
+    // 23:30 Ortszeit am 18.8. ist in UTC schon der 18.8. 21:30 — aber
+    // 00:30 Ortszeit am 19.8. ist in UTC noch der 18.8. 22:30.
+    expect(hausZeit(new Date('2026-08-18T22:30:00Z')).datum).toBe('2026-08-19');
+    expect(hausZeit(new Date('2026-08-18T21:30:00Z')).datum).toBe('2026-08-18');
+  });
+
+  test('die Sommerzeit springt zur richtigen Stunde', () => {
+    // Umstellung 2026: 29. März, 02:00 MEZ → 03:00 MESZ.
+    expect(hausZeit(new Date('2026-03-29T00:30:00Z')).stunde).toBe(1); // noch MEZ
+    expect(hausZeit(new Date('2026-03-29T01:30:00Z')).stunde).toBe(3); // schon MESZ
+  });
+
+  test('nowMinutes und todayISO lesen dieselbe Uhr wie hausZeit', () => {
+    const jetzt = new Date();
+    const {datum, stunde, minute} = hausZeit(jetzt);
+    // Über eine Minutengrenze hinweg darf die Prüfung nicht kippen.
+    expect(Math.abs(nowMinutes() - (stunde * 60 + minute))).toBeLessThanOrEqual(1);
+    expect(todayISO()).toBe(datum);
+  });
+});
+

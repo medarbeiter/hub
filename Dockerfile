@@ -18,8 +18,12 @@ RUN bun build scripts/bootstrap-admin.ts --target=bun --outfile=dist/bootstrap-a
 
 FROM oven/bun:1.3.14 AS runtime
 WORKDIR /app
+# TZ ist hier nur noch Kosmetik für Logzeilen: die Zeiterfassung selbst rechnet
+# über HAUS_ZEITZONE in lib/format.ts und hängt nicht mehr daran, wie der
+# Container steht. Ein fehlendes TZ hat einmal 07:58 als 05:58 gestempelt.
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
+    TZ=Europe/Berlin \
     HOSTNAME=0.0.0.0 \
     PORT=3000
 COPY --from=build --chown=bun:bun /app/.next/standalone ./

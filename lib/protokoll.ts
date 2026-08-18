@@ -28,7 +28,7 @@
 
 import {getDb, type ProtokollRow, type User} from './db';
 import {hatRecht} from './rechte';
-import {fmtDate, fmtDateRange, fmtEuro, fmtTime} from './format';
+import {fmtDate, fmtDateRange, fmtEuro, fmtTime, hausZeit} from './format';
 import {
   AKTIONEN,
   aktionenNachErfassung,
@@ -76,13 +76,16 @@ function sha256(text: string): string {
   return new Bun.CryptoHasher('sha256').update(text, 'utf8').digest('hex');
 }
 
-/** Ortszeit als „JJJJ-MM-TT HH:MM:SS" — dieselbe Zeitrechnung wie im ganzen Haus. */
+/**
+ * Ortszeit als „JJJJ-MM-TT HH:MM:SS" — dieselbe Zeitrechnung wie im ganzen Haus.
+ *
+ * „Ortszeit" heißt die Hauszeitzone, nicht die des Prozesses: sonst stünde im
+ * Protokoll eine andere Stunde als in der Stempelung, die es beurkundet.
+ */
 function jetztStempel(now: Date = new Date()): string {
   const p = (n: number) => String(n).padStart(2, '0');
-  return (
-    `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())} ` +
-    `${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`
-  );
+  const {datum, stunde, minute, sekunde} = hausZeit(now);
+  return `${datum} ${p(stunde)}:${p(minute)}:${p(sekunde)}`;
 }
 
 // ---------------------------------------------------------------------------

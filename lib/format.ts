@@ -27,13 +27,83 @@ export function isoDate(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+// ---------------------------------------------------------------------------
+// Die Hauszeit
+// ---------------------------------------------------------------------------
+
+/**
+ * Die Zeitzone, in der dieses Haus arbeitet.
+ *
+ * Eine Stempelung entsteht auf dem Server (`stampAction` → `stamp()`), gelesen
+ * wird sie im Browser. Solange beide `new Date().getHours()` fragten, stand in
+ * der Datenbank die Zeitzone des *Prozesses*: auf dem Entwicklungsrechner
+ * Europe/Berlin, im Container ohne gesetztes `TZ` aber UTC — und damit war
+ * 07:58 als 05:58 erfasst. Der Ausweg ist nicht, `TZ` zu setzen (das wäre
+ * dieselbe Wette noch einmal), sondern die Zeitzone zu *benennen*. Sie ist eine
+ * fachliche Angabe wie das Bundesland für die Feiertage, keine Eigenschaft der
+ * Maschine.
+ *
+ * `NEXT_PUBLIC_` ist Absicht: dieselbe Konstante muss den Client erreichen, weil
+ * sonst Server und Browser wieder zwei Uhren wären.
+ */
+export const HAUS_ZEITZONE: string = process.env.NEXT_PUBLIC_ZEITZONE || 'Europe/Berlin';
+
+function hausFormat(zone: string): Intl.DateTimeFormat {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: zone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    // h23, nicht hour12:false — sonst liefert ICU für Mitternacht „24".
+    hourCycle: 'h23',
+  });
+}
+
+/**
+ * Einmal gebaut und wiederverwendet: `Intl.DateTimeFormat` ist teuer, und
+ * `nowMinutes()` läuft im Sekundentakt in der Uhr mit. Ein unbrauchbarer
+ * Zonenname darf die Zeiterfassung nicht anhalten — dann lieber Berlin und eine
+ * laute Zeile im Log.
+ */
+const HAUS_FORMAT: Intl.DateTimeFormat = (() => {
+  try {
+    return hausFormat(HAUS_ZEITZONE);
+  } catch {
+    console.error(`Unbekannte Zeitzone „${HAUS_ZEITZONE}" — es gilt Europe/Berlin.`);
+    return hausFormat('Europe/Berlin');
+  }
+})();
+
+export interface Zeitfelder {
+  datum: string;
+  stunde: number;
+  minute: number;
+  sekunde: number;
+}
+
+/** Wanduhrzeit in der Hauszeitzone — unabhängig davon, wie die Maschine steht. */
+export function hausZeit(d: Date = new Date()): Zeitfelder {
+  const teil: Record<string, string> = {};
+  for (const {type, value} of HAUS_FORMAT.formatToParts(d)) teil[type] = value;
+  return {
+    // en-CA schreibt das Datum bereits als JJJJ-MM-TT.
+    datum: `${teil.year}-${teil.month}-${teil.day}`,
+    stunde: Number(teil.hour),
+    minute: Number(teil.minute),
+    sekunde: Number(teil.second),
+  };
+}
+
 export function todayISO(): string {
-  return isoDate(new Date());
+  return hausZeit().datum;
 }
 
 export function nowMinutes(): number {
-  const d = new Date();
-  return d.getHours() * 60 + d.getMinutes();
+  const {stunde, minute} = hausZeit();
+  return stunde * 60 + minute;
 }
 
 export function monthOf(dateISO: string): string {
