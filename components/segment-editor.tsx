@@ -16,6 +16,7 @@ import {createISOTimeString} from '@astryxdesign/core/utils';
 import {useActionState, useEffect, useRef, useState, useTransition} from 'react';
 import {segmentDeleteAction, segmentSaveAction, type ActionState} from '@/app/actions';
 import {fmtDateLong, fmtDuration, fmtTime, isoToMin, type TimelineSegment} from '@/lib/format';
+import {fmtSpanne, pausenSchnitte, schnittVerlust, type PausenSchnitt} from '@/lib/pausenschnitt';
 import {Sinnbild} from './sinnbilder';
 import {TafelDialog} from './tafel-dialog';
 
@@ -34,6 +35,18 @@ interface SegmentEditorProps {
 
 const INITIAL: ActionState = {error: null};
 const SNAP = 5;
+
+/** Was der Schnitt mit dem Tag macht, in einem Satz. */
+function schnittSatz(schnitte: PausenSchnitt[], offenesEnde: number): string {
+  const erster = schnitte[0]!;
+  const teile =
+    schnitte.length > 1
+      ? `${schnitte.length} Arbeitseinträge werden dabei gekürzt.`
+      : erster.reste.length > 0
+        ? `Aus ${fmtSpanne(erster.vorher)} werden ${erster.reste.map(fmtSpanne).join(' und ')}.`
+        : `Der Eintrag ${fmtSpanne(erster.vorher)} entfällt dadurch ganz.`;
+  return `${teile} Die Arbeitszeit an diesem Tag sinkt um ${fmtDuration(schnittVerlust(schnitte, offenesEnde))} Std.`;
+}
 
 /**
  * Where the day is filled in by hand: correcting one entry, or recording one
@@ -106,20 +119,35 @@ export function SegmentEditor({
   /**
    * The same rules the server enforces, said early. The server check stays
    * authoritative — this only spares the round trip and names the conflict.
+   * A Pause over Arbeit is not one: it is the cut (lib/pausenschnitt.ts), and
+   * gets a warning that says what will happen instead of a block that says
+   * what may not.
    */
-  const hinweis = (): string | null => {
+  const hinweis = (): {ton: 'fehler' | 'warnung'; text: string} | null => {
     if (startMin === null || endMin === null) return null;
-    if (endMin <= startMin) return 'Das Ende muss nach dem Beginn liegen.';
+    if (endMin <= startMin) return {ton: 'fehler', text: 'Das Ende muss nach dem Beginn liegen.'};
+    const offen = nowMin ?? 1440;
     for (const other of tagesSegmente) {
       if (other.id === segment?.id || other.id < 0) continue;
-      const otherEnd = other.end_min ?? (nowMin ?? 1440);
+      if (kind === 'pause' && other.kind === 'arbeit') continue;
+      const otherEnd = other.end_min ?? offen;
       if (startMin < otherEnd && other.start_min < endMin) {
-        return `Überschneidung mit ${fmtTime(other.start_min)}–${
-          other.end_min === null ? 'offen' : fmtTime(other.end_min)
-        }.`;
+        return {
+          ton: 'fehler',
+          text: `Überschneidung mit ${fmtTime(other.start_min)}–${
+            other.end_min === null ? 'offen' : fmtTime(other.end_min)
+          }.`,
+        };
       }
     }
-    return null;
+    const schnitte = pausenSchnitte(
+      tagesSegmente,
+      {kind: kind as 'arbeit' | 'pause', startMin, endMin},
+      offen,
+      segment?.id,
+    );
+    if (schnitte.length === 0) return null;
+    return {ton: 'warnung', text: schnittSatz(schnitte, offen)};
   };
 
   const konflikt = hinweis();
@@ -136,6 +164,13 @@ export function SegmentEditor({
               status="warning"
               title="Offener Eintrag"
               description="Dieser Eintrag wurde nie beendet. Trage das tatsächliche Ende ein, um ihn zu korrigieren."
+            />
+          )}
+          {konflikt?.ton === 'warnung' && (
+            <Banner
+              status="warning"
+              title="Die Pause wird aus der Arbeitszeit herausgeschnitten"
+              description={konflikt.text}
             />
           )}
           {state.error && <Banner status="error" title={state.error} />}
@@ -170,9 +205,9 @@ export function SegmentEditor({
                   ? `Ergibt ${fmtDuration(dauer)} Std. ${kind === 'arbeit' ? 'Arbeitszeit' : 'Pause'}.`
                   : 'Beginn und Ende im Format HH:MM.'}
               </Text>
-              {konflikt && (
+              {konflikt?.ton === 'fehler' && (
                 <Text type="supporting" color="inherit">
-                  <span style={{color: 'var(--color-error)'}}>{konflikt}</span>
+                  <span style={{color: 'var(--color-error)'}}>{konflikt.text}</span>
                 </Text>
               )}
             </HStack>
@@ -235,7 +270,7 @@ export function SegmentEditor({
                 variant="primary"
                 type="submit"
                 isLoading={isSaving}
-                isDisabled={konflikt !== null}
+                isDisabled={konflikt?.ton === 'fehler'}
               />
             </HStack>
           </HStack>

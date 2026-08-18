@@ -17,6 +17,7 @@ import {
   confirmAutoClosed,
   createSegment,
   deleteSegment,
+  geplanteSchnitte,
   getUser,
   isMonthLocked,
   lockMonth,
@@ -30,6 +31,7 @@ import {
   type SegmentInput,
 } from '@/lib/time';
 import {fmtDate, fmtDateRange, fmtMonth, fmtTime, monthOf, nowMinutes, parseEuro, todayISO} from '@/lib/format';
+import {schnittText} from '@/lib/pausenschnitt';
 // Jede Mutation dieser Datei hinterlässt eine Zeile im Protokoll — auch die
 // abgewiesene. „Wer hat versucht, den gesperrten Monat zu ändern" ist genau
 // die Frage, wegen der es eines gibt. Das Vokabular der Aktionen liegt in
@@ -542,6 +544,9 @@ export async function segmentSaveAction(_prev: ActionState, formData: FormData):
   // Der Zustand *vor* der Änderung wird gelesen, solange es ihn noch gibt —
   // hinterher ließe er sich nicht mehr rekonstruieren.
   const vorher = segmentId ? beschreibeSegment(segmentId) : null;
+  // Was die Pause aus der Arbeit schneidet, gehört in dieselbe Zeile: der
+  // Schnitt ist Teil dieser einen Handlung, nicht eine zweite.
+  const schnitt = schnittText(geplanteSchnitte(userId, input, segmentId || undefined));
   const error = segmentId
     ? updateSegment(actor, segmentId, input)
     : createSegment(actor, userId, input);
@@ -555,7 +560,7 @@ export async function segmentSaveAction(_prev: ActionState, formData: FormData):
     betroffen: vorher?.betroffen ?? beschreibePerson(userId),
     datum: input.date,
     vorher: vorher?.werte ?? null,
-    nachher: segmentWerte(input),
+    nachher: {...segmentWerte(input), ...(schnitt && !error ? {'Arbeitszeit geschnitten': schnitt} : {})},
     fehler: error,
   });
 

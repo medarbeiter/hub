@@ -4,6 +4,7 @@ import type {Database} from 'bun:sqlite';
 import {
   autoCloseForgotten,
   confirmAutoClosed,
+  createSegment,
   openYesterdayContinuation,
   stamp,
   undoStamp,
@@ -279,5 +280,54 @@ describe('uncountable days (open entry on a past day)', () => {
       .get()!;
     expect(zeitkontoBalance(user, PAST)).toBe(0); // 8 h worked, 8 h Soll
     expect(zeitkontoLedger(user, PAST)).toHaveLength(1);
+  });
+});
+
+
+describe('nachgetragene Pause schneidet die Arbeit', () => {
+  const actor = () => ({id: userId, role: 'mitarbeiter'}) as User;
+  const spannen = () => segments().map((r) => [r.kind, r.start_min, r.end_min]);
+
+  test('teilt den Arbeitseintrag in davor und danach', () => {
+    db.query("INSERT INTO segments (user_id, date, kind, start_min, end_min) VALUES (?, ?, 'arbeit', 462, 880)").run(
+      userId,
+      TODAY,
+    );
+    expect(createSegment(actor(), userId, {date: TODAY, kind: 'pause', startMin: 690, endMin: 720})).toBeNull();
+    expect(spannen()).toEqual([
+      ['arbeit', 462, 690],
+      ['pause', 690, 720],
+      ['arbeit', 720, 880],
+    ]);
+  });
+
+  test('der laufende Eintrag bleibt der laufende', () => {
+    db.query("INSERT INTO segments (user_id, date, kind, start_min) VALUES (?, ?, 'arbeit', 462)").run(userId, TODAY);
+    expect(createSegment(actor(), userId, {date: TODAY, kind: 'pause', startMin: 690, endMin: 720})).toBeNull();
+    expect(spannen()).toEqual([
+      ['arbeit', 462, 690],
+      ['pause', 690, 720],
+      ['arbeit', 720, null],
+    ]);
+  });
+
+  test('eine Pause über den ganzen Eintrag lässt ihn entfallen', () => {
+    db.query("INSERT INTO segments (user_id, date, kind, start_min, end_min) VALUES (?, ?, 'arbeit', 600, 700)").run(
+      userId,
+      TODAY,
+    );
+    expect(createSegment(actor(), userId, {date: TODAY, kind: 'pause', startMin: 540, endMin: 720})).toBeNull();
+    expect(spannen()).toEqual([['pause', 540, 720]]);
+  });
+
+  test('Arbeit über Arbeit bleibt eine Überschneidung', () => {
+    db.query("INSERT INTO segments (user_id, date, kind, start_min, end_min) VALUES (?, ?, 'arbeit', 462, 880)").run(
+      userId,
+      TODAY,
+    );
+    expect(createSegment(actor(), userId, {date: TODAY, kind: 'arbeit', startMin: 690, endMin: 720})).toContain(
+      'Überschneidung',
+    );
+    expect(spannen()).toEqual([['arbeit', 462, 880]]);
   });
 });

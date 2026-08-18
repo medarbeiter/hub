@@ -4,6 +4,7 @@ import {hatRecht} from './rechte';
 import {creditedWorkMin, effectiveSollMin, resolveDayType, resolveDayTypes} from './daytypes';
 import {eingereichteImMonat} from './spesen';
 import {offeneAntraegeImMonat} from './abwesenheit';
+import {pausenSchnitte, type PausenSchnitt} from './pausenschnitt';
 import {
   addDays,
   dailySollMinutes,
@@ -314,6 +315,9 @@ export function validateSegment(userId: number, input: SegmentInput, excludeId?:
   if (endMin <= startMin) return 'Das Ende muss nach dem Beginn liegen.';
   const others = segmentsForDay(userId, date).filter((s) => s.id !== excludeId);
   for (const other of others) {
+    // Eine nachgetragene Pause überschneidet die Arbeit nicht, sie schneidet
+    // sie — siehe lib/pausenschnitt.ts.
+    if (input.kind === 'pause' && other.kind === 'arbeit') continue;
     const otherEnd = other.end_min ?? (other.date === todayISO() ? nowMinutes() : 1440);
     if (startMin < otherEnd && other.start_min < endMin) {
       return `Überschneidung mit einem vorhandenen Eintrag (${fmtTime(other.start_min)}–${
@@ -328,14 +332,52 @@ function canEdit(actor: User, ownerId: number): boolean {
   return hatRecht(actor, 'zeit.korrigieren') || actor.id === ownerId;
 }
 
+/** Bis wohin ein laufender Eintrag an diesem Tag reicht. */
+export function offenesEnde(date: string): number {
+  return date === todayISO() ? nowMinutes() : 1440;
+}
+
+/** Was diese Pause aus der Arbeit herausschneiden würde — für Vorschau und Protokoll. */
+export function geplanteSchnitte(userId: number, input: SegmentInput, excludeId?: number): PausenSchnitt[] {
+  return pausenSchnitte(segmentsForDay(userId, input.date), input, offenesEnde(input.date), excludeId);
+}
+
+/**
+ * Den Schnitt anwenden: der Rest *rechts* behält die Zeile, damit ein
+ * laufender Eintrag laufend bleibt; der Teil davor wird zur neuen Zeile.
+ */
+function schneidePause(actor: User, userId: number, input: SegmentInput, excludeId?: number): void {
+  const db = getDb();
+  for (const schnitt of geplanteSchnitte(userId, input, excludeId)) {
+    if (schnitt.reste.length === 0) {
+      db.query('DELETE FROM segments WHERE id = ?').run(schnitt.id);
+      continue;
+    }
+    const bleibt = schnitt.reste[schnitt.reste.length - 1]!;
+    db.query(
+      `UPDATE segments SET start_min = ?, end_min = ?, edited_by = ?, updated_at = datetime('now') WHERE id = ?`,
+    ).run(bleibt.startMin, bleibt.endMin, actor.id, schnitt.id);
+    if (schnitt.reste.length === 2) {
+      const davor = schnitt.reste[0]!;
+      db.query(
+        'INSERT INTO segments (user_id, date, kind, start_min, end_min, note, edited_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      ).run(userId, input.date, 'arbeit', davor.startMin, davor.endMin, schnitt.note, actor.id);
+    }
+  }
+}
+
 export function createSegment(actor: User, userId: number, input: SegmentInput): string | null {
   if (!canEdit(actor, userId)) return 'Keine Berechtigung.';
   if (isMonthLocked(userId, monthOf(input.date))) return 'Dieser Monat ist abgeschlossen.';
   const invalid = validateSegment(userId, input);
   if (invalid) return invalid;
-  getDb()
-    .query('INSERT INTO segments (user_id, date, kind, start_min, end_min, note, edited_by) VALUES (?, ?, ?, ?, ?, ?, ?)')
-    .run(userId, input.date, input.kind, input.startMin, input.endMin, input.note ?? null, actor.id);
+  const db = getDb();
+  db.transaction(() => {
+    schneidePause(actor, userId, input);
+    db.query(
+      'INSERT INTO segments (user_id, date, kind, start_min, end_min, note, edited_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    ).run(userId, input.date, input.kind, input.startMin, input.endMin, input.note ?? null, actor.id);
+  })();
   return null;
 }
 
@@ -348,13 +390,15 @@ export function updateSegment(actor: User, segmentId: number, input: SegmentInpu
   }
   const invalid = validateSegment(segment.user_id, input, segmentId);
   if (invalid) return invalid;
-  // A human just set the times: whatever the sweep guessed is now confirmed.
-  getDb()
-    .query(
+  const db = getDb();
+  db.transaction(() => {
+    schneidePause(actor, segment.user_id, input, segmentId);
+    // A human just set the times: whatever the sweep guessed is now confirmed.
+    db.query(
       `UPDATE segments SET date = ?, kind = ?, start_min = ?, end_min = ?, note = ?, edited_by = ?,
        auto_closed = 0, updated_at = datetime('now') WHERE id = ?`,
-    )
-    .run(input.date, input.kind, input.startMin, input.endMin, input.note ?? null, actor.id, segmentId);
+    ).run(input.date, input.kind, input.startMin, input.endMin, input.note ?? null, actor.id, segmentId);
+  })();
   return null;
 }
 
