@@ -18,13 +18,24 @@
  *   und ein zurückgesetztes Kennwort. Diese Nachricht ist die einzige, die
  *   jemand *vor* dem ersten Anmelden erreichen kann; ein Schalter dagegen
  *   spielte den Zugang gegen sich selbst aus.
+ *
+ * Und eine Regel, die sich beim Betrieb ergeben hat: **der Prüfkreis bekommt
+ * keine Eingangspost.** Dass ein Antrag oder eine Abrechnung eingereicht wurde,
+ * steht in der Warteschlange der Anwendung, mit Zähler an der Seitenleiste —
+ * eine Nachricht darüber erzählt niemandem etwas Neues und macht aus dem
+ * Posteingang einen Verteiler, den man wegklickt. Was *nicht* in der Anwendung
+ * steht, ist die verstrichene Zeit: darum gibt es statt der Eingangsmeldung die
+ * Erinnerung (`abwesenheit.erinnerung`, `reise.erinnerung`), die erst greift,
+ * wenn ein Vorgang liegen geblieben ist (`lib/erinnerungen.ts`). Die Meldung
+ * einer Krankheit bleibt davon unberührt: sie ist keine Warteschlange, sondern
+ * eine Tatsache über heute, und heute ist niemand da.
  */
 
 export type MailArt =
-  | 'abwesenheit.eingereicht'
+  | 'abwesenheit.erinnerung'
   | 'abwesenheit.entschieden'
   | 'abwesenheit.gemeldet'
-  | 'reise.eingereicht'
+  | 'reise.erinnerung'
   | 'reise.entschieden'
   | 'monat.abgeschlossen'
   | 'zugang.willkommen'
@@ -42,9 +53,9 @@ export interface MailBedeutung {
 }
 
 export const MAIL_ARTEN = {
-  'abwesenheit.eingereicht': {
-    label: 'Antrag eingereicht',
-    beschreibung: 'Ein Urlaubs- oder Freizeitausgleichsantrag wartet auf eine Entscheidung.',
+  'abwesenheit.erinnerung': {
+    label: 'Antrag liegt noch',
+    beschreibung: 'Ein Antrag wartet seit mehreren Tagen auf eine Entscheidung.',
     empfaenger: 'pruefende',
     abwaehlbar: true,
   },
@@ -60,9 +71,9 @@ export const MAIL_ARTEN = {
     empfaenger: 'person',
     abwaehlbar: true,
   },
-  'reise.eingereicht': {
-    label: 'Reise eingereicht',
-    beschreibung: 'Eine Reisekostenabrechnung wartet auf die Prüfung.',
+  'reise.erinnerung': {
+    label: 'Abrechnung liegt noch',
+    beschreibung: 'Eine Reisekostenabrechnung wartet seit mehreren Tagen auf die Prüfung.',
     empfaenger: 'pruefende',
     abwaehlbar: true,
   },

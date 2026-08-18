@@ -22,6 +22,17 @@
 //      nicht (der Versand tut es schon nicht) und wird nach der Buchung
 //      aufgerufen, nie davor.
 //
+// Und eine fünfte, die aus dem Betrieb kam: **der Prüfkreis bekommt keine
+// Eingangspost.** Dass ein Antrag oder eine Abrechnung eingereicht wurde, steht
+// in der Warteschlange der Anwendung, mit Zähler an der Seitenleiste; eine Mail
+// darüber wiederholt nur, was ohnehin auf dem Bildschirm steht, und wer sie
+// wegklickt, klickt die nächste gleich mit weg. Was die Anwendung *nicht* sagt,
+// ist die verstrichene Zeit — deshalb gibt es statt `meldeReiseEingereicht()`
+// nun `erinnereAnReise()`, ausgelöst von `lib/erinnerungen.ts`, wenn ein
+// Vorgang wirklich liegen geblieben ist. Eine *Meldung* (Krank, Fortbildung)
+// geht weiter sofort hinaus: sie ist keine Warteschlange, sondern die Tatsache,
+// dass heute jemand fehlt.
+//
 // Die `inhalt…`-Bauer sind rein und einzeln geprüft (tests/mail.test.ts): sie
 // bekommen Zahlen und geben eine Nutzlast zurück. Was gesagt wird, lässt sich
 // so festhalten, ohne eine Datenbank oder ein Postfach zu brauchen.
@@ -139,15 +150,17 @@ function spanneAngabenListe(d: SpanneAngaben) {
   ];
 }
 
-/** Ein Antrag wartet auf eine Entscheidung — an den Prüfkreis. */
-export function inhaltAbwesenheitEingereicht(d: SpanneMitPerson): MailInhalt {
+/** Ein Antrag liegt seit Tagen — an den Prüfkreis, als Erinnerung. */
+export function inhaltAbwesenheitErinnerung(d: SpanneMitPerson & {tage: number}): MailInhalt {
   return {
-    betreff: `Antrag: ${ausserHausLabel(d.art)} ${fmtDateRange(d.von, d.bis)} – ${d.person}`,
-    titel: 'Ein Antrag wartet',
-    vorspann: `${d.person} beantragt ${ausserHausLabel(d.art)} vom ${fmtDate(d.von)} bis ${fmtDate(d.bis)}. Der Antrag bindet noch nichts – erst die Genehmigung zieht die Tage ab.`,
-    ton: 'hinweis',
-    angaben: spanneAngabenListe(d),
+    betreff: `Seit ${fmtTage(d.tage)} offen: ${ausserHausLabel(d.art)} ${fmtDateRange(d.von, d.bis)} – ${d.person}`,
+    titel: 'Ein Antrag liegt noch',
+    vorspann: `${d.person} hat vor ${fmtTage(d.tage)} ${ausserHausLabel(d.art)} vom ${fmtDate(d.von)} bis ${fmtDate(d.bis)} beantragt – entschieden ist noch nichts. Solange der Antrag offen ist, kann ${anrede(d.person)} nicht planen.`,
+    ton: 'warnung',
+    angaben: [...spanneAngabenListe(d), {label: 'Wartet seit', wert: fmtTage(d.tage)}],
     ziel: {label: 'Antrag prüfen', pfad: '/abwesenheit/pruefen'},
+    nachsatz:
+      'Diese Erinnerung kommt erst, wenn ein Antrag liegen bleibt – der Eingang selbst steht in der Anwendung.',
   };
 }
 
@@ -232,14 +245,17 @@ function reiseAngabenListe(d: ReiseAngaben) {
   ];
 }
 
-export function inhaltReiseEingereicht(d: ReiseMitPerson): MailInhalt {
+/** Eine Abrechnung liegt seit Tagen — an den Prüfkreis, als Erinnerung. */
+export function inhaltReiseErinnerung(d: ReiseMitPerson & {tage: number}): MailInhalt {
   return {
-    betreff: `Reise zur Prüfung: ${d.zweck} – ${d.person}`,
-    titel: 'Eine Abrechnung wartet',
-    vorspann: `${d.person} hat die Reise „${d.zweck}" (${fmtDateRange(d.von, d.bis)}) zur Prüfung eingereicht. Die Sätze sind mit dem Einreichen eingefroren – der Betrag ändert sich nicht mehr.`,
-    ton: 'hinweis',
-    angaben: reiseAngabenListe(d),
+    betreff: `Seit ${fmtTage(d.tage)} offen: ${d.zweck} – ${d.person}`,
+    titel: 'Eine Abrechnung liegt noch',
+    vorspann: `${d.person} hat die Reise „${d.zweck}" (${fmtDateRange(d.von, d.bis)}) vor ${fmtTage(d.tage)} eingereicht – geprüft ist sie noch nicht. Die Sätze sind eingefroren, der Betrag ändert sich also nicht mehr; es fehlt nur die Entscheidung.`,
+    ton: 'warnung',
+    angaben: [...reiseAngabenListe(d), {label: 'Wartet seit', wert: fmtTage(d.tage)}],
     ziel: {label: 'Abrechnung prüfen', pfad: '/spesen/pruefen'},
+    nachsatz:
+      'Diese Erinnerung kommt erst, wenn eine Abrechnung liegen bleibt – der Eingang selbst steht in der Anwendung.',
   };
 }
 
@@ -347,11 +363,19 @@ export function inhaltPasswortZurueckgesetzt(d: {passwort: string; zurueckgesetz
 // Die Meldungen — datenbankgebunden, jede nach der Buchung aufgerufen
 // ---------------------------------------------------------------------------
 
-async function anKreis(recht: Recht, art: MailArt, betrifftId: number, inhalt: MailInhalt): Promise<void> {
+/**
+ * Gibt zurück, an wie viele Postfächer die Nachricht ging — nicht ob sie
+ * ankam (das steht im Versandbuch). Ein Kreis, der nach dem Abzug der
+ * betroffenen Person und der Abbestellungen leer ist, ist keine verschickte
+ * Nachricht, und ein Aufrufer, der mitzählt, darf sich nicht anders erinnern
+ * als der Posteingang.
+ */
+async function anKreis(recht: Recht, art: MailArt, betrifftId: number, inhalt: MailInhalt): Promise<number> {
   const kreis = empfaengerMitRecht(recht, betrifftId).filter((e) => willEmpfangen(e, art));
   await sendeAnAlle(
     kreis.map((e) => ({art, an: e.email, anrede: anrede(e.name), betrifftId, inhalt})),
   );
+  return kreis.length;
 }
 
 async function anPerson(userId: number, art: MailArt, inhalt: MailInhalt): Promise<void> {
@@ -361,15 +385,17 @@ async function anPerson(userId: number, art: MailArt, inhalt: MailInhalt): Promi
 }
 
 /**
- * Eine Abwesenheit wurde eingereicht (Antrag) oder erfasst (Meldung). Welche
- * der beiden Nachrichten es wird, entscheidet die Art – nicht der Aufrufer:
- * ein Antrag wartet, eine Meldung gilt schon.
+ * Eine Abwesenheit wurde gemeldet — Krank oder Fortbildung, und damit eine
+ * Tatsache über einen Tag, an dem jemand nicht da ist. Ein *Antrag* löst hier
+ * nichts aus: dass er wartet, steht in der Warteschlange der Anwendung, und
+ * Post gibt es erst, wenn er liegen bleibt (`lib/erinnerungen.ts`).
  */
 export async function meldeAbwesenheitEingegangen(
   a: Abwesenheit,
   person: string,
   anspruchstage?: number | null,
 ): Promise<void> {
+  if (istAntrag(a.art)) return;
   const angaben: SpanneMitPerson = {
     person,
     art: a.art,
@@ -378,11 +404,33 @@ export async function meldeAbwesenheitEingegangen(
     anspruchstage: anspruchstage ?? null,
     notiz: a.notiz,
   };
-  await anKreis(
+  await anKreis('abwesenheit.pruefen', 'abwesenheit.gemeldet', a.user_id, inhaltAbwesenheitGemeldet(angaben));
+}
+
+/**
+ * Die Erinnerung an einen liegen gebliebenen Antrag — an den Prüfkreis. Gibt
+ * zurück, wie viele Postfächer sie erreicht hat: bleibt nach dem Abzug der
+ * betroffenen Person niemand übrig, hat auch niemand eine Mahnung bekommen.
+ */
+export async function erinnereAnAbwesenheit(
+  a: Abwesenheit,
+  person: string,
+  tage: number,
+  anspruchstage?: number | null,
+): Promise<number> {
+  return anKreis(
     'abwesenheit.pruefen',
-    istAntrag(a.art) ? 'abwesenheit.eingereicht' : 'abwesenheit.gemeldet',
+    'abwesenheit.erinnerung',
     a.user_id,
-    istAntrag(a.art) ? inhaltAbwesenheitEingereicht(angaben) : inhaltAbwesenheitGemeldet(angaben),
+    inhaltAbwesenheitErinnerung({
+      person,
+      art: a.art,
+      von: a.von,
+      bis: a.bis,
+      anspruchstage: anspruchstage ?? null,
+      notiz: a.notiz,
+      tage,
+    }),
   );
 }
 
@@ -420,17 +468,19 @@ function reiseAngaben(reise: Reise, rechnung: SpesenRechnung, belege: number): R
   };
 }
 
-export async function meldeReiseEingereicht(
+/** Die Erinnerung an eine liegen gebliebene Abrechnung — an den Prüfkreis. */
+export async function erinnereAnReise(
   reise: Reise,
   person: string,
   rechnung: SpesenRechnung,
   belege: number,
-): Promise<void> {
-  await anKreis(
+  tage: number,
+): Promise<number> {
+  return anKreis(
     'spesen.pruefen',
-    'reise.eingereicht',
+    'reise.erinnerung',
     reise.user_id,
-    inhaltReiseEingereicht({...reiseAngaben(reise, rechnung, belege), person}),
+    inhaltReiseErinnerung({...reiseAngaben(reise, rechnung, belege), person, tage}),
   );
 }
 

@@ -1,4 +1,5 @@
 import {AppShell} from '@astryxdesign/core';
+import {after} from 'next/server';
 import type {ReactNode} from 'react';
 import {requireUser} from '@/lib/auth';
 import {AppHinweis} from '@/components/app-hinweis';
@@ -10,6 +11,7 @@ import {KopfSichtProvider} from '@/components/kopf-deckung';
 import {SprungmarkeDeutsch} from '@/components/sprungmarke';
 import {attentionIssues, correctionQueue, excusedDays} from '@/lib/attention';
 import {navZaehler} from '@/lib/schnellzugriff';
+import {erinnerungslaufFaellig} from '@/lib/erinnerungen';
 import {persoenlicheEinstellungen} from '@/lib/onboarding';
 import {fmtDate} from '@/lib/format';
 import {protokolliere} from '@/lib/protokoll';
@@ -40,6 +42,12 @@ export default async function AppLayout({children}: {children: ReactNode}) {
       nachher: {Ende: fmtTime(eintrag.endMin), Stand: 'vorläufig, noch zu bestätigen'},
     });
   }
+
+  // Was liegen geblieben ist, mahnt sich selbst an — nach der Auslieferung
+  // dieser Seite, damit niemand auf einen Mailserver wartet. Dieses Haus
+  // betreibt keinen Cron; der erste Aufruf des Tages ist der Auslöser, und
+  // `erinnerungslaufFaellig` bremst ihn auf höchstens einen Lauf je Stunde.
+  after(() => erinnerungslaufFaellig());
 
   const record = dayRecord(user, today);
   const clock = clockState(user.id);

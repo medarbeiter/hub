@@ -4,13 +4,13 @@ import {createDb, setDbForTesting} from '../lib/db';
 import {
   anrede,
   empfaengerMitRecht,
-  inhaltAbwesenheitEingereicht,
   inhaltAbwesenheitEntschieden,
+  inhaltAbwesenheitErinnerung,
   inhaltAbwesenheitGemeldet,
   inhaltMonatAbgeschlossen,
   inhaltPasswortZurueckgesetzt,
-  inhaltReiseEingereicht,
   inhaltReiseEntschieden,
+  inhaltReiseErinnerung,
   inhaltWillkommen,
   willEmpfangen,
 } from '../lib/benachrichtigungen';
@@ -149,20 +149,23 @@ function wert(inhalt: {angaben: Array<{label: string; wert: string}>}, label: st
   return inhalt.angaben.find((a) => a.label === label)?.wert;
 }
 
-describe('die Nutzlast eines Antrags', () => {
-  test('nennt Person, Zeitraum, Dauer und Ziel', () => {
-    const inhalt = inhaltAbwesenheitEingereicht({...SPANNE, anspruchstage: 10});
+describe('die Nutzlast einer Erinnerung an einen Antrag', () => {
+  test('nennt Person, Zeitraum, Dauer, Wartezeit und Ziel', () => {
+    const inhalt = inhaltAbwesenheitErinnerung({...SPANNE, anspruchstage: 10, tage: 4});
     expect(inhalt.betreff).toContain('Anna Berger');
-    expect(inhalt.ton).toBe('hinweis');
+    // Eine Erinnerung ist keine Eingangsmeldung: sie warnt, statt zu melden.
+    expect(inhalt.ton).toBe('warnung');
+    expect(inhalt.betreff).toContain('4 Tage');
     expect(wert(inhalt, 'Mitarbeiter')).toBe('Anna Berger');
     expect(wert(inhalt, 'Art')).toBe('Urlaub');
     expect(wert(inhalt, 'Dauer')).toBe('12 Tage');
     expect(wert(inhalt, 'Anspruchstage')).toBe('10 Tage');
+    expect(wert(inhalt, 'Wartet seit')).toBe('4 Tage');
     expect(inhalt.ziel?.pfad).toBe('/abwesenheit/pruefen');
   });
 
   test('lässt die Anspruchszeile weg, wo nichts zu buchen ist', () => {
-    const inhalt = inhaltAbwesenheitEingereicht({...SPANNE, art: 'freizeitausgleich'});
+    const inhalt = inhaltAbwesenheitErinnerung({...SPANNE, art: 'freizeitausgleich', tage: 3});
     // Eine Zahl ohne Bedeutung ist schlimmer als keine Zeile.
     expect(wert(inhalt, 'Anspruchstage')).toBeUndefined();
   });
@@ -189,7 +192,7 @@ describe('Krank verlässt das Haus nur als „Abwesend"', () => {
 
   test('die anderen Arten behalten ihren Namen', () => {
     expect(wert(inhaltAbwesenheitGemeldet({...SPANNE, art: 'fortbildung'}), 'Art')).toBe('Fortbildung');
-    expect(wert(inhaltAbwesenheitEingereicht(SPANNE), 'Art')).toBe('Urlaub');
+    expect(wert(inhaltAbwesenheitErinnerung({...SPANNE, tage: 3}), 'Art')).toBe('Urlaub');
   });
 });
 
@@ -245,16 +248,20 @@ describe('die Nutzlast einer Reise', () => {
     belege: 3,
   };
 
-  test('eingereicht: Betrag und Belegzahl stehen drin, Ziel ist die Prüfliste', () => {
-    const inhalt = inhaltReiseEingereicht({...REISE, person: 'Anna Berger'});
+  test('erinnert: Betrag, Belegzahl und Wartezeit stehen drin, Ziel ist die Prüfliste', () => {
+    const inhalt = inhaltReiseErinnerung({...REISE, person: 'Anna Berger', tage: 5});
     expect(wert(inhalt, 'Summe')).toBe('229,50 €');
     expect(wert(inhalt, 'Belege (3)')).toBe('189,50 €');
+    expect(wert(inhalt, 'Wartet seit')).toBe('5 Tage');
+    expect(inhalt.ton).toBe('warnung');
     expect(inhalt.ziel?.pfad).toBe('/spesen/pruefen');
   });
 
   test('die Summe ist die betonte Zeile', () => {
-    const inhalt = inhaltReiseEingereicht({...REISE, person: 'Anna Berger'});
-    expect(inhalt.angaben.filter((a) => a.betont).map((a) => a.label)).toEqual(['Summe']);
+    const inhalt = inhaltReiseErinnerung({...REISE, person: 'Anna Berger', tage: 3});
+    expect(inhalt.angaben.filter((a: {betont?: boolean}) => a.betont).map((a: {label: string}) => a.label)).toEqual([
+      'Summe',
+    ]);
   });
 
   test('genehmigt: der Betrag steht schon im Betreff', () => {
@@ -264,7 +271,7 @@ describe('die Nutzlast einer Reise', () => {
   });
 
   test('ohne Ziel fehlt die Zeile, statt leer dazustehen', () => {
-    const inhalt = inhaltReiseEingereicht({...REISE, ziel: null, person: 'Anna Berger'});
+    const inhalt = inhaltReiseErinnerung({...REISE, ziel: null, person: 'Anna Berger', tage: 3});
     expect(wert(inhalt, 'Ziel')).toBeUndefined();
   });
 });

@@ -43,6 +43,7 @@ const MIGRATIONS: Migration[] = [
   migration22ZugangscodeLoeschung,
   migration23AbwesenheitMinutenUndRuecksprache,
   migration24EigenesProfilbild,
+  migration25Erinnerungen,
 ];
 
 /** The `PRAGMA user_version` a fully migrated database carries. */
@@ -622,6 +623,38 @@ function migration24EigenesProfilbild(db: Database) {
   // Die Datei liegt wie Belege und Bescheinigungen außerhalb von public/.
   db.exec('ALTER TABLE users ADD COLUMN avatar_datei TEXT');
   db.exec('ALTER TABLE users ADD COLUMN avatar_datei_typ TEXT');
+}
+
+function migration25Erinnerungen(db: Database) {
+  // Ein Antrag ruft nicht mehr sofort nach der Verwaltung — er wartet.
+  //
+  // Bis hierher ging jede Einreichung als Nachricht an den Prüfkreis hinaus.
+  // Das ist die eine Post, die nichts erzählt, was der Empfänger nicht ohnehin
+  // sieht: die Warteschlange steht in der Anwendung, mit Zähler in der
+  // Seitenleiste. Was eine Nachricht wert ist, ist das Gegenteil — dass etwas
+  // *liegen geblieben* ist. Deshalb tritt an die Stelle der Eingangsmeldung
+  // eine Erinnerung nach drei Tagen ohne Entscheidung.
+  //
+  // Diese Tabelle ist das Gedächtnis dieser Erinnerung: sie hält je Vorgang
+  // fest, wann zuletzt gemahnt wurde, damit nicht jeder Seitenaufruf eine neue
+  // Mahnung schickt. Kein Fremdschlüssel auf `abwesenheiten`/`reisen` — die
+  // Zeile darf einen gelöschten Vorgang überleben, und der Feger räumt sie auf.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS erinnerungen (
+      /* 'abwesenheit' | 'reise' — welche Warteschlange. */
+      bereich TEXT NOT NULL,
+      /* Die ID des wartenden Vorgangs in seiner eigenen Tabelle. */
+      gegenstand_id INTEGER NOT NULL,
+      /* UTC, wie eingereicht_at in abwesenheiten und reisen — die beiden
+         Zeitstempel werden voneinander abgezogen, und dafür müssen sie in
+         derselben Zone stehen. Ein Datum wird hier nie angezeigt; wo es um
+         eine Wanduhrzeit geht, gilt weiter die Hauszeit aus lib/format.ts. */
+      zuletzt_am TEXT NOT NULL DEFAULT (datetime('now')),
+      /* Wie oft schon gemahnt wurde — steht in der Nachricht selbst. */
+      anzahl INTEGER NOT NULL DEFAULT 1,
+      PRIMARY KEY (bereich, gegenstand_id)
+    );
+  `);
 }
 
 /**

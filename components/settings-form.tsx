@@ -179,9 +179,11 @@ export function SettingsForm(props: SettingsFormProps) {
             <VStack gap={1}>
               <Kartentitel sinn="email">E-Mail-Benachrichtigungen</Kartentitel>
               <Text type="supporting" color="secondary">
-                Anträge, Entscheidungen, Monatsabschlüsse und Zugangsdaten gehen zusätzlich per E-Mail hinaus.
-                Jede und jeder kann die meisten davon im eigenen Profil abbestellen; Zugangsdaten kommen immer an.
-                Ist der Versand aus, läuft alles Übrige unverändert weiter – es geht nur keine Post hinaus.
+                Entscheidungen, Monatsabschlüsse und Zugangsdaten gehen zusätzlich per E-Mail hinaus. Dass ein Antrag
+                oder eine Abrechnung eingereicht wurde, verschickt niemand – das steht in der Prüfliste. Post gibt es
+                erst, wenn ein Vorgang drei Tage lang unentschieden liegen bleibt. Jede und jeder kann die meisten
+                Nachrichten im eigenen Profil abbestellen; Zugangsdaten kommen immer an. Ist der Versand aus, läuft
+                alles Übrige unverändert weiter – es geht nur keine Post hinaus.
               </Text>
             </VStack>
 

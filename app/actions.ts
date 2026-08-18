@@ -149,11 +149,14 @@ import {
   meldeAbwesenheitEntschieden,
   meldeMonatAbgeschlossen,
   meldePasswortZurueckgesetzt,
-  meldeReiseEingereicht,
   meldeReiseEntschieden,
   meldeWillkommen,
   meldeZugangscodeLoeschenBestaetigen,
 } from '@/lib/benachrichtigungen';
+// Der Prüfkreis bekommt keine Eingangspost mehr; was liegen bleibt, mahnt
+// lib/erinnerungen.ts an. Von dort braucht eine Aktion nur das Vergessen:
+// wer seinen Antrag zurückzieht, fängt beim erneuten Einreichen von vorn an.
+import {vergiss} from '@/lib/erinnerungen';
 import {ABWAEHLBARE_ARTEN, istMailArt, mailArtLabel, type MailArt} from '@/lib/mail-arten';
 
 export interface ActionState {
@@ -1107,32 +1110,30 @@ export async function reiseDeleteAction(reiseId: number): Promise<ActionState> {
 
 export async function reiseEinreichenAction(reiseId: number): Promise<ActionState> {
   const actor = await requireRecht('spesen.erfassen');
-  const ergebnis = await reiseVorgang(reiseId, 'reise.einreichen', actor, () => einreichen(actor, reiseId));
-  if (!ergebnis.error) await meldeReise(reiseId, null, false);
-  return ergebnis;
+  // Kein Versand: dass eine Abrechnung wartet, steht in der Prüfliste. Post
+  // gibt es erst, wenn sie liegen bleibt — siehe lib/erinnerungen.ts.
+  return reiseVorgang(reiseId, 'reise.einreichen', actor, () => einreichen(actor, reiseId));
 }
 
 /**
- * Die Nachricht zu einer Reise, aus der ID gelesen: nach dem Einreichen sind
- * die Sätze eingefroren, und erst dann steht der Betrag fest, den die
- * Nachricht nennt. `entschiedenVon = null` heißt „an den Prüfkreis".
+ * Die Nachricht zu einer entschiedenen Reise, aus der ID gelesen: erst nach
+ * der Buchung steht der Zustand fest, den die Nachricht nennt.
  */
-async function meldeReise(reiseId: number, entschiedenVon: string | null, genehmigt: boolean): Promise<void> {
+async function meldeReise(reiseId: number, entschiedenVon: string, genehmigt: boolean): Promise<void> {
   const reise = reiseById(reiseId);
   if (!reise) return;
   const {rechnung, belege} = mitRechnung(reise);
-  if (entschiedenVon === null) {
-    const inhaber = getUser(reise.user_id);
-    if (!inhaber) return;
-    await meldeReiseEingereicht(reise, inhaber.name, rechnung, belege.length);
-    return;
-  }
   await meldeReiseEntschieden(reise, entschiedenVon, genehmigt, rechnung, belege.length);
 }
 
 export async function reiseZurueckziehenAction(reiseId: number): Promise<ActionState> {
   const actor = await requireRecht('spesen.erfassen');
-  return reiseVorgang(reiseId, 'reise.zurueckziehen', actor, () => zurueckziehen(actor, reiseId));
+  const ergebnis = await reiseVorgang(reiseId, 'reise.zurueckziehen', actor, () => zurueckziehen(actor, reiseId));
+  // Zurückgezogen heißt: wartet auf niemanden mehr. Das Gedächtnis der
+  // Erinnerung darf weg, damit ein erneutes Einreichen seine Frist von vorn
+  // bekommt statt sofort zu mahnen.
+  if (!ergebnis.error) vergiss('reise', reiseId);
+  return ergebnis;
 }
 
 export async function reiseGenehmigenAction(reiseId: number): Promise<ActionState> {
@@ -1441,16 +1442,21 @@ export async function abwesenheitDeleteAction(id: number): Promise<ActionState> 
 
 export async function abwesenheitEinreichenAction(id: number): Promise<ActionState> {
   const actor = await requireRecht('abwesenheit.beantragen');
-  const ergebnis = await abwesenheitVorgang(id, 'abwesenheit.einreichen', actor, () =>
-    abwesenheitEinreichen(actor, id),
-  );
-  if (!ergebnis.error) await meldeSpanne(id);
-  return ergebnis;
+  // Kein Versand: dass ein Antrag wartet, steht in der Prüfliste, mit Zähler
+  // in der Seitenleiste. Post gibt es erst, wenn er liegen bleibt — siehe
+  // lib/erinnerungen.ts.
+  return abwesenheitVorgang(id, 'abwesenheit.einreichen', actor, () => abwesenheitEinreichen(actor, id));
 }
 
 export async function abwesenheitZurueckziehenAction(id: number): Promise<ActionState> {
   const actor = await requireRecht('abwesenheit.beantragen');
-  return abwesenheitVorgang(id, 'abwesenheit.zurueckziehen', actor, () => abwesenheitZurueckziehen(actor, id));
+  const ergebnis = await abwesenheitVorgang(id, 'abwesenheit.zurueckziehen', actor, () =>
+    abwesenheitZurueckziehen(actor, id),
+  );
+  // Wie bei der Reise: zurückgezogen heißt, die Frist beginnt beim erneuten
+  // Einreichen von vorn.
+  if (!ergebnis.error) vergiss('abwesenheit', id);
+  return ergebnis;
 }
 
 export async function abwesenheitGenehmigenAction(id: number): Promise<ActionState> {
