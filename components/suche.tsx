@@ -5,9 +5,10 @@ import {CommandPalette, CommandPaletteInput, useCommandPaletteContext} from '@as
 import type {SearchSource, SearchableItem} from '@astryxdesign/core/Typeahead';
 import {useRouter} from 'next/navigation';
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import type {PersonAngabe} from '@/lib/avatar';
 import type {Treffer} from '@/lib/suche';
 import {TrefferGeruest} from './ladegeruest';
-import {PersonZeichen} from './person-zeichen';
+import {PersonKarte, PersonZeichen} from './person-zeichen';
 import {Sinnbild} from './sinnbilder';
 
 type SuchItem = SearchableItem<Omit<Treffer, 'id' | 'label'> & {group: string}>;
@@ -76,8 +77,11 @@ export function Suche() {
   const [offen, setOffen] = useState(false);
   const router = useRouter();
 
-  /** id → Adresse. Die Palette gibt beim Auswählen nur die Kennung zurück. */
-  const wege = useRef(new Map<string, string>());
+  /** id → Treffer. Die Palette gibt beim Auswählen nur die Kennung zurück. */
+  const wege = useRef(new Map<string, Omit<Treffer, 'id' | 'label' | 'gruppe'>>());
+
+  /** Die Person, deren Karte statt einer Seite geöffnet wurde. */
+  const [karte, setKarte] = useState<PersonAngabe | null>(null);
 
   /** Zum Zurückgeben des Schreibrechts, nachdem ein Reiter angeklickt wurde. */
   const feld = useRef<HTMLInputElement>(null);
@@ -138,7 +142,7 @@ export function Suche() {
           setGruppen([...new Set(treffer.map((t) => t.gruppe))].filter((g) => g !== WEITER));
         }
         return treffer.map(({id, label, gruppe, ...rest}) => {
-          wege.current.set(id, rest.href);
+          wege.current.set(id, rest);
           return {id, label, auxiliaryData: {...rest, gruppe, group: gruppe}};
         });
       } catch {
@@ -158,12 +162,20 @@ export function Suche() {
 
   const gehe = useCallback(
     (id: string) => {
-      const ziel = wege.current.get(id);
-      if (!ziel) return;
+      const treffer = wege.current.get(id);
+      if (!treffer) return;
+      // Ein Mensch, dessen Blatt dieses Konto nicht sehen darf, kommt ohne
+      // Adresse — dann ist er selbst das Ziel und seine Karte die Antwort.
+      // Die Palette schließt beim Auswählen von selbst, die Karte legt sich
+      // also auf ein freies Blatt.
+      if (!treffer.href) {
+        if (treffer.person) setKarte(treffer.person);
+        return;
+      }
       // Was kein Seitenweg ist, holt der Browser selbst — der Router kennt
       // die CSV-Ausgabe nicht als Route.
-      if (ziel.startsWith('/api/')) window.location.href = ziel;
-      else router.push(ziel);
+      if (treffer.href.startsWith('/api/')) window.location.href = treffer.href;
+      else router.push(treffer.href);
     },
     [router],
   );
@@ -227,6 +239,9 @@ export function Suche() {
         }
         renderItem={(item) => <Zeile item={item} />}
       />
+      {karte && (
+        <PersonKarte person={karte} isOpen onOpenChange={(offen) => !offen && setKarte(null)} />
+      )}
     </>
   );
 }
@@ -340,10 +355,11 @@ function Hinweis({text, children}: {text: string; children: React.ReactNode}) {
  * Geschwistern unterscheidet.
  *
  * Ein Mensch trägt sein Gesicht statt eines Piktogramms — die dritte Stelle
- * im Haus, an der es die Personenkarte *nicht* öffnet: ein Knopf in einer
- * Auswahlzeile wäre ein zweites Ziel in einem Element, das als Ganzes
- * ausgewählt wird. Verloren geht dabei nichts, im Gegenteil: die Zeile führt
- * zur Person selbst, und das ist mehr, als die Karte zeigt.
+ * im Haus, an der das Bild selbst die Personenkarte *nicht* öffnet: ein Knopf
+ * in einer Auswahlzeile wäre ein zweites Ziel in einem Element, das als Ganzes
+ * ausgewählt wird. Verloren geht dabei nichts: wer das Blatt dieser Person
+ * sehen darf, wird von der Zeile dorthin geführt — wer nicht, bekommt beim
+ * Auswählen die Karte.
  */
 function Zeile({item}: {item: SuchItem}) {
   const daten = item.auxiliaryData;

@@ -55,6 +55,17 @@ test('Personen: aktive für alle, deaktivierte nur für die Verwaltung', () => {
   expect(labels(anna, 'ackermann')).toContain('Anna Ackermann');
 });
 
+test('eine Person ohne Blattrecht hat keine Adresse — die Karte ist das Ziel', () => {
+  const treffer = (u: User) => suche(u, 'bauer').find((t) => t.gruppe === 'Personen');
+  // Ohne `zeit.team` führt der Treffer nirgendwohin: die Palette öffnet die
+  // Personenkarte. Früher stand hier der Teamkalender.
+  expect(treffer(anna)?.href).toBeUndefined();
+  expect(treffer(anna)?.person?.id).toBe(bert.id);
+  expect(treffer(chef)?.href).toBe(`/team/${bert.id}`);
+  // Die eigene Zeile bleibt das eigene Profil.
+  expect(suche(anna, 'ackermann').find((t) => t.gruppe === 'Personen')?.href).toBe('/profil');
+});
+
 test('ohne Frage das Sprungbrett — kein Inhaltsverzeichnis, kein Datensatz', () => {
   createAbwesenheit(bert, bert.id, {art: 'krank', von: '2026-08-10', bis: '2026-08-12'});
   const leer = suche(chef, '');

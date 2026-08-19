@@ -31,6 +31,29 @@ export function TafelDialog({isOpen, className, ...rest}: DialogProps) {
   const [sichtbar, setSichtbar] = useState(isOpen);
   const [geht, setGeht] = useState(false);
   const zuvor = useRef(isOpen);
+  const tafel = useRef<HTMLDialogElement>(null);
+
+  /**
+   * Escape schließt die **oberste** Tafel, nicht den Stapel.
+   *
+   * Seit die Personenkarte in einer Personenkarte stehen kann (ein Gesicht im
+   * Kommentar öffnet die Karte seines Schreibers), liegt ein <dialog> im DOM
+   * eines anderen. Astryx hängt seinen Escape-Griff an das Dialogelement
+   * selbst und lässt die Taste weiterlaufen — sie erreicht damit auch das
+   * äußere Element, und ein Druck schloss beides auf einmal. Hier endet der
+   * Weg der Taste an der Tafel, in der sie gedrückt wurde: Astryx' eigener
+   * Griff an *diesem* Element läuft weiter (`stopPropagation` hält nur die
+   * Vorfahren auf), die Tafel darunter bleibt stehen.
+   */
+  useEffect(() => {
+    const element = tafel.current;
+    if (!element || !sichtbar) return;
+    const halten = (ereignis: KeyboardEvent) => {
+      if (ereignis.key === 'Escape') ereignis.stopPropagation();
+    };
+    element.addEventListener('keydown', halten);
+    return () => element.removeEventListener('keydown', halten);
+  }, [sichtbar]);
 
   useEffect(() => {
     if (isOpen === zuvor.current) return;
@@ -50,5 +73,5 @@ export function TafelDialog({isOpen, className, ...rest}: DialogProps) {
 
   const klassen = [className, 'tafel-dialog', geht ? 'tafel-abgang' : null].filter(Boolean).join(' ');
 
-  return <Dialog {...rest} isOpen={sichtbar} className={klassen} />;
+  return <Dialog {...rest} ref={tafel} isOpen={sichtbar} className={klassen} />;
 }

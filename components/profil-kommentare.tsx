@@ -120,14 +120,23 @@ export function ProfilKommentare({personId, isOpen}: {personId: number; isOpen: 
           {stand.eintraege.map((k) => (
             <VStack key={k.id} gap={1}>
               <HStack gap={2} vAlign="center" wrap="nowrap">
-                {/* Das Gesicht öffnet hier keine zweite Karte: eine Karte über
-                    einer Karte ist ein Weg, aus dem niemand zurückfindet. */}
+                {/* Ein Gesicht ist auch hier ein Gesicht: Sprechblase beim
+                    Zeigen, Karte beim Klicken, wie überall im Haus. Wer einen
+                    Satz liest, will wissen, wer ihn geschrieben hat, und darf
+                    dafür nicht erst die Karte schließen und suchen gehen. Die
+                    zweite Karte legt sich als eigener Dialog darüber; Escape
+                    schließt immer die oberste.
+
+                    Nur die Person, auf deren Karte wir stehen, öffnet keine —
+                    dieselbe Regel wie beim großen Bild darüber: sie ist schon
+                    die Antwort auf die Frage, mit der jemand hier gelandet
+                    ist. */}
                 <PersonZeichen
                   person={k.autor}
                   ersatzName={k.autorName}
                   groesse="zeile"
                   mitName
-                  karte={false}
+                  karte={k.autor?.id !== personId}
                 />
                 <StackItem size="fill">
                   <Text type="supporting" size="sm" color="secondary">

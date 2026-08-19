@@ -18,8 +18,10 @@ import {sichtbareZugangskonten, zugangskontoName} from './zugangscodes';
  * einziges Recht.
  *
  * Gefunden wird, was einen Ort hat: Seiten, Handlungen, Personen, Vorgänge,
- * Zugänge, ein Datum. Jeder Treffer ist eine Adresse — die Suche zeigt nichts
- * an, was die Zielseite nicht ohnehin zeigen würde, und ändert nie etwas.
+ * Zugänge, ein Datum. Fast jeder Treffer ist eine Adresse — die Suche zeigt
+ * nichts an, was die Zielseite nicht ohnehin zeigen würde, und ändert nie
+ * etwas. Die eine Ausnahme ist ein Mensch ohne Blatt: er ist selbst das Ziel,
+ * und die Palette öffnet seine Karte.
  *
  * Die Reihenfolge ist eine Rechnung, keine Liste (`guete()`): sortiert wird
  * über alle Arten hinweg nach Güte, und die Palette gruppiert danach in der
@@ -35,7 +37,12 @@ export interface Treffer {
   label: string;
   /** Die zweite Zeile: was den Treffer von seinen Geschwistern unterscheidet. */
   zusatz?: string;
-  href: string;
+  /**
+   * Wohin der Treffer führt — bis auf einen Fall: eine Person, deren Blatt der
+   * Suchende nicht sehen darf, hat keine Adresse und steht für sich selbst
+   * (siehe `personen()`).
+   */
+  href?: string;
   sinn: Sinn;
   /** Ein Mensch wird gezeichnet, nicht bebildert (siehe person-zeichen.tsx). */
   person?: PersonAngabe;
@@ -399,8 +406,12 @@ function personen(user: User, frage: string): Roh[] {
     .all(auchInaktive ? 1 : 0);
 
   // Wohin der Treffer führt, hängt daran, was der Suchende mit der Person tun
-  // darf: an ihr Blatt, wer fremde Zeiten sehen darf — sonst dorthin, wo sie
-  // für alle sichtbar ist.
+  // darf: an ihr Blatt, wer fremde Zeiten sehen darf — sonst nirgendwohin. Der
+  // Teamkalender war die falsche Antwort auf „wer ist das": er zeigt einen
+  // Monat, nicht einen Menschen, und wer dort landet, sucht von vorn. Ohne
+  // Adresse öffnet die Palette die Personenkarte — dieselbe Karte, die im Haus
+  // hinter jedem Gesicht steht, und genau die Auskunft, die dieses Konto über
+  // Kolleginnen und Kollegen haben darf.
   const zumBlatt = hatRecht(user, 'zeit.team');
   const treffer: Roh[] = [];
   for (const r of rows) {
@@ -411,7 +422,7 @@ function personen(user: User, frage: string): Roh[] {
       gruppe: 'Personen',
       label: r.name,
       zusatz: [rolleLabel(r.role), r.active === 0 ? 'deaktiviert' : null].filter(Boolean).join(' · '),
-      href: r.id === user.id ? '/profil' : zumBlatt ? `/team/${r.id}` : '/kalender',
+      href: r.id === user.id ? '/profil' : zumBlatt ? `/team/${r.id}` : undefined,
       sinn: 'team',
       person: personAngabe(r),
       rang: g + GEWICHT.Personen! + (r.active === 0 ? -100 : 0),
