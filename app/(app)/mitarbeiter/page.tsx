@@ -1,5 +1,6 @@
 import {Badge} from '@astryxdesign/core';
 import {requireRecht} from '@/lib/auth';
+import {personAngabe} from '@/lib/avatar';
 import {hatRecht} from '@/lib/rechte';
 import {allUsers} from '@/lib/users';
 import {UserManager} from '@/components/user-manager';
@@ -38,6 +39,7 @@ export default async function MitarbeiterPage() {
           users={users.map((u) => ({
             id: u.id,
             name: u.name,
+            person: personAngabe(u),
             email: u.email,
             role: u.role,
             weekly_minutes: u.weekly_minutes,

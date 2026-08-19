@@ -3,6 +3,8 @@ import type {ReactNode} from 'react';
 import {HeuteDeckung} from './kopf-deckung';
 import {Sinnbild, type Sinn} from './sinnbilder';
 import {Zahlwert} from './zahlwert';
+import type {PersonAngabe} from '@/lib/avatar';
+import {PersonZeichen} from './person-zeichen';
 
 interface ZeitRahmenProps {
   /** The heading: a greeting on today, otherwise the period's own name. */
@@ -14,6 +16,13 @@ interface ZeitRahmenProps {
    * Begrüßung, und neben einer Begrüßung steht kein Piktogramm.
    */
   sinn?: Sinn;
+  /**
+   * Wenn dieser Kopf über einem Menschen steht statt über einem Zeitraum: sein
+   * Profilzeichen tritt an die Stelle des Sinnbilds. Zwei Zeichen nebeneinander
+   * wären eins zu viel — und von den beiden sagt das Gesicht mehr, weil die
+   * Überschrift den Namen ohnehin schon trägt.
+   */
+  person?: PersonAngabe | null;
   /** The one number this range is about. Exactly one per view. */
   figur: string;
   /** What the number is measured against, beside it. */
@@ -79,7 +88,12 @@ export function ZeitRahmen(props: ZeitRahmenProps) {
         <VStack className="zeit-blatt kopf-blatt" gap={4} paddingInline={5} paddingBlock={5}>
           <HStack justify="between" vAlign="end" gap={4} wrap="wrap">
             <VStack gap={1}>
-              {props.sinn ? (
+              {props.person ? (
+                <HStack gap={3} vAlign="center">
+                  <PersonZeichen person={props.person} groesse="gross" />
+                  <Heading level={1}>{props.titel}</Heading>
+                </HStack>
+              ) : props.sinn ? (
                 <HStack gap={2} vAlign="center">
                   <Sinnbild sinn={props.sinn} groesse="gross" ton="sekundaer" />
                   <Heading level={1}>{props.titel}</Heading>

@@ -2,6 +2,7 @@ import {Card, Heading, HStack, StackItem, Text, VStack} from '@astryxdesign/core
 import Link from 'next/link';
 import {notFound} from 'next/navigation';
 import {requireRecht} from '@/lib/auth';
+import {personAngabe} from '@/lib/avatar';
 import {
   addDays,
   fmtDurationSigned,
@@ -13,6 +14,7 @@ import {
   todayISO,
 } from '@/lib/format';
 import {dayRecord, getUser, isMonthLocked, zeitkontoBalance} from '@/lib/time';
+import {PersonZeichen} from '@/components/person-zeichen';
 import {TagesTafel} from '@/components/tages-tafel';
 import {NachweisKarte} from '@/components/nachweis-karte';
 import {TagLeiste} from '@/components/bereichs-leiste';
@@ -51,7 +53,12 @@ export default async function TeamMemberPage({params, searchParams}: PageProps) 
             </Text>
           </HStack>
         </Link>
-        <VStack gap={0.5}>
+        {/* Das Blatt steht über einem Menschen, nicht über einem Zeitraum —
+            also trägt sein Kopf dessen Zeichen, wie der Kopf jeder anderen
+            Person auch (siehe `ZeitRahmen`s `person`). */}
+        <HStack gap={3} vAlign="center">
+          <PersonZeichen person={personAngabe(user)} groesse="gross" />
+          <VStack gap={0.5}>
           <Heading level={1}>{user.name}</Heading>
           <Text type="supporting" color="secondary" hasTabularNumbers>
             {Math.round(user.weekly_minutes / 60)} Std./Woche · Zeitkonto{' '}
@@ -59,7 +66,8 @@ export default async function TeamMemberPage({params, searchParams}: PageProps) 
               {fmtDurationSigned(zeitkonto)} Std.
             </Link>
           </Text>
-        </VStack>
+          </VStack>
+        </HStack>
         <TagLeiste route={`/team/${user.id}`} tag={date} today={today} />
       </VStack>
 

@@ -21,7 +21,7 @@ const FILTER: Array<{value: AbwesenheitStatus | 'alle'; label: string; sinn: Sin
 ];
 
 interface PageProps {
-  searchParams: Promise<{status?: string}>;
+  searchParams: Promise<{status?: string; offen?: string}>;
 }
 
 export default async function AbwesenheitPruefenPage({searchParams}: PageProps) {
@@ -46,6 +46,7 @@ export default async function AbwesenheitPruefenPage({searchParams}: PageProps) 
     return {
       id: e.abwesenheit.id,
       userName: e.userName,
+      person: e.person,
       von: e.abwesenheit.von,
       bis: e.abwesenheit.bis,
       art: e.abwesenheit.art,
@@ -97,7 +98,7 @@ export default async function AbwesenheitPruefenPage({searchParams}: PageProps) 
       }
       belege={
         <VStack gap={5}>
-          <AbwesenheitPruefListe zeilen={zeilen} />
+          <AbwesenheitPruefListe zeilen={zeilen} zeigeId={Number(params.offen) || null} />
 
           <UebertragPflege
             jahr={jahr}

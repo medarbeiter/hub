@@ -26,6 +26,8 @@ import {
   type TimelineSegment,
 } from '@/lib/format';
 import type {TagArt} from '@/lib/pauschale';
+import type {PersonAngabe} from '@/lib/avatar';
+import {PersonZeichen} from './person-zeichen';
 import {BelegDialog} from './beleg-felder';
 import {useMelde} from './melde';
 import {REISE_STATUS_SINN, Sinnbild, TAGART_SINN} from './sinnbilder';
@@ -60,6 +62,8 @@ export interface ReiseTagAnsicht {
 export interface ReiseAnsicht {
   id: number;
   userName: string | null;
+  /** Das Profilzeichen der reisenden Person — nur, wo sie geprüft wird. */
+  person?: PersonAngabe | null;
   startDate: string;
   startMin: number;
   endDate: string;
@@ -150,6 +154,18 @@ export function ReiseTafel({
 
   return (
     <VStack gap={4}>
+      {/* Nur in der Prüfung gesetzt: wer seine eigene Reise ansieht, weiß, wer
+          gereist ist. Wer zwölf fremde nachrechnet, entscheidet hier über
+          einen bestimmten Menschen und soll ihn sehen. */}
+      {reise.person && (
+        <PersonZeichen
+          person={reise.person}
+          groesse="karte"
+          mitName
+          betont
+          unterzeile={reise.eingereichtAm ? `Eingereicht am ${fmtDate(reise.eingereichtAm.slice(0, 10))}` : null}
+        />
+      )}
       <HStack justify="between" vAlign="start" gap={3} wrap="wrap">
         <VStack gap={0.5}>
           <HStack gap={2} vAlign="center" wrap="nowrap">

@@ -33,6 +33,7 @@ import {
 } from '@/lib/format';
 import {belegungGrenze} from '@/lib/settings';
 import {activeUsers} from '@/lib/time';
+import {personAngabe} from '@/lib/avatar';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,6 +70,7 @@ export default async function KalenderPage({searchParams}: PageProps) {
   const bisISO = ansicht === 'monat' ? letzterTagDesMonats(monat) : `${jahr}-12-31`;
 
   const darfArtSehen = hatRecht(user, 'kalender.gruende');
+  const darfPruefen = hatRecht(user, 'abwesenheit.pruefen');
   const alle = [...activeUsers()].sort((a, b) => a.name.localeCompare(b.name, 'de'));
   const grenze = belegungGrenze();
 
@@ -90,6 +92,15 @@ export default async function KalenderPage({searchParams}: PageProps) {
     return {
       userId: person.id,
       name: person.name,
+      // Nur das Zeichen: dieses Blatt schickt eine Zeile je Person an jeden
+      // Browser im Haus. Rolle und Adresse holt die Personenkarte beim Öffnen
+      // nach, statt sie mit jeder Zeile mitzuschicken.
+      person: personAngabe({
+        id: person.id,
+        name: person.name,
+        avatar_key: person.avatar_key,
+        avatar_datei: person.avatar_datei,
+      }),
       selbst,
       spannen: sichtbar.map((a): KalenderSpanne => {
         // Auf den Ausschnitt beschnitten: eine Spanne über den Monatswechsel
@@ -104,11 +115,24 @@ export default async function KalenderPage({searchParams}: PageProps) {
         const zaehlendeTage = tageDerSpanne(von, bis).filter(
           (t) => dailySollMinutes(person, t) > 0 && !eigeneFeiertage.has(t),
         );
+        const art = sichtbareArt(a.art, darfArtSehen, selbst);
         return {
           id: a.id,
           von,
           bis,
-          art: sichtbareArt(a.art, darfArtSehen, selbst),
+          art,
+          // Wohin der Sprung geht — am Server entschieden, weil hier schon
+          // steht, wer was sehen darf. Ohne sichtbare Art gibt es kein Ziel:
+          // eine Adresse mit dem Status darin sagte sonst über eine fremde
+          // Abwesenheit genau das, was ihr Grund verschweigt.
+          ziel:
+            art === null
+              ? null
+              : selbst
+                ? `/abwesenheit?ansicht=monat&monat=${monthOf(a.von)}`
+                : darfPruefen
+                  ? `/abwesenheit/pruefen?status=${a.status}&offen=${a.id}`
+                  : null,
           beantragt: a.status === 'eingereicht',
           arbeitstage: zaehlendeTage.length,
           zaehlendeTage,
@@ -328,8 +352,8 @@ export default async function KalenderPage({searchParams}: PageProps) {
               <Divider />
               <Text type="supporting" size="sm" color="secondary">
                 {darfArtSehen
-                  ? 'Als Verwaltung siehst du auch die Art der Abwesenheit. Für alle anderen steht hier nur, dass jemand weg ist – der Grund ist eine Gesundheitsangabe und geht Kollegen nichts an.'
-                  : 'Warum jemand fehlt, steht hier bewusst nicht: das wäre eine Gesundheitsangabe. Deine eigene Zeile zeigt dir die Art, weil es deine Daten sind.'}
+                  ? 'Im Gitter steht, wer weg ist. Den Grund zeigt die Sprechblase, wenn du auf ein Bild zeigst – und ein Klick führt zum Vorgang. Für alle anderen steht dort nur, dass jemand weg ist: der Grund ist eine Gesundheitsangabe und geht Kollegen nichts an.'
+                  : 'Im Gitter steht, wer weg ist. Warum, steht dort bewusst nicht: das wäre eine Gesundheitsangabe. Bei deinen eigenen Tagen zeigt die Sprechblase dir die Art, weil es deine Daten sind.'}
               </Text>
               <Text type="supporting" size="sm" color="secondary">
                 Gezählt werden nur Tage mit einem Soll. Wochenenden und Feiertage sind hinterlegt und

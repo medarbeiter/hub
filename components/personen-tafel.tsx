@@ -11,10 +11,12 @@ import {
   useTableSortableState,
   type TableColumn,
 } from '@astryxdesign/core';
+import {PersonZeichen} from './person-zeichen';
 import {Verweis as Link} from './verweis';
 import type {ReactNode} from 'react';
 import {fmtDuration, fmtDurationSigned} from '@/lib/format';
 import {Sinnbild} from './sinnbilder';
+import type {PersonAngabe} from '@/lib/avatar';
 
 /**
  * Eine Zeile der Personentafel.
@@ -26,6 +28,12 @@ import {Sinnbild} from './sinnbilder';
 export interface PersonenZeile extends Record<string, unknown> {
   id: number;
   name: string;
+  /**
+   * Das Profilzeichen. Der Name bleibt daneben sichtbar — eine Tafel, die man
+   * nach „wer weicht am weitesten ab" sortiert, wird an der Zeile gelesen, und
+   * ein Bild allein wäre in einer sortierten Liste keine Kennung.
+   */
+  person?: PersonAngabe | null;
   /** Die zweite Zeile unter dem Namen — „40 Std./Woche". */
   unterzeile?: string | null;
   /** Macht den Namen zum Verweis. */
@@ -172,27 +180,16 @@ export function PersonenTafel({
       header: 'Mitarbeiter',
       width: proportional(2),
       sortable: true,
-      renderCell: (row) => {
-        const kern = (
-          <VStack gap={0}>
-            <Text type="label" size="sm" weight="medium" maxLines={1}>
-              {row.name}
-            </Text>
-            {row.unterzeile && (
-              <Text type="supporting" size="sm" color="secondary">
-                {row.unterzeile}
-              </Text>
-            )}
-          </VStack>
-        );
-        return row.href ? (
-          <Link href={row.href} className="tafel-verweis">
-            {kern}
-          </Link>
-        ) : (
-          kern
-        );
-      },
+      renderCell: (row) => (
+        <PersonZeichen
+          person={row.person ?? null}
+          ersatzName={row.name}
+          groesse="zeile"
+          mitName
+          unterzeile={row.unterzeile}
+          href={row.href ?? undefined}
+        />
+      ),
     },
     ist: {
       key: 'istMin',

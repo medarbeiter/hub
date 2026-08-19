@@ -12,7 +12,9 @@ import {
   ERFASSUNG_LABEL,
   istBereich,
 } from '@/lib/protokoll-arten';
+import type {PersonAngabe} from '@/lib/avatar';
 import {Ausklapp} from './ausklapp';
+import {PersonZeichen} from './person-zeichen';
 import {Aufklapppfeil, ERFASSUNG_SINN, PROTOKOLL_BEREICH_SINN, Sinnbild} from './sinnbilder';
 
 /**
@@ -27,6 +29,15 @@ export interface ProtokollZeile {
   /** „14:07" */
   uhrzeit: string;
   akteur: string;
+  /**
+   * Das Gesicht zum eingefrorenen Namen — **frisch nachgeschlagen**, während
+   * `akteur` Geschichte bleibt. Die Tabelle hat mit Absicht keine
+   * Fremdschlüssel: wer umbenannt wird, schreibt die Vergangenheit nicht um.
+   * Ein Bild ist keine Aussage über die Handlung, sondern eine Lesehilfe, also
+   * darf es der aktuellen Person folgen — und `null` sein, wenn es das Konto
+   * nicht mehr gibt. Dann bleiben die Initialen des Namens von damals.
+   */
+  akteurBild: PersonAngabe | null;
   akteurRolle: string | null;
   betroffen: string | null;
   bereich: string;
@@ -147,17 +158,22 @@ export function ProtokollListe({zeilen, mitBetroffen}: ProtokollListeProps) {
           const erfassung = erfassungsart(z.aktion);
           return (
             <VStack as="li" key={z.id} gap={0} className="bahn-reihe">
-              <button
-                type="button"
-                className="eintrag-zeile zeile-interaktiv"
-                aria-expanded={istOffen}
-                onClick={() => setOffen(istOffen ? null : z.id)}
+              {/* Kein Knopf um die ganze Zeile: das Gesicht darin öffnet die
+                  Personenkarte, und ein Knopf im Knopf ist kein gültiges HTML.
+                  Der Knopf sitzt am Pfeil und deckt die Zeile unsichtbar ab
+                  (`.zeilen-knopf::after`) — die Fläche bleibt dieselbe. */}
+              <HStack
+                gap={2}
+                vAlign="center"
+                paddingInline={2}
+                paddingBlock={2}
+                className="protokoll-zeile zeilen-flaeche zeile-interaktiv"
+                wrap="nowrap"
                 style={{
                   background: istOffen ? 'var(--color-accent-muted)' : undefined,
                   borderRadius: 'var(--radius-inner)',
                 }}
               >
-                <HStack gap={2} vAlign="center" paddingInline={2} paddingBlock={2} className="protokoll-zeile" wrap="nowrap">
                   <span style={{inlineSize: SPALTE_ZEIT, flexShrink: 0}}>
                     <VStack gap={0}>
                       <Text type="supporting" size="sm" hasTabularNumbers>
@@ -228,22 +244,30 @@ export function ProtokollListe({zeilen, mitBetroffen}: ProtokollListeProps) {
                   {/* Ein Name, nicht zwei. Die zweite Zeile erscheint nur,
                       wenn jemand an einem fremden Datensatz gearbeitet hat —
                       und genau das ist die Zeile, die jemand sucht. */}
-                  <span style={{inlineSize: SPALTE_PERSON, flexShrink: 0}}>
-                    <VStack gap={0}>
-                      <Text type="supporting" size="sm" maxLines={1}>
-                        {z.akteur}
-                      </Text>
-                      {mitBetroffen && z.betroffen && z.betroffen !== z.akteur && (
-                        <Text type="supporting" size="sm" color="secondary" maxLines={1}>
-                          betrifft {z.betroffen}
-                        </Text>
-                      )}
-                    </VStack>
+                  <span className="zeilen-vorn" style={{inlineSize: SPALTE_PERSON, flexShrink: 0}}>
+                    <PersonZeichen
+                      person={z.akteurBild}
+                      ersatzName={z.akteur}
+                      groesse="winzig"
+                      mitName
+                      unterzeile={
+                        mitBetroffen && z.betroffen && z.betroffen !== z.akteur
+                          ? `betrifft ${z.betroffen}`
+                          : null
+                      }
+                    />
                   </span>
 
-                  <Aufklapppfeil offen={istOffen} />
+                  <button
+                    type="button"
+                    className="zeilen-knopf"
+                    aria-expanded={istOffen}
+                    aria-label={`${z.tag} ${z.uhrzeit}, ${aktionLabel(z.aktion)} – Einzelheiten`}
+                    onClick={() => setOffen(istOffen ? null : z.id)}
+                  >
+                    <Aufklapppfeil offen={istOffen} />
+                  </button>
                 </HStack>
-              </button>
 
               <Ausklapp offen={istOffen}>
                 <ZeilenTafel zeile={z} />

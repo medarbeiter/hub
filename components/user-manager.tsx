@@ -37,6 +37,7 @@ import {
   type Rolle,
 } from '@/lib/rechte';
 import {useMelde} from './melde';
+import type {PersonAngabe} from '@/lib/avatar';
 import {PersonenTafel, type PersonenZeile} from './personen-tafel';
 import {Sinnbild} from './sinnbilder';
 import {TafelDialog} from './tafel-dialog';
@@ -44,6 +45,7 @@ import {TafelDialog} from './tafel-dialog';
 export interface ManagedUser {
   id: number;
   name: string;
+  person: PersonAngabe;
   email: string;
   role: Rolle;
   weekly_minutes: number;
@@ -263,6 +265,7 @@ export function UserManager({users, selfId}: UserManagerProps) {
   const zeile = (user: ManagedUser): PersonenZeile => ({
     id: user.id,
     name: `${user.name}${user.id === selfId ? ' (Du)' : ''}`,
+    person: user.person,
     unterzeile: `${user.email} · ${Math.round((user.weekly_minutes / 60) * 10) / 10} Std./Woche`,
     marken: (
       <HStack gap={1} wrap="wrap" justify="end">

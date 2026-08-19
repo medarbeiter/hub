@@ -1,6 +1,7 @@
 import {Badge, Banner, HStack, Text, VStack} from '@astryxdesign/core';
 import Link from 'next/link';
 import {requireRecht} from '@/lib/auth';
+import {personAngabe} from '@/lib/avatar';
 import {addMonths, monthOf, todayISO} from '@/lib/format';
 import {activeUsers, monthRecord} from '@/lib/time';
 import {eingereichteImMonat} from '@/lib/spesen';
@@ -44,6 +45,7 @@ export default async function AbschlussPage({searchParams}: PageProps) {
   const zeilen: PersonenZeile[] = rows.map(({user, record, offeneReisen, offeneAntraege}) => ({
     id: user.id,
     name: user.name,
+    person: personAngabe(user),
     unterzeile: `${Math.round(user.weekly_minutes / 60)} Std./Woche`,
     istMin: record.workedMin,
     sollMin: record.sollMin,

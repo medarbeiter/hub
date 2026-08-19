@@ -1,8 +1,7 @@
 'use client';
 
-import {Grid, Text, VisuallyHidden, VStack} from '@astryxdesign/core';
+import {Avatar, Grid, Text, VisuallyHidden, VStack} from '@astryxdesign/core';
 import {AVATARE, type AvatarKey} from '@/lib/avatar';
-import {TierAvatar} from './tier-avatar';
 
 export function AvatarAuswahl({
   value,
@@ -30,7 +29,9 @@ export function AvatarAuswahl({
               onChange={() => onChange(option.key)}
             />
             <VStack gap={1} align="center">
-              <TierAvatar avatar={option.key} gross />
+              {/* Kein Personenzeichen: hier steht eine Figur zur Wahl, kein Mensch.
+                  Die Beschriftung darunter sagt schon, was es ist. */}
+              <Avatar size={60} src={option.bild} alt="" tooltip={false} />
               <Text type="label" size="sm" weight="medium">{option.label}</Text>
             </VStack>
           </label>

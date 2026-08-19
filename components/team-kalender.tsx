@@ -1,9 +1,11 @@
 'use client';
 
 import {Badge, HStack, StackItem, Text, VStack} from '@astryxdesign/core';
+import {HoverCard} from '@astryxdesign/core/HoverCard';
 import {ART_LABEL, fmtTage, tageDerSpanne} from '@/lib/abwesenheit-arten';
 import type {AbwesenheitArt} from '@/lib/db';
 import {fmtDate, fmtDateLong, fmtDateRange, fmtMonthShort, mondayOf} from '@/lib/format';
+import type {PersonAngabe} from '@/lib/avatar';
 import {
   WOCHENTAGE,
   kalendergitter,
@@ -11,7 +13,8 @@ import {
   wochenraster,
   type RasterWoche,
 } from '@/lib/kalendergitter';
-import {GitterMarke, GitterMehr, Monatsgitter, type GitterZelle} from './monatsgitter';
+import {GitterMehr, Monatsgitter, type GitterZelle} from './monatsgitter';
+import {PersonZeichen} from './person-zeichen';
 import {Sinnbild} from './sinnbilder';
 
 /**
@@ -34,18 +37,26 @@ export interface KalenderSpanne {
   arbeitstage: number;
   /** Genau die Tage aus `arbeitstage` — die Zellen, die gefüllt werden. */
   zaehlendeTage: string[];
+  /**
+   * Wohin diese Spanne führt: das eigene Blatt, die Prüfliste — oder nirgendwohin.
+   * Am Server entschieden und nur gesetzt, wo auch die Art gezeigt werden darf.
+   */
+  ziel: string | null;
 }
 
 export interface KalenderZeile {
   userId: number;
   name: string;
+  /** Das Profilzeichen — eine Spur je Person, also ein Gesicht je Spur. */
+  person: PersonAngabe;
   /** Die eigene Zeile wird hervorgehoben — sie ist der Anker im Blatt. */
   selbst: boolean;
   spannen: KalenderSpanne[];
 }
 
-/** Wie viele Namen in eine Zelle passen, bevor gekürzt wird. Gemessen, nicht geraten. */
-const MARKEN_JE_ZELLE = 3;
+/** Wie viele Gesichter in eine Zelle passen, bevor gekürzt wird. Vier zu 24 px
+    plus Abstand füllen die 120-px-Zelle genau; auf dem Telefon brechen sie um. */
+const MARKEN_JE_ZELLE = 4;
 
 const SPALTE_NAME = 148;
 
@@ -57,7 +68,13 @@ function kurzname(name: string): string {
 
 interface TagesMarke {
   name: string;
+  person: PersonAngabe;
   art: AbwesenheitArt | null;
+  /** Die ganze Spanne, nicht nur dieser Tag — die Sprechblase nennt sie. */
+  von: string;
+  bis: string;
+  tage: number;
+  ziel: string | null;
   beantragt: boolean;
   /** Trägt dieser Tag ein Soll? Ein Wochenende im Urlaub kostet nichts. */
   zaehlt: boolean;
@@ -74,7 +91,12 @@ function belegungProTag(zeilen: KalenderZeile[]): Map<string, TagesMarke[]> {
         const liste = proTag.get(tag) ?? [];
         liste.push({
           name: zeile.name,
+          person: zeile.person,
           art: spanne.art,
+          von: spanne.von,
+          bis: spanne.bis,
+          tage: spanne.arbeitstage,
+          ziel: spanne.ziel,
           beantragt: spanne.beantragt,
           zaehlt: zaehlt.has(tag),
           selbst: zeile.selbst,
@@ -89,6 +111,82 @@ function belegungProTag(zeilen: KalenderZeile[]): Map<string, TagesMarke[]> {
     liste.sort((a, b) => Number(b.selbst) - Number(a.selbst) || a.name.localeCompare(b.name, 'de'));
   }
   return proTag;
+}
+
+/**
+ * Eine Person an einem Tag — nur das Gesicht.
+ *
+ * Im Gitter stand bisher eine gerahmte Marke: Kante, Fläche, Nachname, dazu
+ * ein Sinnbild oder ein neutraler Stein. Vier davon in einer 120-px-Zelle sind
+ * vier Kästen und kein Bild. Übrig bleibt jetzt das, wonach man einen
+ * Teamkalender überhaupt fragt — *wer* ist weg —, und das ist zugleich die
+ * einzige Auskunft, die für alle dieselbe sein darf.
+ *
+ * Die zwei alten Kanäle bleiben, sie sitzen nur am Bild statt am Kasten: ein
+ * gestrichelter Hof heißt „beantragt, steht noch nicht fest", ein
+ * zurückgenommenes Bild heißt „dieser Tag kostet nichts" (Wochenende oder
+ * Feiertag mitten in der Spanne).
+ *
+ * Der Grund erscheint erst beim Zeigen, und zwar nur dort, wo er ohnehin
+ * gesendet wird: `art` ist für fremde Zeilen am Server gar nicht erst gesetzt
+ * (Art. 9 DSGVO), also gibt es dann auch keine Sprechblase mit Grund — Kollegen
+ * sehen ausschließlich Gesichter samt Namen. Wo es sie gibt, fährt sie
+ * **neben** dem Bild aus (Astryx' eigene Bewegung für `placement="end"`, schon
+ * für `prefers-reduced-motion` abgeschaltet) und nennt Name und Grund.
+ *
+ * Geklickt wird das Bild wie jedes Bild im Haus: es öffnet die Personenkarte.
+ * Der Sprung zum Vorgang liegt in dieser Karte, nicht in der Blase — was nur
+ * im Hover steht, findet keine Tastatur und kein Telefon.
+ */
+function TagesZeichen({marke: m}: {marke: TagesMarke}) {
+  const gesicht = (
+    <span
+      className={['kalender-gesicht', m.beantragt ? 'beantragt' : '', m.zaehlt ? '' : 'leer']
+        .filter(Boolean)
+        .join(' ')}
+    >
+      <PersonZeichen
+        person={m.person}
+        groesse="zeile"
+        ohneBlase={Boolean(m.art)}
+        href={m.ziel ?? undefined}
+        zielText="Zum Vorgang"
+      />
+    </span>
+  );
+
+  if (!m.art) return gesicht;
+
+  return (
+    <HoverCard
+      placement="end"
+      hasHoverIndication={false}
+      label={`${m.name}: ${ART_LABEL[m.art]}`}
+      content={
+        <HStack gap={2} vAlign="center" wrap="nowrap">
+          {/* Das Bild steht auch in der Blase, größer: sie ist damit eine
+              kleine Personenkarte und nicht bloß ein Textkasten. Im Gitter
+              rührt sich dabei nichts — die Blase fährt daneben aus, das
+              Gesicht in der Zelle bleibt, wo es ist. */}
+          <PersonZeichen person={m.person} groesse="karte" ohneBlase karte={false} />
+          <VStack gap={0}>
+            <Text type="label" size="sm">
+              {m.name}
+            </Text>
+            <Text type="supporting" size="sm" color="secondary">
+              {ART_LABEL[m.art]}
+              {m.beantragt ? ' · beantragt' : ''}
+            </Text>
+            <Text type="supporting" size="sm" color="secondary" hasTabularNumbers>
+              {fmtDateRange(m.von, m.bis)} · {fmtTage(m.tage)}
+            </Text>
+          </VStack>
+        </HStack>
+      }
+    >
+      {gesicht}
+    </HoverCard>
+  );
 }
 
 interface TeamKalenderProps {
@@ -155,16 +253,11 @@ export function TeamKalender({zeilen, monat, heute, ruhetage}: TeamKalenderProps
         .join('; ')}`,
       inhalt: (
         <>
-          {gezeigt.map((m, i) => (
-            <GitterMarke
-              key={`${m.name}-${i}`}
-              label={kurzname(m.name)}
-              titel={`${m.name}${m.art ? ` · ${ART_LABEL[m.art]}` : ''}${m.beantragt ? ' · beantragt' : ''}`}
-              zeichen={m.art ? <Sinnbild sinn={m.art} groesse="zeile" ton="sekundaer" /> : undefined}
-              beantragt={m.beantragt}
-              leer={!m.zaehlt}
-            />
-          ))}
+          <span className="kalender-gesichter">
+            {gezeigt.map((m, i) => (
+              <TagesZeichen key={`${m.name}-${i}`} marke={m} />
+            ))}
+          </span>
           {rest > 0 && (
             <GitterMehr anzahl={rest} titel={marken.slice(MARKEN_JE_ZELLE).map((m) => m.name).join(', ')} />
           )}
@@ -346,16 +439,19 @@ export function TeamJahresRaster({zeilen, jahr, heute}: JahresRasterProps) {
               }
             >
               <span style={{inlineSize: SPALTE_NAME, flexShrink: 0}}>
-                <HStack gap={1.5} vAlign="center" wrap="nowrap">
-                  <Text type="label" size="sm" weight={zeile.selbst ? 'semibold' : 'medium'} maxLines={1}>
-                    {zeile.name}
-                  </Text>
-                  {zeile.selbst && (
-                    <Text type="supporting" size="sm" color="secondary">
-                      (Du)
-                    </Text>
-                  )}
-                </HStack>
+                <PersonZeichen
+                  person={zeile.person}
+                  groesse="zeile"
+                  mitName
+                  betont={zeile.selbst}
+                  zusatz={
+                    zeile.selbst ? (
+                      <Text type="supporting" size="sm" color="secondary">
+                        (Du)
+                      </Text>
+                    ) : null
+                  }
+                />
               </span>
               <StackItem size="fill">
                 <figure
@@ -493,25 +589,19 @@ export function KalenderLegende({mitArten, jahr}: {mitArten: boolean; jahr?: boo
   return (
     <VStack gap={2}>
       <HStack gap={2} vAlign="center">
-        <span aria-hidden className="gitter-marke legende-probe">
-          <span aria-hidden className="gitter-punkt" />
-        </span>
+        <span aria-hidden className="kalender-probe" />
         <Text type="supporting" size="sm" color="secondary">
           Abwesend – steht fest
         </Text>
       </HStack>
       <HStack gap={2} vAlign="center">
-        <span aria-hidden className="gitter-marke beantragt legende-probe">
-          <span aria-hidden className="gitter-punkt" />
-        </span>
+        <span aria-hidden className="kalender-probe beantragt" />
         <Text type="supporting" size="sm" color="secondary">
           Beantragt – noch nicht entschieden
         </Text>
       </HStack>
       <HStack gap={2} vAlign="center">
-        <span aria-hidden className="gitter-marke leer legende-probe">
-          <span aria-hidden className="gitter-punkt" />
-        </span>
+        <span aria-hidden className="kalender-probe leer" />
         <Text type="supporting" size="sm" color="secondary">
           Wochenende oder Feiertag – kostet nichts
         </Text>

@@ -30,7 +30,7 @@ export default async function SpesenPruefenPage({searchParams}: PageProps) {
     | 'alle';
 
   const eintraege = reisenZurPruefung(status);
-  const reisen = eintraege.map((e) => reiseAnsicht(e, actor, e.userName));
+  const reisen = eintraege.map((e) => reiseAnsicht(e, actor, e.userName, e.person));
   const summe = reisen.reduce((s, r) => s + r.summeCent, 0);
   const personen = new Set(reisen.map((r) => r.userName)).size;
 

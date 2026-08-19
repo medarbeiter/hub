@@ -416,7 +416,10 @@ export async function personalSettingsSaveAction(
  * nicht den Wert festhält.
  */
 export async function profilbildAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const user = await requireUser();
+  // Wie `onboardingCompleteAction`: eine angemeldete Sitzung genügt. Das Bild
+  // wird im Einrichtungsassistenten gewählt, also *vor* dem Abschluss, und die
+  // Handlung reicht ohnehin nur an den eigenen Datensatz.
+  const user = await requireAuthenticatedUser();
   const entfernen = formData.get('entfernen') !== null;
   const eingang = formData.get('bild');
 

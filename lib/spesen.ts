@@ -7,6 +7,7 @@
 
 import {mkdirSync, rmSync} from 'node:fs';
 import {join} from 'node:path';
+import {personAngabe, type AvatarKey, type PersonAngabe} from './avatar';
 import {getDb, type BelegArt, type Reise, type ReiseBeleg, type ReiseStatus, type User} from './db';
 import {fmtDateRange, monthOf, nowMinutes, todayISO} from './format';
 import {berechneSpesen, pruefeSpanne, satzFuer, type SatzStufe, type SpesenRechnung} from './pauschale';
@@ -70,8 +71,19 @@ export interface ReiseMitRechnung {
   locked: boolean;
 }
 
+/** Was der Join über die Person mitbringt, bevor `personAngabe()` daraus eine macht. */
+interface PersonSpalten {
+  user_name: string;
+  user_role: string;
+  user_email: string;
+  avatar_key: AvatarKey;
+  avatar_datei: string | null;
+}
+
 export interface ReiseMitPerson extends ReiseMitRechnung {
   userName: string;
+  /** Wer eingereicht hat, fertig zum Zeichnen — Name und Bildquelle. */
+  person: PersonAngabe;
 }
 
 // ---------------------------------------------------------------------------
@@ -168,15 +180,28 @@ export function reisenForYear(userId: number, jahr: string): ReiseMitRechnung[] 
 export function reisenZurPruefung(status: ReiseStatus | 'alle' = 'eingereicht'): ReiseMitPerson[] {
   const sql =
     status === 'alle'
-      ? `SELECT r.*, u.name AS user_name FROM reisen r JOIN users u ON u.id = r.user_id
+      ? `SELECT r.*, u.name AS user_name, u.role AS user_role, u.email AS user_email, u.avatar_key, u.avatar_datei
+           FROM reisen r JOIN users u ON u.id = r.user_id
          ORDER BY r.start_date DESC`
-      : `SELECT r.*, u.name AS user_name FROM reisen r JOIN users u ON u.id = r.user_id
+      : `SELECT r.*, u.name AS user_name, u.role AS user_role, u.email AS user_email, u.avatar_key, u.avatar_datei
+           FROM reisen r JOIN users u ON u.id = r.user_id
          WHERE r.status = ? ORDER BY r.eingereicht_at, r.start_date`;
   const rows =
     status === 'alle'
-      ? getDb().query<Reise & {user_name: string}, []>(sql).all()
-      : getDb().query<Reise & {user_name: string}, [string]>(sql).all(status);
-  return rows.map(({user_name, ...reise}) => ({...mitRechnung(reise as Reise), userName: user_name}));
+      ? getDb().query<Reise & PersonSpalten, []>(sql).all()
+      : getDb().query<Reise & PersonSpalten, [string]>(sql).all(status);
+  return rows.map(({user_name, user_role, user_email, avatar_key, avatar_datei, ...reise}) => ({
+    ...mitRechnung(reise as Reise),
+    userName: user_name,
+    person: personAngabe({
+      id: reise.user_id,
+      name: user_name,
+      role: user_role,
+      email: user_email,
+      avatar_key,
+      avatar_datei,
+    }),
+  }));
 }
 
 /** Für den Monatsabschluss: eingereichte Reisen blockieren wie offene Einträge. */

@@ -31,6 +31,7 @@ export function PruefListe({reisen}: {reisen: ReiseAnsicht[]}) {
       eintraege={reisen.map((reise) => ({
         id: reise.id,
         person: reise.userName ?? '—',
+        personBild: reise.person ?? null,
         zeitraum: fmtDateRange(reise.startDate, reise.endDate),
         gegenstand: (
           <>

@@ -247,18 +247,22 @@ html {
 
 /* Die Profilfiguren sind zehn lokale Bilder. Sie bleiben eine rein lokale
    Wahl: Kein Foto-Upload und keine fremde URL erfährt, wer sich anmeldet. */
-.tieravatar {
-  --tieravatar-groesse: calc(var(--spacing-6) + var(--spacing-1));
-  display: inline-block;
-  flex-shrink: 0;
-  inline-size: var(--tieravatar-groesse);
-  block-size: var(--tieravatar-groesse);
-  border-radius: var(--radius-full);
-  object-fit: cover;
+/* Die Kante des Profilzeichens.
+   Die Tierfiguren des Bildbogens sind helle Illustrationen auf hellem Papier:
+   ohne eigene Begrenzung verliert der Kreis seinen Rand und das Zeichen seine
+   Form. Derselbe Grund wie bei `.arbeit-flaeche` — die Kante trägt den
+   Kontrast, nicht die Füllung. Als Innenschatten, damit sie das gemessene Maß
+   des Avatars nicht aufbläht.
+
+   Warum hier und nicht in `theme/medarbeiterTheme.ts`, wo Astryx-Bauteile
+   sonst überschrieben werden: `bunx astryx theme build` kann diese Themedatei
+   derzeit nicht laden (sie importiert `theme/icons.tsx`, und der Lader des CLI
+   kennt dort kein React). Eine Regel im Thema käme nie in der erzeugten CSS an,
+   und die erzeugte CSS von Hand zu ändern ist verboten. Sobald der Themebau
+   wieder läuft, gehört das hier weg und dort hin. */
+.astryx-avatar {
   box-shadow: inset 0 0 0 var(--border-width) var(--color-border-emphasized);
-}
-.tieravatar[data-gross='true'] {
-  --tieravatar-groesse: calc(var(--spacing-10) + var(--spacing-4));
+  object-fit: cover;
 }
 
 .avatar-auswahl {
@@ -1246,6 +1250,41 @@ html {
   outline-offset: -2px;
 }
 
+/* Eine aufklappbare Zeile, in der noch etwas anderes anklickbar ist.
+   Die Zeile war früher selbst ein <button>. Seit das Gesicht darin die
+   Personenkarte öffnet, geht das nicht mehr: ein Knopf im Knopf ist kein
+   gültiges HTML — der Parser schließt den äußeren, und React hydriert auf einen
+   Baum, den es nicht gebaut hat. Stattdessen sitzt der echte Knopf am
+   Aufklapppfeil und legt sich mit einem leeren ::after über die ganze Zeile.
+   Damit bleibt alles, was war (ganze Zeile klickbar, ein Tabstopp für das
+   Aufklappen), und das Gesicht wird ein zweiter, eigener Tabstopp davor. */
+.zeilen-flaeche {
+  position: relative;
+  min-block-size: 44px;
+}
+.zeilen-knopf {
+  all: unset;
+  display: inline-flex;
+  cursor: pointer;
+}
+.zeilen-knopf::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-inner);
+}
+/* Was vor dem Deckel liegen muss, liegt vor ihm. Positioniert **und** mit
+   z-index, weil der Deckel im Baum später kommt und sonst gewinnt. */
+.zeilen-vorn {
+  position: relative;
+  z-index: 1;
+}
+/* Der Fokus gehört dem Knopf, gezeigt wird er an der Zeile — er meint sie. */
+.zeilen-flaeche:has(.zeilen-knopf:focus-visible) {
+  outline: 2px solid var(--color-icon-accent);
+  outline-offset: -2px;
+}
+
 /* Timeline entries advertise their interactivity without a helper sentence:
    pointer cursor (inline), hover ring, and a pencil that appears on
    hover/focus. Focus ring in icon-accent bronze, same rationale as above. */
@@ -1891,6 +1930,44 @@ html {
   background: transparent;
   color: var(--color-text-secondary);
 }
+/* Der Teamkalender zeigt in einer Zelle nur noch Gesichter: keine Kante, keine
+   Fläche, kein Nachname. Vier gerahmte Marken in 120 px waren vier Kästen und
+   kein Bild — und „wer ist weg" ist die Frage, wegen der man hersieht. Die zwei
+   Kanäle der alten Marke sitzen jetzt am Bild: gestrichelter Hof = beantragt,
+   zurückgenommen = dieser Tag kostet nichts. Kein Farbcode, wie überall hier. */
+.kalender-gesichter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-inline: 3px;
+}
+.kalender-gesicht {
+  display: inline-flex;
+  border-radius: 50%;
+}
+.kalender-gesicht.beantragt {
+  outline: var(--border-width) dashed var(--color-text-secondary);
+  outline-offset: 1px;
+}
+.kalender-gesicht.leer {
+  opacity: 0.45;
+}
+/* Die Probe in der Legende: ein Gesicht ohne Person. */
+.kalender-probe {
+  display: inline-block;
+  inline-size: 20px;
+  block-size: 20px;
+  border-radius: 50%;
+  background: var(--color-text-secondary);
+}
+.kalender-probe.beantragt {
+  background: transparent;
+  border: var(--border-width) dashed var(--color-text-secondary);
+}
+.kalender-probe.leer {
+  opacity: 0.45;
+}
+
 .gitter-marke-text {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2160,13 +2237,6 @@ html {
 .raster-probe {
   inline-size: 14px;
   flex-shrink: 0;
-}
-/* Die Legendenprobe ist eine Marke ohne Text — sie zeigt nur ihre zwei Kanäle. */
-.legende-probe {
-  inline-size: 30px;
-  block-size: 15px;
-  flex-shrink: 0;
-  justify-content: center;
 }
 
 /* Der Installationshinweis. Er faltet sich auf und wieder zu — dieselbe

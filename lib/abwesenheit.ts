@@ -19,6 +19,7 @@ import {
   getDb,
   type User,
 } from './db';
+import {personAngabe, type PersonAngabe} from './avatar';
 import {hatRecht} from './rechte';
 import {
   ART_LABEL,
@@ -69,6 +70,8 @@ export interface AbwesenheitMitTagen {
 
 export interface AbwesenheitMitPerson extends AbwesenheitMitTagen {
   userName: string;
+  /** Wer beantragt oder gemeldet hat, fertig zum Zeichnen. */
+  person: PersonAngabe;
 }
 
 // ---------------------------------------------------------------------------
@@ -167,7 +170,7 @@ export function abwesenheitenZurPruefung(status: AbwesenheitStatus | 'alle' = 'e
   return rows.map(({user_name, ...rest}) => {
     const a = rest as Abwesenheit;
     const user = db.query<User, [number]>('SELECT * FROM users WHERE id = ?').get(a.user_id)!;
-    return {...mitTagen(a, user), userName: user_name};
+    return {...mitTagen(a, user), userName: user_name, person: personAngabe(user)};
   });
 }
 

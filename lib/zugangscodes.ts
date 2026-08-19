@@ -18,6 +18,7 @@
 // wer `zugangscodes.verwalten` trägt, sieht und pflegt jeden Zugang und darf
 // auch für alle oder für Rollen freigeben.
 
+import {personAngabe, type AvatarKey, type PersonAngabe} from './avatar';
 import {getDb, type TotpKonto, type User, type ZugangscodeLoeschung} from './db';
 import {hatRecht, istRolle, rolleLabel} from './rechte';
 import {base32Dekodieren, periodeEnde, totpCode, type TotpVerfahren} from './totp';
@@ -70,10 +71,11 @@ function kreisRollen(totpId: number): string[] {
     .map((r) => r.rolle);
 }
 
-function kreisPersonen(totpId: number): Array<{id: number; name: string}> {
+function kreisPersonen(totpId: number): Array<{id: number; name: string; avatar_key: AvatarKey; avatar_datei: string | null}> {
   return getDb()
-    .query<{id: number; name: string}, [number]>(
-      `SELECT u.id, u.name FROM totp_konto_personen p JOIN users u ON u.id = p.user_id
+    .query<{id: number; name: string; avatar_key: AvatarKey; avatar_datei: string | null}, [number]>(
+      `SELECT u.id, u.name, u.avatar_key, u.avatar_datei
+         FROM totp_konto_personen p JOIN users u ON u.id = p.user_id
        WHERE p.totp_id = ? ORDER BY u.name`,
     )
     .all(totpId);
@@ -339,6 +341,12 @@ export interface Zugangscode {
   periode: number;
   /** Der Leserkreis als Schild an der Zeile; `null`, wenn alle ihn sehen. */
   sichtbar: string | null;
+  /**
+   * Wer den Zugang lesen darf, als Gesichter — nur beim Personenkreis. Bei
+   * „alle" oder einer Rolle steht keine Namensliste dahinter, die man zeigen
+   * könnte, und das Schild sagt es kürzer.
+   */
+  kreisGesichter: PersonAngabe[];
   /** Wonach die Seite gruppiert: eigene, geteilte, für alle. */
   gruppe: 'selbst' | 'geteilt' | 'alle';
   darfBearbeiten: boolean;
@@ -363,6 +371,7 @@ export function aktuelleZugangscodes(fuer: Leser, beiMs: number = Date.now()): Z
       gueltigBisMs: periodeEnde(k.periode, beiMs),
       periode: k.periode,
       sichtbar: sichtbarkeitText(k, fuer),
+      kreisGesichter: personen.map(personAngabe),
       gruppe: k.sichtbarkeit === 'alle' ? 'alle' : nurIch ? 'selbst' : 'geteilt',
       darfBearbeiten: darf,
       kreis: darf

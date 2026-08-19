@@ -307,6 +307,29 @@ describe('Arbeitszeit-Gold: der Rahmen trägt den Kontrast, nicht die Füllung',
   });
 });
 
+describe('Das Personenzeichen: der Ring begrenzt, er bedeutet nicht', () => {
+  // Der Ring um ein Profilbild (.astryx-avatar in globals.css) hält eine helle
+  // Tierfigur davon ab, ins helle Papier zu laufen. Er bleibt unter 3:1 — und
+  // das ist zulässig, weil das Bild allein nie eine Auskunft ist: zehn Figuren
+  // auf mehr als zehn Konten, also trägt jedes Gesicht seinen Namen mit
+  // (sichtbar, in der Sprechblase, im Barrierebaum — siehe person-zeichen.tsx).
+  // Ein Boden von 3:1 gälte, sobald das Bild etwas sagte, was sonst nirgends
+  // steht. Wer ihm das je zumutet, muss hier zuerst vorbei.
+  test('der Ring ist eine Kante, kein Bedeutungsträger — dokumentiert, nicht übersehen', () => {
+    expect(contrast(C.borderEmphasized, C.white)).toBeLessThan(NON_TEXT_MIN);
+    expect(contrast(C.borderEmphasized, C.white)).toBeGreaterThan(1.1);
+  });
+
+  // Der Name daneben ist die eigentliche Auskunft — er steht auf Papier wie
+  // jeder andere Text und hält den Textboden.
+  test('der Name neben dem Gesicht hält den Textboden', () => {
+    for (const ground of [C.white, C.paper, C.parchment]) {
+      expect(contrast(C.ink, ground)).toBeGreaterThanOrEqual(TEXT_MIN);
+      expect(contrast(C.stone, ground)).toBeGreaterThanOrEqual(TEXT_MIN);
+    }
+  });
+});
+
 /** Plain sRGB channel mix — what CSS color-mix(in srgb, …) does. */
 function mix(a: string, b: string, ratioA: number): string {
   const ch = (hex: string, i: number) => parseInt(hex.replace('#', '').slice(i * 2, i * 2 + 2), 16);

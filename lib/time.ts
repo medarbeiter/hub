@@ -504,7 +504,7 @@ export function monthRecord(user: User, month: string): MonthRecord {
 export function activeUsers(): User[] {
   return getDb()
     .query<User, []>(
-      'SELECT id, email, name, role, weekly_minutes, active, created_at, bundesland, urlaubstage_jahr FROM users WHERE active = 1 ORDER BY name',
+      'SELECT id, email, name, role, weekly_minutes, active, created_at, bundesland, urlaubstage_jahr, avatar_key, avatar_datei FROM users WHERE active = 1 ORDER BY name',
     )
     .all();
 }
@@ -513,7 +513,7 @@ export function getUser(id: number): User | null {
   return (
     getDb()
       .query<User, [number]>(
-        'SELECT id, email, name, role, weekly_minutes, active, created_at, bundesland, urlaubstage_jahr FROM users WHERE id = ?',
+        'SELECT id, email, name, role, weekly_minutes, active, created_at, bundesland, urlaubstage_jahr, avatar_key, avatar_datei FROM users WHERE id = ?',
       )
       .get(id) ?? null
   );

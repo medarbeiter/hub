@@ -29,9 +29,12 @@ import {
 import type {AvatarKey} from '@/lib/avatar';
 import type {EinrichtungsDaten, OnboardingProfil, Startansicht} from '@/lib/onboarding';
 import {AbsendeKnopf} from './absende-knopf';
+import {PersonZeichen} from './person-zeichen';
+import {ZUGANG_MERK_SCHLUESSEL, zugangMerkLesen, type ZugangMerk} from './zugang-merker';
 import {GoogleAnmeldung} from './google-anmeldung';
 import {GoogleKnopf} from './google-knopf';
 import {AvatarAuswahl} from './avatar-auswahl';
+import {ProfilbildFeld} from './profilbild-feld';
 import {ProfilDaten} from './profil-daten';
 import {Sinnbild, umriss} from './sinnbilder';
 
@@ -62,6 +65,15 @@ export function LoginForm({
   weiter?: string | null;
 }) {
   const [email, setEmail] = useState('');
+  /* Erst nach dem ersten Anstrich gelesen: der Server kennt den Eintrag nicht,
+     und eine Vorbelegung im ersten Anstrich wäre ein Hydrationsfehler. */
+  const [merk, setMerk] = useState<ZugangMerk | null>(null);
+  useEffect(() => {
+    const gemerkt = zugangMerkLesen();
+    if (!gemerkt) return;
+    setMerk(gemerkt);
+    setEmail((bisher) => bisher || gemerkt.email);
+  }, []);
   const [password, setPassword] = useState('');
   const [capsLock, setCapsLock] = useState(false);
   const [sichtbareEinrichtung, setSichtbareEinrichtung] = useState(initialEinrichtung);
@@ -116,6 +128,37 @@ export function LoginForm({
                       <VStack gap={4} padding={5}>
                         {weiter && <input type="hidden" name="weiter" value={weiter} />}
                         {fehler && <Banner status="error" title={fehler} />}
+                        {/* Wer hier zuletzt gearbeitet hat, steht mit Gesicht
+                            da statt als leeres Feld — gemerkt vom Gerät, nicht
+                            nachgeschlagen (siehe zugang-merker.tsx). „Nicht
+                            du?" vergisst es wieder. */}
+                        {merk && (
+                          <HStack gap={3} vAlign="center" justify="between" wrap="nowrap">
+                            {/* Ohne Personenkarte: diese Seite schlägt niemanden
+                                nach (siehe zugang-merker.tsx), und eine Karte,
+                                die nur wiederholt, was zwei Zentimeter weiter
+                                rechts steht, wäre ein Klick ins Leere. */}
+                            <PersonZeichen
+                              person={{id: 0, name: merk.name, bild: merk.bild}}
+                              groesse="karte"
+                              mitName
+                              betont
+                              karte={false}
+                              unterzeile={merk.email}
+                            />
+                            <Button
+                              label="Nicht du?"
+                              variant="ghost"
+                              size="sm"
+                              type="button"
+                              onClick={() => {
+                                window.localStorage.removeItem(ZUGANG_MERK_SCHLUESSEL);
+                                setMerk(null);
+                                setEmail('');
+                              }}
+                            />
+                          </HStack>
+                        )}
                         <TextInput
                           label="E-Mail"
                           type="email"
@@ -351,6 +394,8 @@ function Einrichtung({
             )}
             {schritt === 'profil' && (
               <ProfilSchritt
+                userId={daten.userId}
+                hatProfilbild={daten.hatProfilbild}
                 avatar={avatar}
                 setAvatar={setAvatar}
                 weiter={() => wechsleZu(index + 1)}
@@ -562,12 +607,22 @@ function StammdatenSchritt({
   );
 }
 
+/**
+ * Das Zeichen der eigenen Person — dasselbe Feld wie im Profil und darüber der
+ * Bildbogen als Rückfall. Wer erst nach der Einrichtung ein Foto hochladen
+ * konnte, trug bis dahin eine Figur, die niemand gewählt hatte; und ein Bild
+ * ist genau in dem Moment zur Hand, in dem man sein Konto einrichtet.
+ */
 function ProfilSchritt({
+  userId,
+  hatProfilbild,
   avatar,
   setAvatar,
   weiter,
   zurueck,
 }: {
+  userId: number;
+  hatProfilbild: boolean;
   avatar: AvatarKey;
   setAvatar: (value: AvatarKey) => void;
   weiter: () => void;
@@ -575,6 +630,7 @@ function ProfilSchritt({
 }) {
   return (
     <>
+      <ProfilbildFeld hatBild={hatProfilbild} userId={userId} />
       <AvatarAuswahl value={avatar} onChange={setAvatar} />
       <SchrittNavigation zurueck={zurueck} weiter={weiter} />
     </>

@@ -1,5 +1,6 @@
 import {Card, Heading, Text, VStack} from '@astryxdesign/core';
 import {requireUser} from '@/lib/auth';
+import {personAngabe} from '@/lib/avatar';
 import {hatRecht} from '@/lib/rechte';
 import {fmtDate, fmtDuration} from '@/lib/format';
 import {googleKonfiguriert, googleKontoFuer} from '@/lib/google';
@@ -33,7 +34,7 @@ export default async function ProfilPage({
   return (
     <ZeitRahmen
       titel="Mein Profil"
-      sinn={hatRecht(user, 'mitarbeiter.verwalten') ? 'rolleVerwaltung' : 'rolleMitarbeiter'}
+      person={personAngabe(user)}
       figur={fmtDuration(user.weekly_minutes)}
       figurEinheit="Std./Woche"
       stand="Diese Stammdaten hast du bestätigt. Änderungen nimmt die Verwaltung vor."

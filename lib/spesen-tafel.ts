@@ -11,11 +11,13 @@ import {hatRecht} from './rechte';
 import {TAG_ART_LABEL} from './pauschale';
 import {BELEG_ART_LABEL, REISE_STATUS_LABEL, istVorbei, type ReiseMitRechnung} from './spesen';
 import {segmentsForDay} from './time';
+import type {PersonAngabe} from './avatar';
 
 export function reiseAnsicht(
   eintrag: ReiseMitRechnung,
   actor: User,
   userName: string | null = null,
+  person: PersonAngabe | null = null,
 ): ReiseAnsicht {
   const {reise, rechnung, belege, locked} = eintrag;
   const darfAendern = hatRecht(actor, 'spesen.pruefen') || actor.id === reise.user_id;
@@ -24,6 +26,7 @@ export function reiseAnsicht(
   return {
     id: reise.id,
     userName,
+    person,
     startDate: reise.start_date,
     startMin: reise.start_min,
     endDate: reise.end_date,

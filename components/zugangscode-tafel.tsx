@@ -27,6 +27,8 @@ import {ALLE_ROLLEN, ROLLEN} from '@/lib/rechte';
 import {DienstZeichen, markeFuer} from './dienst-zeichen';
 import {useMelde} from './melde';
 import {QrLeser} from './qr-leser';
+import type {PersonAngabe} from '@/lib/avatar';
+import {PersonenReihe} from './person-zeichen';
 import {Sinnbild, umriss} from './sinnbilder';
 import {TafelDialog} from './tafel-dialog';
 
@@ -43,6 +45,8 @@ export interface ZugangscodeZeile {
   periode: number;
   /** Der Leserkreis als Schild an der Zeile; `null`, wenn alle ihn sehen. */
   sichtbar: string | null;
+  /** Derselbe Kreis als Gesichter — leer, wo keine Namensliste dahintersteht. */
+  kreisGesichter: PersonAngabe[];
   gruppe: 'selbst' | 'geteilt' | 'alle';
   darfBearbeiten: boolean;
   /** Der rohe Kreis fürs Bearbeiten-Formular — nur, wenn Bearbeiten erlaubt ist. */
@@ -471,7 +475,22 @@ export function ZugangscodeTafel({
           startContent={<DienstZeichen dienst={zeile.dienst} />}
           endContent={
             <HStack gap={3} vAlign="center" wrap="nowrap">
-              {zeile.sichtbar !== null && <Badge variant="neutral" label={zeile.sichtbar} />}
+              {/* Mit wem ein Zugang geteilt ist, liest sich als Reihe von
+                  Gesichtern schneller als als Aufzählung von Namen — die
+                  Namen selbst bleiben in der Sprechblase und in der
+                  aufklappbaren Liste. Ein Kreis aus einer Person (der eigene)
+                  und ein Rollenkreis haben keine Reihe: dort ist das Schild
+                  die kürzere Auskunft. */}
+              {zeile.kreisGesichter.length > 1 ? (
+                <PersonenReihe
+                  personen={zeile.kreisGesichter}
+                  max={4}
+                  groesse="winzig"
+                  beschriftung={zeile.sichtbar ?? undefined}
+                />
+              ) : (
+                zeile.sichtbar !== null && <Badge variant="neutral" label={zeile.sichtbar} />
+              )}
               {zeile.code === null ? (
                 <Badge
                   variant="error"

@@ -14,16 +14,16 @@ export const AVATAR_KEYS = [
 export type AvatarKey = (typeof AVATAR_KEYS)[number];
 
 export const AVATARE: ReadonlyArray<{key: AvatarKey; label: string; bild: string}> = [
-  {key: 'vertrieb-akquise', label: 'Vertrieb & Akquise', bild: '/generated-avatars/01-vertrieb-akquise-fuchs.png'},
-  {key: 'marketing', label: 'Marketing', bild: '/generated-avatars/02-marketing-pfau.png'},
-  {key: 'geschaeftsfuehrer', label: 'Geschäftsführer', bild: '/generated-avatars/03-geschaeftsfuehrer-loewe.png'},
-  {key: 'mercedes-amg-c-eo', label: 'Mercedes AMG · C EO', bild: '/generated-avatars/04-mercedes-amg-c-eo-panther.png'},
-  {key: 'key-account-management', label: 'Key Account Management', bild: '/generated-avatars/05-key-account-oktopus.png'},
-  {key: 'pflegedienst', label: 'Pflegedienst', bild: '/generated-avatars/06-pflegedienst-capybara.png'},
-  {key: 'krankenhaus', label: 'Krankenhaus', bild: '/generated-avatars/07-krankenhaus-pinguin.png'},
-  {key: 'headset-calling', label: 'Headset & Calling', bild: '/generated-avatars/08-headset-calling-papagei.png'},
-  {key: 'adler', label: 'Adler', bild: '/generated-avatars/09-adler.png'},
-  {key: 'buchhaltung-controlling', label: 'Buchhaltung & Controlling', bild: '/generated-avatars/10-buchhaltung-controlling-eule.png'},
+  {key: 'vertrieb-akquise', label: 'Vertrieb & Akquise', bild: '/avatare/01-vertrieb-akquise-fuchs.png'},
+  {key: 'marketing', label: 'Marketing', bild: '/avatare/02-marketing-pfau.png'},
+  {key: 'geschaeftsfuehrer', label: 'Geschäftsführer', bild: '/avatare/03-geschaeftsfuehrer-loewe.png'},
+  {key: 'mercedes-amg-c-eo', label: 'Mercedes AMG · C EO', bild: '/avatare/04-mercedes-amg-c-eo-panther.png'},
+  {key: 'key-account-management', label: 'Key Account Management', bild: '/avatare/05-key-account-oktopus.png'},
+  {key: 'pflegedienst', label: 'Pflegedienst', bild: '/avatare/06-pflegedienst-capybara.png'},
+  {key: 'krankenhaus', label: 'Krankenhaus', bild: '/avatare/07-krankenhaus-pinguin.png'},
+  {key: 'headset-calling', label: 'Headset & Calling', bild: '/avatare/08-headset-calling-papagei.png'},
+  {key: 'adler', label: 'Adler', bild: '/avatare/09-adler.png'},
+  {key: 'buchhaltung-controlling', label: 'Buchhaltung & Controlling', bild: '/avatare/10-buchhaltung-controlling-eule.png'},
 ];
 
 export function istAvatar(value: string): value is AvatarKey {
@@ -55,4 +55,56 @@ export const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
 /** Die Quelle des Profilbildes: das eigene Foto, sonst die Tierfigur. */
 export function avatarQuelle(user: {id: number; avatar_key?: AvatarKey; avatar_datei?: string | null}): string {
   return user.avatar_datei ? `/api/avatar/${user.id}` : avatarBild(user.avatar_key ?? AVATARE[0]!.key);
+}
+
+/**
+ * Eine Person, so wie sie überall in der Anwendung gezeigt wird: eine Kennung,
+ * ein Name und eine fertige Bildquelle.
+ *
+ * Der Grund für die fertige Quelle: die Regel „eigenes Foto, sonst Tierfigur"
+ * ist genau eine Regel, und sie gehört auf den Server. Der Browser bekommt eine
+ * URL und entscheidet nichts mehr — sonst müsste jede Zeile jeder Liste
+ * `avatar_key` und `avatar_datei` mitschleppen und die Regel erneut anwenden.
+ */
+export interface PersonAngabe {
+  id: number;
+  name: string;
+  /** Fertige Bildquelle — Foto oder Tierfigur, hier schon entschieden. */
+  bild: string;
+  /**
+   * Die Rolle als Schlüssel (`ROLLEN` in lib/rechte.ts macht daraus ein
+   * deutsches Wort). Nur für die Personenkarte gedacht.
+   */
+  rolle?: string;
+  /**
+   * Die dienstliche Adresse — dieselbe, die im Haus ohnehin auf jedem
+   * Verteiler steht. Bewusst **nichts** darüber hinaus: Wochenstunden,
+   * Urlaubstage und Zeitkonto sind Vertragsdaten und stehen nur dort, wo die
+   * Seite ohnehin schon dafür berechtigt ist (/team, /mitarbeiter).
+   */
+  email?: string;
+}
+
+/**
+ * Die eine Stelle, an der eine Benutzerzeile zur Personenangabe wird.
+ *
+ * Rolle und Adresse kommen mit, wenn die Zeile sie trägt — die meisten kommen
+ * direkt aus `users`. Wo sie fehlen, holt die Personenkarte sie beim Öffnen
+ * über `/api/person/<id>` nach; sie sind eine Zugabe, keine Voraussetzung.
+ */
+export function personAngabe(user: {
+  id: number;
+  name: string;
+  role?: string;
+  email?: string;
+  avatar_key?: AvatarKey;
+  avatar_datei?: string | null;
+}): PersonAngabe {
+  return {
+    id: user.id,
+    name: user.name,
+    bild: avatarQuelle(user),
+    ...(user.role ? {rolle: user.role} : {}),
+    ...(user.email ? {email: user.email} : {}),
+  };
 }

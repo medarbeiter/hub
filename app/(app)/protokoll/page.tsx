@@ -8,6 +8,8 @@ import {ProtokollListe, type ProtokollZeile} from '@/components/protokoll-liste'
 import {Sinnbild} from '@/components/sinnbilder';
 import {ZeitRahmen} from '@/components/zeit-rahmen';
 import {requireUser} from '@/lib/auth';
+import {personAngabe} from '@/lib/avatar';
+import {allUsers} from '@/lib/users';
 import {hatRecht} from '@/lib/rechte';
 import {istMonatJahrBereich, type MonatJahrBereich} from '@/lib/bereiche';
 import {bundeslandFor} from '@/lib/daytypes';
@@ -138,11 +140,16 @@ export default async function ProtokollPage({searchParams}: PageProps) {
     if (feiertage.has(d) || dailySollMinutes(user, d) === 0) ruhetage.push(d);
   }
 
+  /* Die Gesichter zu den eingefrorenen Namen. Ein Nachschlagewerk, kein Teil
+     des Protokolls: gelöschte oder unbekannte Akteure fehlen hier einfach. */
+  const gesichter = new Map(allUsers().map((u) => [u.id, personAngabe(u)]));
+
   const zeilen: ProtokollZeile[] = eintraege.map((e) => ({
     id: e.id,
     tag: fmtDateMitWochentag(e.ts.slice(0, 10)),
     uhrzeit: e.ts.slice(11, 16),
     akteur: e.akteur_name,
+    akteurBild: (e.akteur_id != null && gesichter.get(e.akteur_id)) || null,
     akteurRolle: e.akteur_rolle,
     betroffen: e.betroffen_name,
     bereich: e.bereich,

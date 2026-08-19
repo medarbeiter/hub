@@ -1,8 +1,10 @@
 import {Badge, HStack, StatusDot, Text, VStack} from '@astryxdesign/core';
 import {requireRecht} from '@/lib/auth';
+import {personAngabe} from '@/lib/avatar';
 import {fmtDuration, nowMinutes, segmentPoints, spanOf, todayISO} from '@/lib/format';
 import {activeUsers, clockState, dayRecord, stalePastOpenSegments} from '@/lib/time';
 import {TagLeiste} from '@/components/bereichs-leiste';
+import {PersonenReihe} from '@/components/person-zeichen';
 import {PersonenTafel, type PersonenZeile} from '@/components/personen-tafel';
 import {Sinnbild} from '@/components/sinnbilder';
 import {Tagesbahn} from '@/components/tagesbahn';
@@ -39,6 +41,7 @@ export default async function TeamPage({searchParams}: PageProps) {
   const presentCount = rows.filter((r) => r.state?.status === 'arbeit').length;
   const pauseCount = rows.filter((r) => r.state?.status === 'pause').length;
   const offeneTage = rows.reduce((sum, r) => sum + r.anomalies, 0);
+  const anwesende = rows.filter((r) => r.state?.status === 'arbeit').map((r) => personAngabe(r.user));
 
   /**
    * Der laufende Zustand sortiert, statt zu gruppieren.
@@ -56,6 +59,7 @@ export default async function TeamPage({searchParams}: PageProps) {
   const zeilen: PersonenZeile[] = rows.map(({user, record, state, anomalies}) => ({
     id: user.id,
     name: user.name,
+    person: personAngabe(user),
     unterzeile: `${Math.round(user.weekly_minutes / 60)} Std./Woche`,
     href: `/team/${user.id}?tag=${date}`,
     istMin: record.segments.length > 0 ? record.summary.workedMin : null,
@@ -114,13 +118,26 @@ export default async function TeamPage({searchParams}: PageProps) {
           : `${rows.length} Mitarbeiter an diesem Tag`
       }
       figurMeta={
-        offeneTage > 0 ? (
-          <Badge
-            variant="warning"
-            label={offeneTage === 1 ? '1 offener Tag im Team' : `${offeneTage} offene Tage im Team`}
-            icon={<Sinnbild sinn="ohneEnde" groesse="zeile" />}
-          />
-        ) : null
+        <>
+          {/* Die Zahl daneben in Gesichtern: „3 von 11" sagt wie viele, die
+              Reihe sagt wer — und genau das ist die Frage, wegen der jemand
+              diese Seite an einem laufenden Tag aufmacht. Nur heute, denn an
+              einem vergangenen Tag steht dort keine Anwesenheit mehr. */}
+          {isToday && anwesende.length > 0 && (
+            <PersonenReihe
+              personen={anwesende}
+              beschriftung={`${anwesende.length} eingestempelt`}
+              href={(p) => `/team/${p.id}?tag=${date}`}
+            />
+          )}
+          {offeneTage > 0 && (
+            <Badge
+              variant="warning"
+              label={offeneTage === 1 ? '1 offener Tag im Team' : `${offeneTage} offene Tage im Team`}
+              icon={<Sinnbild sinn="ohneEnde" groesse="zeile" />}
+            />
+          )}
+        </>
       }
       nav={<TagLeiste route="/team" tag={date} today={today} />}
       belege={

@@ -7,7 +7,9 @@ import {abwesenheitGenehmigenAction, abwesenheitZurueckweisenAction} from '@/app
 import {ART_LABEL, STATUS_LABEL, fmtTage, fmtUmfang} from '@/lib/abwesenheit-arten';
 import type {AbwesenheitArt, AbwesenheitStatus} from '@/lib/db';
 import {fmtDateRange} from '@/lib/format';
+import type {PersonAngabe} from '@/lib/avatar';
 import {useMelde} from './melde';
+import {PersonZeichen} from './person-zeichen';
 import {PruefStapel} from './pruef-stapel';
 import {STATUS_VARIANT} from './abwesenheit-stapel';
 import {ABWESENHEIT_STATUS_SINN, Sinnbild} from './sinnbilder';
@@ -15,6 +17,8 @@ import {ABWESENHEIT_STATUS_SINN, Sinnbild} from './sinnbilder';
 export interface PruefZeile {
   id: number;
   userName: string;
+  /** Das Profilzeichen derselben Person. */
+  person?: PersonAngabe | null;
   von: string;
   bis: string;
   art: AbwesenheitArt;
@@ -44,7 +48,14 @@ export interface PruefZeile {
  * Eine Reise ist geschehen und wird nachgerechnet; ein Urlaubsantrag ist eine
  * Entscheidung über eine Woche, in der jemand fehlen wird.
  */
-export function AbwesenheitPruefListe({zeilen}: {zeilen: PruefZeile[]}) {
+export function AbwesenheitPruefListe({
+  zeilen,
+  zeigeId,
+}: {
+  zeilen: PruefZeile[];
+  /** Der aus dem Teamkalender benannte Antrag (`?offen=`). */
+  zeigeId?: number | null;
+}) {
   /* „Rest danach" stimmt nur, solange noch entschieden wird. Bei einem bereits
      genehmigten Antrag ist es schlicht der Rest — die Spalte sagt deshalb,
      worauf sie sich in dieser Auswahl bezieht, statt eine Zukunft zu behaupten,
@@ -53,6 +64,7 @@ export function AbwesenheitPruefListe({zeilen}: {zeilen: PruefZeile[]}) {
 
   return (
     <PruefStapel
+      zeigeId={zeigeId}
       spalten={[
         {kopf: 'Tage', breite: 88},
         {kopf: restKopf, breite: 88},
@@ -63,6 +75,7 @@ export function AbwesenheitPruefListe({zeilen}: {zeilen: PruefZeile[]}) {
       eintraege={zeilen.map((z) => ({
         id: z.id,
         person: z.userName,
+        personBild: z.person ?? null,
         zeitraum: fmtDateRange(z.von, z.bis),
         gegenstand: (
           <>
@@ -123,6 +136,17 @@ function Entscheidung({zeile: z}: {zeile: PruefZeile}) {
 
   return (
     <VStack gap={3}>
+      {/* Wer da gefragt hat, im Arbeitsmaß — in der Zeile darüber steht das
+          Zeichen zeilenklein zwischen zwölf anderen, hier wird über genau
+          diesen einen Menschen entschieden. */}
+      <PersonZeichen
+        person={z.person ?? null}
+        ersatzName={z.userName}
+        groesse="karte"
+        mitName
+        betont
+        unterzeile={`${ART_LABEL[z.art]} · ${fmtDateRange(z.von, z.bis)}`}
+      />
       <HStack gap={3} vAlign="center" wrap="wrap">
         <Text type="supporting" color="secondary" hasTabularNumbers>
           {z.kalendertage} {z.kalendertage === 1 ? 'Kalendertag' : 'Kalendertage'} ·{' '}

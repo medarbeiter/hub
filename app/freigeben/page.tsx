@@ -3,6 +3,8 @@ import {redirect} from 'next/navigation';
 import {Card, Heading, HStack, Text, VStack} from '@astryxdesign/core';
 import {getSessionUser} from '@/lib/auth';
 import {AbsendeKnopf} from '@/components/absende-knopf';
+import {PersonZeichen} from '@/components/person-zeichen';
+import {personAngabe} from '@/lib/avatar';
 import {oauthClientById} from '@/lib/oauth-apps';
 import {onboardingIstFertig} from '@/lib/onboarding';
 
@@ -44,12 +46,19 @@ export default async function FreigabeSeite({
               <Heading level={1}>Anmeldung freigeben</Heading>
             </HStack>
             <VStack gap={4} padding={5}>
-              <Text>
-                {client.name} möchte dich über MedArbeiter anmelden. Du bist angemeldet als {user.name}.
-              </Text>
+              {/* Welches Konto hier gleich weitergereicht wird, ist die eine
+                  Frage dieser Seite — sie steht deshalb als Person da und
+                  nicht als Nebensatz. */}
+              <PersonZeichen
+                person={personAngabe(user)}
+                groesse="karte"
+                mitName
+                betont
+                unterzeile={user.email}
+              />
+              <Text>{client.name} möchte dich über MedArbeiter anmelden – mit diesem Konto.</Text>
               <Text type="supporting" color="secondary">
-                Die App erfährt dabei Name, E-Mail-Adresse, Rolle und Rechte deines Kontos
-                ({user.email}).
+                Die App erfährt dabei Name, E-Mail-Adresse, Rolle und Rechte deines Kontos.
               </Text>
               <FreigabeFormulare clientId={client.client_id} redirectUri={redirect_uri} state={state} />
             </VStack>

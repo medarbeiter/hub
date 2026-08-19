@@ -2,9 +2,11 @@ import {Heading, HStack, Text, VStack} from '@astryxdesign/core';
 import Link from 'next/link';
 import {notFound} from 'next/navigation';
 import {requireRecht} from '@/lib/auth';
+import {personAngabe} from '@/lib/avatar';
 import {addDays, fmtDate, fmtDurationSigned, todayISO} from '@/lib/format';
 import {getUser, zeitkontoSummary} from '@/lib/time';
 import {KontoTafel} from '@/components/konto-tafel';
+import {PersonZeichen} from '@/components/person-zeichen';
 import {KontoHerleitung} from '@/components/kontext-rail';
 import {Sinnbild} from '@/components/sinnbilder';
 
@@ -34,8 +36,11 @@ export default async function TeamKontoPage({params}: PageProps) {
             </Text>
           </HStack>
         </Link>
-        <HStack gap={2} vAlign="center">
-          <Sinnbild sinn="konto" groesse="gross" ton="sekundaer" />
+        {/* Kein Kontozeichen daneben: die Überschrift sagt „Zeitkonto"
+            bereits, das Gesicht sagt wessen — zwei Zeichen wären eines zu
+            viel, und von beiden trägt das Gesicht die Auskunft. */}
+        <HStack gap={3} vAlign="center">
+          <PersonZeichen person={personAngabe(user)} groesse="gross" />
           <Heading level={1}>Zeitkonto – {user.name}</Heading>
         </HStack>
         <HStack gap={2} vAlign="end" wrap="wrap">

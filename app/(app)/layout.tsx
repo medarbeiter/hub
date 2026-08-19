@@ -2,6 +2,7 @@ import {AppShell} from '@astryxdesign/core';
 import {after} from 'next/server';
 import type {ReactNode} from 'react';
 import {requireUser} from '@/lib/auth';
+import {personAngabe} from '@/lib/avatar';
 import {AppHinweis} from '@/components/app-hinweis';
 import {AppNav} from '@/components/app-nav';
 import {AttentionToast} from '@/components/attention-toast';
@@ -9,6 +10,7 @@ import {ClockBar} from '@/components/clock-bar';
 import {ClockProvider} from '@/components/clock-provider';
 import {KopfSichtProvider} from '@/components/kopf-deckung';
 import {SprungmarkeDeutsch} from '@/components/sprungmarke';
+import {ZugangMerker} from '@/components/zugang-merker';
 import {attentionIssues, correctionQueue, excusedDays} from '@/lib/attention';
 import {navZaehler} from '@/lib/schnellzugriff';
 import {erinnerungslaufFaellig} from '@/lib/erinnerungen';
@@ -87,9 +89,12 @@ export default async function AppLayout({children}: {children: ReactNode}) {
               name={user.name}
               role={user.role}
               rechte={user.rechte ?? []}
-              avatar={persoenlich.avatar}
-              eigenesBild={Boolean(user.avatar_datei)}
-              userId={user.id}
+              person={personAngabe({
+                id: user.id,
+                name: user.name,
+                avatar_key: persoenlich.avatar,
+                avatar_datei: user.avatar_datei,
+              })}
               heute={today}
               zaehler={navZaehler(user, queue.length)}
             />
@@ -97,6 +102,10 @@ export default async function AppLayout({children}: {children: ReactNode}) {
           height="auto"
           contentPadding={0}
         >
+          {/* Merkt dieses Gerät sich das Konto für die nächste Anmeldung —
+              aus der bestehenden Sitzung, damit die Anmeldeseite selbst
+              niemanden nachschlagen muss. */}
+          <ZugangMerker person={personAngabe(user)} email={user.email} />
           <SprungmarkeDeutsch />
           <ClockBar />
           {/* Zeichnet nichts an dieser Stelle: die Aufmerksamkeitsmeldung

@@ -51,6 +51,10 @@ export interface OnboardingProfil {
 }
 
 export interface EinrichtungsDaten {
+  /** Wessen Einrichtung — der Bildschritt lädt damit gegen `/api/avatar`. */
+  userId: number;
+  /** Ob schon ein eigenes Foto liegt: der Bildschritt zeigt es dann zum Ersetzen. */
+  hatProfilbild: boolean;
   profil: OnboardingProfil;
   initial: PersoenlicheEinstellungen;
   passwortwechselNoetig: boolean;
@@ -103,6 +107,8 @@ export function onboardingIstFertig(userId: number): boolean {
 
 export function einrichtungsDaten(user: User): EinrichtungsDaten {
   return {
+    userId: user.id,
+    hatProfilbild: Boolean(user.avatar_datei),
     profil: onboardingProfil(user),
     initial: persoenlicheEinstellungen(user.id),
     passwortwechselNoetig: mussPasswortAendern(user.id),

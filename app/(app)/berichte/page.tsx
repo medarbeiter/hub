@@ -1,6 +1,7 @@
 import {Badge, Button, HStack, Text, VStack} from '@astryxdesign/core';
 import Link from 'next/link';
 import {requireRecht} from '@/lib/auth';
+import {personAngabe} from '@/lib/avatar';
 import {addDays, addMonths, daysInMonth, fmtDuration, fmtDurationSigned, monthOf, todayISO} from '@/lib/format';
 import {activeUsers, monthRecord, zeitkontoBalance} from '@/lib/time';
 import {dayTypeCounts} from '@/lib/daytypes';
@@ -51,6 +52,7 @@ export default async function BerichtePage({searchParams}: PageProps) {
   const zeilen: PersonenZeile[] = rows.map(({user, record, zeitkonto, trend, abwesenheit}) => ({
     id: user.id,
     name: user.name,
+    person: personAngabe(user),
     unterzeile: `${Math.round(user.weekly_minutes / 60)} Std./Woche`,
     istMin: record.workedMin,
     sollMin: record.sollMin,

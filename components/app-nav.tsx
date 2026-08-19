@@ -18,7 +18,7 @@ import {LinkPuls} from './verweis';
 import {usePathname} from 'next/navigation';
 import {useEffect, useState, useTransition, type ComponentProps, type ReactNode} from 'react';
 import {logoutAction} from '@/app/actions';
-import type {AvatarKey} from '@/lib/avatar';
+import type {PersonAngabe} from '@/lib/avatar';
 import type {NavZaehler} from '@/lib/schnellzugriff';
 import {fmtDuration, fmtMonth, fmtTime, monthOf} from '@/lib/format';
 import {useClockOptional} from './clock-provider';
@@ -35,17 +35,15 @@ import {
 import {NavTagesstand} from './nav-tagesstand';
 import {rolleLabel, type Recht, type Rolle} from '@/lib/rechte';
 import {Sinnbild, gefuellt, umriss} from './sinnbilder';
-import {TierAvatar} from './tier-avatar';
+import {PersonZeichen} from './person-zeichen';
 
 interface AppNavProps {
   name: string;
   role: Rolle;
   /** Wirksame Rechte der Sitzung — die Leiste zeigt nur, was der Rechteschnitt hergibt. */
   rechte: Recht[];
-  avatar: AvatarKey;
+  person: PersonAngabe;
   /** Ob die angemeldete Person ein eigenes Profilbild hinterlegt hat. */
-  eigenesBild: boolean;
-  userId: number;
   heute: string;
   zaehler: NavZaehler;
 }
@@ -80,7 +78,7 @@ const NextLink = (props: ComponentProps<'a'>) => (
   </Link>
 );
 
-export function AppNav({name, role, rechte, avatar, eigenesBild, userId, heute, zaehler}: AppNavProps) {
+export function AppNav({name, role, rechte, person, heute, zaehler}: AppNavProps) {
   const pathname = usePathname();
   const clock = useClockOptional();
   const darf = (recht: Recht) => rechte.includes(recht);
@@ -178,9 +176,7 @@ export function AppNav({name, role, rechte, avatar, eigenesBild, userId, heute, 
           <Kontozeile
             name={name}
             role={role}
-            avatar={avatar}
-            eigenesBild={eigenesBild}
-            userId={userId}
+            person={person}
             eingeklappt={eingeklappt}
           />
         </>
@@ -694,16 +690,12 @@ function MeineZeitEintrag({
 function Kontozeile({
   name,
   role,
-  avatar,
-  eigenesBild,
-  userId,
+  person,
   eingeklappt,
 }: {
   name: string;
   role: Rolle;
-  avatar: AvatarKey;
-  eigenesBild: boolean;
-  userId: number;
+  person: PersonAngabe;
   eingeklappt: boolean;
 }) {
   const abmelden = (
@@ -727,7 +719,7 @@ function Kontozeile({
           title={`${name} · Persönliche Einstellungen`}
           aria-label="Persönliche Einstellungen öffnen"
         >
-          <Namenszeichen avatar={avatar} eigenesBild={eigenesBild} userId={userId} />
+          <Namenszeichen person={person} />
         </NextLink>
         {abmelden}
       </VStack>
@@ -749,7 +741,7 @@ function Kontozeile({
           className="kontozeile-profil"
           aria-label="Persönliche Einstellungen öffnen"
         >
-          <Namenszeichen avatar={avatar} eigenesBild={eigenesBild} userId={userId} />
+          <Namenszeichen person={person} />
           <VStack gap={0}>
             <Text type="label" size="sm" weight="medium" maxLines={1}>
               {name}
@@ -770,15 +762,12 @@ function Kontozeile({
  * Die gewählte lokale Profilfigur im Fuß. Sie ist kein Foto und trägt keine
  * weitere Personenangabe; der Name daneben beziehungsweise die Beschriftung
  * des Links sagt weiterhin, wer angemeldet ist.
+ *
+ * Ohne Personenkarte, als eine von zwei Ausnahmen im Haus: die ganze Zeile ist
+ * schon ein Verweis auf `/profil`, und ein Knopf in einem Verweis ist kein
+ * gültiges HTML. Verloren geht dabei nichts — das Ziel dieses Verweises ist
+ * dieselbe Person, nur ausführlicher.
  */
-function Namenszeichen({
-  avatar,
-  eigenesBild,
-  userId,
-}: {
-  avatar: AvatarKey;
-  eigenesBild: boolean;
-  userId: number;
-}) {
-  return <TierAvatar avatar={avatar} eigenesBild={eigenesBild} userId={userId} />;
+function Namenszeichen({person}: {person: PersonAngabe}) {
+  return <PersonZeichen person={person} groesse="karte" karte={false} />;
 }

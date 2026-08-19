@@ -1,3 +1,4 @@
+import {personAngabe, type AvatarKey, type PersonAngabe} from './avatar';
 import {getDb, type Role, type User} from './db';
 import {isBundesland} from './feiertage';
 import {ROLLEN, hatRecht, istRecht, istRolle, type Recht} from './rechte';
@@ -78,10 +79,28 @@ export function setzeAbbestellteArten(userId: number, arten: MailArt[]): void {
 export function allUsers(): VerwalteterUser[] {
   const rows = getDb()
     .query<User, []>(
-      'SELECT id, email, name, role, weekly_minutes, active, created_at, bundesland, urlaubstage_jahr FROM users ORDER BY active DESC, name',
+      `SELECT id, email, name, role, weekly_minutes, active, created_at, bundesland, urlaubstage_jahr,
+              avatar_key, avatar_datei
+         FROM users ORDER BY active DESC, name`,
     )
     .all();
   return rows.map((u) => ({...u, extra_rechte: zusatzRechte(u.id)}));
+}
+
+/**
+ * Die Personenangabe eines einzelnen Kontos — was die Personenkarte nachlädt,
+ * wenn die Liste, aus der sie geöffnet wurde, nur Name und Bild mitgeschickt
+ * hat. Bewusst dieselbe Angabe wie überall (`personAngabe`), damit die Karte
+ * nichts zeigen kann, was eine Zeile nicht auch zeigen dürfte.
+ */
+export function personAngabeById(userId: number): PersonAngabe | null {
+  const row = getDb()
+    .query<
+      {id: number; name: string; role: string; email: string; avatar_key: AvatarKey; avatar_datei: string | null},
+      [number]
+    >('SELECT id, name, role, email, avatar_key, avatar_datei FROM users WHERE id = ?')
+    .get(userId);
+  return row ? personAngabe(row) : null;
 }
 
 function validateUserInput(input: UserInput, excludeId?: number): string | null {
