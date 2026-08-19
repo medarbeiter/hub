@@ -348,6 +348,11 @@ export const SINNBILD = {
   // ── Schrittwerk ──────────────────────────────────────────────────────────
   zurueck: TiChevronLeft,
   weiter: TiChevronRight,
+  /* Die Seitenleiste zur Zeichenspalte zusammenziehen und wieder auf. Dasselbe
+     Zeichen wie `zurueck`/`weiter`, aber nicht dieselbe Bedeutung: hier bewegt
+     sich die Leiste, dort der Zeitraum. */
+  einklappen: TiChevronLeft,
+  ausklappen: TiChevronRight,
   aufklappen: TiArrowSortedDown,
   /** Zu einem anderen Ding hin — nicht ein Zeitraum weiter. */
   hin: TiArrowRight,

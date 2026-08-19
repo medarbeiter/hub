@@ -812,8 +812,11 @@ html {
 }
 
 /* Die Kontozeile im Fuß: dieselbe Trefferfläche und dieselbe Hinterlegung wie
-   ein Navigationseintrag, damit der Fuß nicht als Rest wirkt, der übrig blieb. */
+   ein Navigationseintrag, damit der Fuß nicht als Rest wirkt, der übrig blieb.
+   Sie nimmt die Breite, die der Griff für die Schiene daneben übrig lässt. */
 .kontozeile {
+  flex: 1;
+  min-inline-size: 0;
   border-radius: var(--radius-inner);
   transition: background-color var(--takt-tupf) var(--schwung-an);
 }

@@ -4,7 +4,6 @@ import {
   Button,
   HStack,
   SideNav,
-  SideNavCollapseButton,
   SideNavHeading,
   SideNavItem,
   SideNavSection,
@@ -181,6 +180,7 @@ export function AppNav({name, role, rechte, person, heute, zaehler}: AppNavProps
             role={role}
             person={person}
             eingeklappt={eingeklappt}
+            umschalten={() => schiene(!eingeklappt)}
           />
         </>
       }
@@ -695,11 +695,13 @@ function Kontozeile({
   role,
   person,
   eingeklappt,
+  umschalten,
 }: {
   name: string;
   role: Rolle;
   person: PersonAngabe;
   eingeklappt: boolean;
+  umschalten: () => void;
 }) {
   const abmelden = (
     <form action={logoutAction}>
@@ -713,14 +715,28 @@ function Kontozeile({
     </form>
   );
 
-  /* Der Griff für die Schiene steht bei den Zeichen der Kontozeile und nicht
-     in einer eigenen Reihe darunter (`hasButton: false` an der Leiste): eine
-     Reihe für einen einzigen Knopf schob den Fuß um ihre volle Höhe von der
-     unteren Kante weg, und der Knopf saß dabei links unter dem Namen — dort,
-     wo im Entwicklungsbetrieb ohnehin die Next-Marke liegt. Eingeklappt bleibt
-     er ebenfalls stehen: er ist der einzige Weg zurück. */
+  /* Der Griff für die Schiene steht neben der Kontozeile, nicht in ihr, und
+     nicht in einer eigenen Reihe darunter (`hasButton: false` an der Leiste).
+     Die eigene Reihe schob den Fuß um ihre volle Höhe von der unteren Kante
+     weg; *in* der Karte stand er dagegen unter derselben Hinterlegung wie
+     Name, Rolle und Einstellungen — er sagt aber nichts über die angemeldete
+     Person, sondern über die Leiste. Eingeklappt bleibt er stehen: er ist der
+     einzige Weg zurück.
+
+     Astryx' eigener `SideNavCollapseButton` steht hier nicht, obwohl er
+     dasselbe täte: sein Winkel kommt aus Astryx' Zeichensatz und seine Größe
+     ist nicht einstellbar (`size` ist an ihm nicht typisiert), er stand also
+     als einziges fremdes, größeres Zeichen neben Zahnrad und Abmelden. Der
+     Zustand gehört ohnehin dieser Datei — es fehlt nur der Knopf dazu. */
   const schiene = (
-    <SideNavCollapseButton label={eingeklappt ? 'Leiste ausklappen' : 'Leiste einklappen'} />
+    <Button
+      label={eingeklappt ? 'Leiste ausklappen' : 'Leiste einklappen'}
+      variant="ghost"
+      size="sm"
+      isIconOnly
+      icon={<Sinnbild sinn={eingeklappt ? 'ausklappen' : 'einklappen'} />}
+      onClick={umschalten}
+    />
   );
 
   if (eingeklappt) {
@@ -741,7 +757,7 @@ function Kontozeile({
   }
 
   return (
-    <VStack paddingInline={2} paddingBlock={3}>
+    <HStack paddingInline={2} paddingBlock={3} gap={1} vAlign="center" wrap="nowrap">
       <HStack
         className="kontozeile"
         gap={2}
@@ -767,9 +783,9 @@ function Kontozeile({
           <Sinnbild sinn="einstellungen" ton="sekundaer" />
         </NextLink>
         {abmelden}
-        {schiene}
       </HStack>
-    </VStack>
+      {schiene}
+    </HStack>
   );
 }
 
