@@ -37,3 +37,7 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .next
 next-env.d.ts
 data/
+
+# Claude Code (Zustand dieser Maschine, nicht des Hauses)
+.claude/settings.local.json
+.claude/.headroom_wrap_marker.json
