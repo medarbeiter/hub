@@ -4,6 +4,7 @@ import {
   Button,
   HStack,
   SideNav,
+  SideNavCollapseButton,
   SideNavHeading,
   SideNavItem,
   SideNavSection,
@@ -157,7 +158,9 @@ export function AppNav({name, role, rechte, person, heute, zaehler}: AppNavProps
       collapsible={{
         isCollapsed: eingeklappt,
         onCollapsedChange: schiene,
-        buttonLabel: eingeklappt ? 'Leiste ausklappen' : 'Leiste einklappen',
+        // Der Griff steht in der Kontozeile, nicht in einer eigenen Reihe
+        // darunter — siehe Kontozeile().
+        hasButton: false,
       }}
       header={
         // 40 px, nicht 28: die Marke ankert die Ecke der Anwendung und darf
@@ -710,6 +713,16 @@ function Kontozeile({
     </form>
   );
 
+  /* Der Griff für die Schiene steht bei den Zeichen der Kontozeile und nicht
+     in einer eigenen Reihe darunter (`hasButton: false` an der Leiste): eine
+     Reihe für einen einzigen Knopf schob den Fuß um ihre volle Höhe von der
+     unteren Kante weg, und der Knopf saß dabei links unter dem Namen — dort,
+     wo im Entwicklungsbetrieb ohnehin die Next-Marke liegt. Eingeklappt bleibt
+     er ebenfalls stehen: er ist der einzige Weg zurück. */
+  const schiene = (
+    <SideNavCollapseButton label={eingeklappt ? 'Leiste ausklappen' : 'Leiste einklappen'} />
+  );
+
   if (eingeklappt) {
     return (
       <VStack gap={1} paddingInline={2} paddingBlock={3} align="center">
@@ -722,6 +735,7 @@ function Kontozeile({
           <Namenszeichen person={person} />
         </NextLink>
         {abmelden}
+        {schiene}
       </VStack>
     );
   }
@@ -753,6 +767,7 @@ function Kontozeile({
           <Sinnbild sinn="einstellungen" ton="sekundaer" />
         </NextLink>
         {abmelden}
+        {schiene}
       </HStack>
     </VStack>
   );

@@ -11,11 +11,6 @@ export interface CredentialAntwort {
   credential?: string;
 }
 
-export interface CodeAntwort {
-  code?: string;
-  error?: string;
-}
-
 declare global {
   interface Window {
     google?: {
@@ -42,15 +37,6 @@ declare global {
           prompt(): void;
           cancel(): void;
         };
-        oauth2: {
-          initCodeClient(config: {
-            client_id: string;
-            scope: string;
-            ux_mode: 'popup';
-            hint?: string;
-            callback: (antwort: CodeAntwort) => void;
-          }): {requestCode(): void};
-        };
       };
     };
   }
@@ -76,16 +62,4 @@ export function mitGis(starte: () => void): () => void {
   }
   skript.addEventListener('load', starte);
   return () => skript.removeEventListener('load', starte);
-}
-
-/** Nur ein Blick, kein Nachweis: die E-Mail aus dem Payload eines ID-Tokens. */
-export function emailAusIdToken(credential: string): string | undefined {
-  const mitte = credential.split('.')[1];
-  if (!mitte) return undefined;
-  try {
-    const payload = JSON.parse(atob(mitte.replace(/-/g, '+').replace(/_/g, '/')));
-    return typeof payload.email === 'string' ? payload.email : undefined;
-  } catch {
-    return undefined;
-  }
 }

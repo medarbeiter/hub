@@ -1,7 +1,7 @@
 import {NextResponse, type NextRequest} from 'next/server';
 import {getSessionUser} from '@/lib/auth';
 import {getDb} from '@/lib/db';
-import {speichereGoogleKonto, tauscheGoogleCode} from '@/lib/google';
+import {appBasis, speichereGoogleKonto, tauscheGoogleCode} from '@/lib/google';
 import {syncGoogleAbwesenheiten} from '@/lib/google-kalender';
 import {protokolliere} from '@/lib/protokoll';
 
@@ -14,6 +14,7 @@ import {protokolliere} from '@/lib/protokoll';
  */
 export async function GET(request: NextRequest): Promise<Response> {
   const url = request.nextUrl;
+  const basis = appBasis(url.origin);
   const cookie = request.cookies.get('google_oauth_state')?.value ?? '';
   const trenner = cookie.indexOf('|');
   const erwarteterState = trenner === -1 ? '' : cookie.slice(0, trenner);
@@ -21,13 +22,13 @@ export async function GET(request: NextRequest): Promise<Response> {
   const zurueck = cookieZiel === '/profil' ? '/profil' : cookieZiel === '/new/login' ? '/new/login' : '/login';
 
   const weiter = (ergebnis: string): NextResponse => {
-    const antwort = NextResponse.redirect(new URL(`${zurueck}?google=${ergebnis}`, url.origin));
+    const antwort = NextResponse.redirect(new URL(`${zurueck}?google=${ergebnis}`, basis));
     antwort.cookies.delete({name: 'google_oauth_state', path: '/api/google'});
     return antwort;
   };
 
   const user = await getSessionUser();
-  if (!user) return NextResponse.redirect(new URL('/login', url.origin));
+  if (!user) return NextResponse.redirect(new URL('/login', basis));
 
   if (url.searchParams.get('error')) {
     protokolliere({
@@ -46,7 +47,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     return weiter('fehler');
   }
 
-  const tausch = await tauscheGoogleCode(url.origin, code);
+  const tausch = await tauscheGoogleCode(basis, code);
   if (typeof tausch === 'string') {
     protokolliere({
       akteur: user,

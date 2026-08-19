@@ -1,7 +1,7 @@
 import {afterEach, beforeEach, describe, expect, test} from 'bun:test';
 import type {Database} from 'bun:sqlite';
 import {createDb, setDbForTesting} from '../lib/db';
-import {benutzerFuerGoogleLogin, pruefeIdToken} from '../lib/google';
+import {appBasis, benutzerFuerGoogleLogin, googleRedirectUri, pruefeIdToken} from '../lib/google';
 
 let db: Database;
 
@@ -84,5 +84,28 @@ describe('pruefeIdToken', () => {
   test('ein gültiges Token liefert sub und email', async () => {
     antwortet(200, {aud: 'test-id', iss: 'https://accounts.google.com', sub: 's-1', email: 'x@y.de', email_verified: 'true'});
     expect(await pruefeIdToken('token')).toEqual({sub: 's-1', email: 'x@y.de'});
+  });
+});
+
+// Die Basis eines Rücksprungs ist APP_URL, nie der vom Request gesehene
+// Origin: Next leitet den aus der Bindeadresse des Servers ab und liefert im
+// Entwicklungsbetrieb `https://0.0.0.0:3000` — eine Adresse, an die kein
+// Browser zurückfindet.
+describe('appBasis', () => {
+  const vorher = process.env.APP_URL;
+  afterEach(() => {
+    if (vorher === undefined) delete process.env.APP_URL;
+    else process.env.APP_URL = vorher;
+  });
+
+  test('APP_URL schlägt den Origin des Requests', () => {
+    process.env.APP_URL = 'https://zeit.example.de/';
+    expect(appBasis('https://0.0.0.0:3000')).toBe('https://zeit.example.de');
+    expect(googleRedirectUri('https://0.0.0.0:3000')).toBe('https://zeit.example.de/api/google/callback');
+  });
+
+  test('ohne APP_URL bleibt der Origin die Notlösung', () => {
+    delete process.env.APP_URL;
+    expect(appBasis('http://localhost:3000')).toBe('http://localhost:3000');
   });
 });

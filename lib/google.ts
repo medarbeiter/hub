@@ -38,13 +38,18 @@ export function googleKonfiguriert(): boolean {
 }
 
 /**
- * Die Basis, unter der Google zurückruft. Hinter einem Proxy stimmt der vom
- * Request gesehene Origin nicht — dann sagt APP_URL, wie die Anwendung von
- * außen heißt.
+ * Die Basis, unter der die Anwendung von außen erreichbar ist. Der vom Request
+ * gesehene Origin taugt dafür nicht: Next leitet ihn aus der Bindeadresse des
+ * Servers ab, im Entwicklungsbetrieb also `https://0.0.0.0:3000` — eine
+ * Adresse, die kein Browser öffnen kann. APP_URL sagt, wie die Anwendung
+ * wirklich heißt; nur ohne sie bleibt der Origin die Notlösung.
  */
+export function appBasis(origin: string): string {
+  return process.env.APP_URL?.replace(/\/$/, '') || origin;
+}
+
 export function googleRedirectUri(origin: string): string {
-  const basis = process.env.APP_URL?.replace(/\/$/, '') || origin;
-  return `${basis}/api/google/callback`;
+  return `${appBasis(origin)}/api/google/callback`;
 }
 
 export function googleAuthUrl(origin: string, state: string, loginHint?: string): string {
@@ -99,15 +104,9 @@ export interface GoogleTausch {
 
 /**
  * Tauscht den Autorisierungscode gegen Tokens; ein String ist die deutsche
- * Fehlermeldung. `redirectUri` überschreibt den Rückruf-Weg: der Popup-Fluss
- * des eingebetteten Google-Knopfs liefert seinen Code per postMessage statt
- * per Weiterleitung, und Google verlangt dann wörtlich `postmessage` als URI.
+ * Fehlermeldung.
  */
-export async function tauscheGoogleCode(
-  origin: string,
-  code: string,
-  redirectUri?: string,
-): Promise<GoogleTausch | string> {
+export async function tauscheGoogleCode(origin: string, code: string): Promise<GoogleTausch | string> {
   if (!googleKonfiguriert()) return 'Die Google-Anbindung ist nicht konfiguriert.';
   const antwort = await fetch(TOKEN_ENDPOINT, {
     method: 'POST',
@@ -116,7 +115,7 @@ export async function tauscheGoogleCode(
       client_id: process.env.GOOGLE_CLIENT_ID!,
       client_secret: process.env.GOOGLE_CLIENT_SECRET!,
       grant_type: 'authorization_code',
-      redirect_uri: redirectUri ?? googleRedirectUri(origin),
+      redirect_uri: googleRedirectUri(origin),
       code,
     }),
   });

@@ -2,11 +2,9 @@
 
 import {Alert, Button, Spinner} from '@heroui/react';
 import {useEffect, useRef, useState} from 'react';
-import {emailAusIdToken, mitGis} from '@/components/gis';
+import {mitGis} from '@/components/gis';
 import {Fehlermeldung} from './auth-flow';
 
-const KALENDER_BERECHTIGUNGEN =
-  'openid email https://www.googleapis.com/auth/calendar.events';
 const KNOPF_HOECHSTBREITE = 400;
 
 function knopfbreite(element: HTMLDivElement) {
@@ -85,8 +83,8 @@ export function GoogleAnmeldeKnopf({clientId}: {clientId: string}) {
 }
 
 /**
- * Der Einrichtungsschritt: Googles Knopf verknüpft die Identität und holt im
- * selben Zug die Kalender-Freigabe im Popup. Der Weiterleitungs-Knopf bleibt
+ * Der Einrichtungsschritt: Googles Knopf verknüpft die Identität und führt
+ * dann in denselben Weiterleitungs-Fluss wie der Knopf darunter — der bleibt
  * der Rückweg für Browser, in denen das GIS-Skript nicht lädt.
  */
 export function GoogleVerknuepfung({
@@ -111,7 +109,6 @@ export function GoogleVerknuepfung({
   gespeichert: boolean;
 }) {
   const knopfRef = useRef<HTMLDivElement | null>(null);
-  const [fehler, setFehler] = useState<string | null>(hinweis);
   const [leiteWeiter, setLeiteWeiter] = useState(false);
   const offen = useRef(false);
 
@@ -119,55 +116,22 @@ export function GoogleVerknuepfung({
     if (!konfiguriert || !clientId) return;
     let abgebrochen = false;
 
-    const verbinden = (kennung?: string) => {
-      if (offen.current || !window.google) return;
-      offen.current = true;
-      window.google.accounts.oauth2
-        .initCodeClient({
-          client_id: clientId,
-          scope: KALENDER_BERECHTIGUNGEN,
-          ux_mode: 'popup',
-          hint: kennung,
-          callback: async (antwort) => {
-            offen.current = false;
-            if (!antwort.code) {
-              if (antwort.error && antwort.error !== 'access_denied') {
-                setFehler('Die Verknüpfung mit Google ist fehlgeschlagen. Bitte versuche es erneut.');
-              }
-              return;
-            }
-            const anfrage = await fetch('/api/google/popup', {
-              method: 'POST',
-              headers: {'Content-Type': 'application/json'},
-              body: JSON.stringify({code: antwort.code}),
-            }).catch(() => null);
-            const daten = anfrage
-              ? ((await anfrage.json().catch(() => null)) as {
-                  ok?: boolean;
-                  fehler?: string;
-                } | null)
-              : null;
-            if (anfrage?.ok && daten?.ok) {
-              window.location.assign('/new/login?google=verbunden');
-            } else {
-              setFehler(
-                daten?.fehler ??
-                  'Die Verknüpfung mit Google ist fehlgeschlagen. Bitte versuche es erneut.',
-              );
-            }
-          },
-        })
-        .requestCode();
-    };
-
     const start = () => {
       if (abgebrochen || !window.google || !knopfRef.current) return;
       window.google.accounts.id.initialize({
         client_id: clientId,
         use_fedcm_for_prompt: true,
         cancel_on_tap_outside: true,
-        callback: (antwort) =>
-          verbinden(antwort.credential ? emailAusIdToken(antwort.credential) : undefined),
+        // Identität ist bestätigt — die Kalender-Freigabe holt der
+        // Weiterleitungs-Fluss, der die Sitzung ohnehin als `login_hint`
+        // mitgibt. Ein Popup aus diesem asynchronen Rückruf heraus hätte
+        // keine Benutzeraktivierung und würde geblockt.
+        callback: () => {
+          if (offen.current) return;
+          offen.current = true;
+          setLeiteWeiter(true);
+          window.location.assign('/api/google/start?zurueck=new-login');
+        },
       });
       window.google.accounts.id.renderButton(knopfRef.current, {
         type: 'standard',
@@ -195,7 +159,7 @@ export function GoogleVerknuepfung({
 
   return (
     <div className="flex flex-col gap-5">
-      {fehler && <Fehlermeldung text={fehler} />}
+      {hinweis && <Fehlermeldung text={hinweis} />}
 
       <div className="flex flex-col gap-0.5 rounded-2xl bg-surface-secondary px-5 py-4">
         <span className="text-xs text-muted">Firmen-E-Mail</span>

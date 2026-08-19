@@ -1,26 +1,22 @@
 'use client';
 
-// Der eingebettete Google-Knopf — Google Identity Services (GIS) in zwei
-// Stufen. Stufe eins ist Googles eigener, personalisierter Knopf samt
+// Der eingebettete Google-Knopf — Googles eigener, personalisierter Knopf samt
 // One-Tap-Hinweis: der Browser kennt seine Google-Sitzung, also steht dort
-// „Weiter als Jessica" mit Bild, bevor die Anwendung irgendetwas weiß. Stufe
-// zwei holt im Popup die eigentliche Berechtigung (Kalender-Scope) als
-// Autorisierungscode und reicht ihn an /api/google/popup.
+// „Weiter als Jessica" mit Bild, bevor die Anwendung irgendetwas weiß. Ein
+// Klick darauf führt in denselben Weiterleitungs-Fluss, den auch der Knopf
+// daneben nimmt (/api/google/start) — er sieht nur aus wie Google.
 //
-// Das ID-Token aus Stufe eins wird hier NUR als Vorauswahl (`hint`) für das
-// Einwilligungs-Popup benutzt und nie dem Server als Nachweis vorgelegt —
-// verbucht wird ausschließlich, was der Server selbst beim Code-Tausch von
-// Googles Token-Endpunkt zurückbekommt. Ein manipuliertes Token im Browser
-// kann damit höchstens das falsche Konto vorschlagen.
+// Die Kalender-Freigabe wurde früher direkt hier im Popup geholt. Das kann
+// nicht funktionieren: der Klick landet in Googles eigenem Rahmen, unsere
+// Seite bekommt davon keine Benutzeraktivierung, und das anschließende
+// `window.open` aus dem asynchronen Rückruf wird vom Browser als
+// unaufgeforderter Aufklapper geblockt. Der Fluss ist deshalb genau einer.
 //
 // Fällt das Skript aus (Blocker, offline), rendert dieser Baustein schlicht
 // nichts — der klassische Weiterleitungs-Knopf daneben bleibt der Rückweg.
 
-import {Banner, VStack} from '@astryxdesign/core';
-import {useEffect, useRef, useState} from 'react';
-import {emailAusIdToken, mitGis} from './gis';
-
-const KALENDER_SCOPES = 'openid email https://www.googleapis.com/auth/calendar.events';
+import {useEffect, useRef} from 'react';
+import {mitGis} from './gis';
 
 export function GoogleKnopf({
   clientId,
@@ -31,44 +27,10 @@ export function GoogleKnopf({
   zurueckPfad: '/login' | '/profil';
 }) {
   const knopfRef = useRef<HTMLDivElement | null>(null);
-  const [fehler, setFehler] = useState<string | null>(null);
   const laeuft = useRef(false);
 
   useEffect(() => {
     let beendet = false;
-
-    const einwilligung = (hint?: string) => {
-      if (laeuft.current || !window.google) return;
-      laeuft.current = true;
-      window.google.accounts.oauth2
-        .initCodeClient({
-          client_id: clientId,
-          scope: KALENDER_SCOPES,
-          ux_mode: 'popup',
-          hint,
-          callback: async (antwort) => {
-            laeuft.current = false;
-            if (!antwort.code) {
-              if (antwort.error && antwort.error !== 'access_denied') {
-                setFehler('Die Verknüpfung mit Google ist fehlgeschlagen. Bitte versuche es erneut.');
-              }
-              return;
-            }
-            const post = await fetch('/api/google/popup', {
-              method: 'POST',
-              headers: {'Content-Type': 'application/json'},
-              body: JSON.stringify({code: antwort.code}),
-            }).catch(() => null);
-            const daten = post ? ((await post.json().catch(() => null)) as {ok?: boolean; fehler?: string} | null) : null;
-            if (post?.ok && daten?.ok) {
-              window.location.assign(`${zurueckPfad}?google=verbunden`);
-            } else {
-              setFehler(daten?.fehler ?? 'Die Verknüpfung mit Google ist fehlgeschlagen. Bitte versuche es erneut.');
-            }
-          },
-        })
-        .requestCode();
-    };
 
     const starte = () => {
       if (beendet || !window.google || !knopfRef.current) return;
@@ -76,10 +38,15 @@ export function GoogleKnopf({
         client_id: clientId,
         use_fedcm_for_prompt: true,
         cancel_on_tap_outside: true,
-        callback: (antwort) => {
-          // Identität ist bestätigt — jetzt fehlt nur noch die Kalender-Freigabe,
-          // mit dem eben gewählten Konto als Vorauswahl.
-          einwilligung(antwort.credential ? emailAusIdToken(antwort.credential) : undefined);
+        callback: () => {
+          // Identität ist bestätigt — die Kalender-Freigabe holt der
+          // Weiterleitungs-Fluss, der die Sitzung ohnehin als `login_hint`
+          // mitgibt.
+          if (laeuft.current) return;
+          laeuft.current = true;
+          window.location.assign(
+            `/api/google/start?zurueck=${zurueckPfad === '/profil' ? 'profil' : 'login'}`,
+          );
         },
       });
       window.google.accounts.id.renderButton(knopfRef.current, {
@@ -105,10 +72,5 @@ export function GoogleKnopf({
     };
   }, [clientId, zurueckPfad]);
 
-  return (
-    <VStack gap={3}>
-      {fehler && <Banner status="error" title={fehler} />}
-      <div ref={knopfRef} className="google-knopf" />
-    </VStack>
-  );
+  return <div ref={knopfRef} className="google-knopf" />;
 }
