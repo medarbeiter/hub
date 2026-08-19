@@ -5,6 +5,7 @@ import {useRouter} from 'next/navigation';
 import {useState, useTransition} from 'react';
 import {profilbildAction} from '@/app/actions';
 import {AVATAR_MAX_BYTES} from '@/lib/avatar';
+import {BildZuschnitt} from './bild-zuschnitt';
 import {Sinnbild} from './sinnbilder';
 
 /**
@@ -47,10 +48,9 @@ export function ProfilbildFeld({hatBild, userId}: {hatBild: boolean; userId: num
       router.refresh();
     });
 
-  const hochladen = () => {
-    if (!datei) return;
+  const hochladen = (zugeschnitten: File) => {
     const fd = new FormData();
-    fd.set('bild', datei);
+    fd.set('bild', zugeschnitten);
     lauf(fd, true);
   };
 
@@ -102,11 +102,7 @@ export function ProfilbildFeld({hatBild, userId}: {hatBild: boolean; userId: num
         value={datei}
         onChange={(dateien) => setDatei(Array.isArray(dateien) ? (dateien[0] ?? null) : dateien)}
       />
-      {datei && (
-        <HStack justify="end">
-          <Button label="Bild hochladen" variant="primary" isLoading={isPending} onClick={hochladen} />
-        </HStack>
-      )}
+      {datei && <BildZuschnitt datei={datei} isPending={isPending} onFertig={hochladen} />}
     </VStack>
   );
 }

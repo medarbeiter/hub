@@ -36,5 +36,13 @@
   "@astryx.calendar.daySelected": {"defaultMessage": "{date}, ausgewählt"},
   "@astryx.fileInput.clearLabel": {"defaultMessage": "{label} leeren"},
   "@astryx.fileInput.triggerWithFiles": {"defaultMessage": "{label}, {fileNames}"},
-  "@astryx.fileInput.required": {"defaultMessage": "Pflichtfeld"}
+  "@astryx.fileInput.required": {"defaultMessage": "Pflichtfeld"},
+  "@astryx.commandPalette.label": {"defaultMessage": "Suche"},
+  "@astryx.commandPalette.list.label": {"defaultMessage": "Treffer"},
+  "@astryx.commandPalette.input.placeholder": {"defaultMessage": "Suchen …"},
+  "@astryx.commandPalette.emptySearch": {"defaultMessage": "Nichts gefunden"},
+  "@astryx.commandPalette.emptyBootstrap": {"defaultMessage": "Tippen, um zu suchen"},
+  "@astryx.commandPalette.loading": {"defaultMessage": "Wird gesucht"},
+  "@astryx.commandPalette.resultCount": {"defaultMessage": "{count, number} {count, plural, one {Treffer} other {Treffer}}"},
+  "@astryx.commandPalette.noResultsFor": {"defaultMessage": "Nichts gefunden für {query}"}
 }

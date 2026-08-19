@@ -201,6 +201,13 @@ export const AKTIONEN = {
   /* Die Tatsache, nie die Datei: protokolliert wird „gesetzt" oder „entfernt",
      wie beim Passwort der Vorgang und nicht der Wert. */
   'profil.bild': {bereich: 'einstellungen', label: 'Profilbild geändert', eingriff: true},
+  /* Hier steht der Wortlaut ausdrücklich mit im Nachweis — anders als beim
+     Passwort und beim Zugangscode, wo der Wert das Geheimnis *ist*. Ein
+     Kommentar ist das Gegenteil eines Geheimnisses: er ist eine Äußerung über
+     einen Menschen, und der sieht seine eigene Spur. Wer etwas schreibt und
+     es danach wegwischt, hat es trotzdem geschrieben. */
+  'profil.kommentar': {bereich: 'stammdaten', label: 'Profilkommentar geschrieben', eingriff: true},
+  'profil.kommentar-loeschen': {bereich: 'stammdaten', label: 'Profilkommentar gelöscht', eingriff: true},
 
   // ── Einstellungen ────────────────────────────────────────────────────────
   'einstellungen.aendern': {bereich: 'einstellungen', label: 'Einstellungen geändert', eingriff: true},

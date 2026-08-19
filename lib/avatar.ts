@@ -52,9 +52,21 @@ export const AVATAR_TYPEN: Record<string, string> = {
 
 export const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
 
-/** Die Quelle des Profilbildes: das eigene Foto, sonst die Tierfigur. */
+/**
+ * Die Quelle des Profilbildes: das eigene Foto, sonst die Tierfigur.
+ *
+ * Die Adresse trägt die Datei mit. Sie ist je Konto sonst immer dieselbe, und
+ * das Bild darf zwischengespeichert werden (api/avatar) — ohne diese Kennung
+ * zeigten Seitenleiste, Teamblatt, Prüfzeile und Personenkarte nach einem
+ * Wechsel noch minutenlang das alte Bild, in jedem Browser im Haus. Der
+ * Dateiname ist eine UUID und wird bei jedem Ersetzen neu vergeben; er *ist*
+ * damit die Version. Der Handler liest ihn nicht — der Pfad kommt weiterhin
+ * aus der Datenbank.
+ */
 export function avatarQuelle(user: {id: number; avatar_key?: AvatarKey; avatar_datei?: string | null}): string {
-  return user.avatar_datei ? `/api/avatar/${user.id}` : avatarBild(user.avatar_key ?? AVATARE[0]!.key);
+  return user.avatar_datei
+    ? `/api/avatar/${user.id}?v=${user.avatar_datei.slice(0, 8)}`
+    : avatarBild(user.avatar_key ?? AVATARE[0]!.key);
 }
 
 /**

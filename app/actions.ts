@@ -32,6 +32,12 @@ import {
 } from '@/lib/time';
 import {fmtDate, fmtDateRange, fmtMonth, fmtTime, monthOf, nowMinutes, parseEuro, todayISO} from '@/lib/format';
 import {schnittText} from '@/lib/pausenschnitt';
+import {
+  darfKommentarLoeschen,
+  kommentarById,
+  loescheKommentar,
+  schreibeKommentar,
+} from '@/lib/profil-kommentare';
 // Jede Mutation dieser Datei hinterlässt eine Zeile im Protokoll — auch die
 // abgewiesene. „Wer hat versucht, den gesperrten Monat zu ändern" ist genau
 // die Frage, wegen der es eines gibt. Das Vokabular der Aktionen liegt in
@@ -442,6 +448,68 @@ export async function profilbildAction(_prev: ActionState, formData: FormData): 
   });
   revalidatePath('/profil');
   revalidatePath('/', 'layout');
+  return OK;
+}
+
+/**
+ * Ein Wort an einer Personenkarte. Kein Vorgang, keine Prüfung, keine
+ * Nachricht — die Karte steht ohnehin offen, und wer sie öffnet, liest mit.
+ *
+ * `revalidatePath` gibt es hier nicht: die Kommentare hängen an keiner Seite,
+ * sondern an der Karte, und die holt ihre Liste selbst nach (api/person/…/
+ * kommentare). Eine ganze Seite neu zu bauen, weil jemand „schönes Bild!"
+ * geschrieben hat, wäre die teuerste Art, nichts zu bewirken.
+ */
+export async function profilKommentarAction(personId: number, text: string): Promise<ActionState> {
+  const user = await requireRecht('profil.kommentieren');
+  const ergebnis = schreibeKommentar(personId, user.id, text);
+  if (typeof ergebnis === 'string') return {error: ergebnis};
+  const geschrieben = kommentarById(ergebnis);
+  protokolliere({
+    akteur: user,
+    aktion: 'profil.kommentar',
+    gegenstand: `Kommentar auf der Karte von ${geschrieben?.person_name ?? 'unbekannt'}`,
+    betroffen: {id: personId, name: geschrieben?.person_name ?? ''},
+    nachher: {Kommentar: geschrieben?.text},
+    fehler: null,
+  });
+  return OK;
+}
+
+/**
+ * Ein Wort zurücknehmen. Darf, wer es geschrieben hat, wessen Karte es trägt,
+ * und wer Konten verwaltet — der abgewiesene Versuch steht mit im Protokoll,
+ * wie jede abgewiesene Handlung im Haus.
+ */
+export async function profilKommentarLoeschenAction(kommentarId: number): Promise<ActionState> {
+  const user = await requireUser();
+  const kommentar = kommentarById(kommentarId);
+  if (!kommentar) return {error: 'Diesen Kommentar gibt es nicht mehr.'};
+
+  const gegenstand = `Kommentar auf der Karte von ${kommentar.person_name}`;
+  if (!darfKommentarLoeschen(user, kommentar)) {
+    const fehler = 'Diesen Kommentar darf nur seine Verfasserin oder ihr Gegenüber löschen.';
+    protokolliere({
+      akteur: user,
+      aktion: 'profil.kommentar-loeschen',
+      gegenstand,
+      betroffen: {id: kommentar.person_id, name: kommentar.person_name},
+      fehler,
+    });
+    return {error: fehler};
+  }
+
+  loescheKommentar(kommentarId);
+  protokolliere({
+    akteur: user,
+    aktion: 'profil.kommentar-loeschen',
+    gegenstand,
+    betroffen: {id: kommentar.person_id, name: kommentar.person_name},
+    // Der Wortlaut bleibt im Nachweis stehen: gelöscht ist es auf der Karte,
+    // gesagt bleibt es gesagt — und die betroffene Person liest ihre Spur.
+    vorher: {Kommentar: kommentar.text},
+    fehler: null,
+  });
   return OK;
 }
 

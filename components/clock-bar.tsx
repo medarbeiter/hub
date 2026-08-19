@@ -9,6 +9,7 @@ import {useClock, type StampAction} from './clock-provider';
 import {useKopfImBild} from './kopf-deckung';
 import {useMelde} from './melde';
 import {Sinnbild, type Sinn} from './sinnbilder';
+import {Suche} from './suche';
 import {Zahlwert} from './zahlwert';
 
 /** Muss zu `--takt-bogen` in globals.css passen. */
@@ -178,6 +179,12 @@ export function ClockBar() {
         paddingBlock={2}
         wrap="wrap"
       >
+        {/* Ganz links, vor der ersten Angabe: die Suche. Sie gehört in diese
+            Leiste und nicht in die Seitenleiste — sie ist keine Seite, sondern
+            der Weg zu jeder. Und sie steht vor den Angaben, weil sie als
+            einzige immer dasselbe tut: der Rest der Leiste wechselt mit dem
+            Tag, sie nicht. */}
+        <Suche />
         {/* Die gedeckten Angaben fahren nicht weg, sie werden schmal: das
             umschließende Raster geht von 1fr auf 0fr, der Inhalt schneidet an
             seiner eigenen Kante ab. Dieselbe Bewegung wie beim aufklappenden

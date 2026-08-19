@@ -5,6 +5,7 @@ import {
   AvatarGroup,
   AvatarGroupOverflow,
   DialogHeader,
+  Divider,
   HStack,
   StackItem,
   Text,
@@ -14,6 +15,7 @@ import {useEffect, useState, type ReactNode} from 'react';
 import type {PersonAngabe} from '@/lib/avatar';
 import {istRolle, ROLLEN} from '@/lib/rechte';
 import {Ausklapp} from './ausklapp';
+import {ProfilKommentare} from './profil-kommentare';
 import {Sinnbild} from './sinnbilder';
 import {TafelDialog} from './tafel-dialog';
 import {Verweis} from './verweis';
@@ -267,7 +269,10 @@ export function PersonKarte({
     return () => abbruch.abort();
   }, [isOpen, vollstaendig, nachgeladen, person.id]);
 
-  const angabe = nachgeladen ?? person;
+  // Das Bild bleibt das der Zeile: es kam frisch vom Server, während die
+  // nachgeladene Angabe fünf Minuten alt sein darf (api/person). Sonst
+  // holte die Karte ein gerade ersetztes Profilbild zurück.
+  const angabe = nachgeladen ? {...nachgeladen, bild: person.bild} : person;
   const rolle = angabe.rolle && istRolle(angabe.rolle) ? ROLLEN[angabe.rolle].label : null;
 
   return (
@@ -276,40 +281,47 @@ export function PersonKarte({
           deshalb trägt die Kopfzeile das Kreuz. Escape und der Schleier tun
           dasselbe, aber ein Finger hat kein Escape. */}
       <DialogHeader title={angabe.name} subtitle={rolle ?? undefined} onOpenChange={onOpenChange} />
-      <HStack className="tafel-rumpf" gap={4} padding={4} vAlign="start" wrap="wrap">
-        {/* Das Bild in der eigenen Karte öffnet keine zweite: es ist schon die
-            Antwort auf die Frage, mit der jemand hier gelandet ist. */}
-        <PersonZeichen person={angabe} groesse="bogen" karte={false} />
-        <StackItem size="fill">
-          <VStack gap={3}>
-            {rolle && <KartenZeile sinn="mitarbeiter" beschriftung="Rolle" wert={rolle} />}
-            {angabe.email && (
-              <KartenZeile
-                sinn="email"
-                beschriftung="E-Mail"
-                wert={
-                  /* Kein next/link: eine mailto-Adresse verlässt den Router. */
-                  <a href={`mailto:${angabe.email}`}>
-                    <Text type="body" color="accent">
-                      {angabe.email}
+      {/* Der Rollbereich liegt um *beides*: die Karte wächst mit den
+          Kommentaren, und Astryx deckelt den Dialog bei 75vh — die Regel für
+          rechnende Dialoge, hier aus demselben Grund. */}
+      <VStack className="tafel-rumpf" gap={0}>
+        <HStack gap={4} padding={4} vAlign="start" wrap="wrap">
+          {/* Das Bild in der eigenen Karte öffnet keine zweite: es ist schon die
+              Antwort auf die Frage, mit der jemand hier gelandet ist. */}
+          <PersonZeichen person={angabe} groesse="bogen" karte={false} />
+          <StackItem size="fill">
+            <VStack gap={3}>
+              {rolle && <KartenZeile sinn="mitarbeiter" beschriftung="Rolle" wert={rolle} />}
+              {angabe.email && (
+                <KartenZeile
+                  sinn="email"
+                  beschriftung="E-Mail"
+                  wert={
+                    /* Kein next/link: eine mailto-Adresse verlässt den Router. */
+                    <a href={`mailto:${angabe.email}`}>
+                      <Text type="body" color="accent">
+                        {angabe.email}
+                      </Text>
+                    </a>
+                  }
+                />
+              )}
+              {blattHref && (
+                <Verweis href={blattHref} onClick={() => onOpenChange(false)}>
+                  <HStack gap={1.5} vAlign="center">
+                    <Sinnbild sinn="weiter" groesse="zeile" ton="akzent" />
+                    <Text type="label" color="accent">
+                      {blattText ?? 'Zum Blatt dieser Person'}
                     </Text>
-                  </a>
-                }
-              />
-            )}
-            {blattHref && (
-              <Verweis href={blattHref} onClick={() => onOpenChange(false)}>
-                <HStack gap={1.5} vAlign="center">
-                  <Sinnbild sinn="weiter" groesse="zeile" ton="akzent" />
-                  <Text type="label" color="accent">
-                    {blattText ?? 'Zum Blatt dieser Person'}
-                  </Text>
-                </HStack>
-              </Verweis>
-            )}
-          </VStack>
-        </StackItem>
-      </HStack>
+                  </HStack>
+                </Verweis>
+              )}
+            </VStack>
+          </StackItem>
+        </HStack>
+        <Divider />
+        <ProfilKommentare personId={angabe.id} isOpen={isOpen} />
+      </VStack>
     </TafelDialog>
   );
 }

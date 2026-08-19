@@ -39,8 +39,9 @@ export async function GET(
       /* Privat, aber zwischenspeicherbar: das Bild steht in jeder Seitenleiste
          und in jedem Teamblatt, und ein `no-store` hieße, es bei jedem
          Seitenwechsel neu zu holen. `private` hält es aus fremden Zwischen-
-         speichern heraus, `must-revalidate` sorgt dafür, dass ein neues Bild
-         nach kurzer Zeit auch ankommt. */
+         speichern heraus. Ein *ersetztes* Bild kommt nicht über diese Frist an,
+         sondern über die Adresse: `avatarQuelle()` hängt die Dateikennung als
+         `?v=` an, ein neues Bild ist also eine neue Adresse. */
       'Cache-Control': 'private, max-age=300, must-revalidate',
       'X-Content-Type-Options': 'nosniff',
     },

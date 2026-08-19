@@ -44,6 +44,7 @@ const MIGRATIONS: Migration[] = [
   migration23AbwesenheitMinutenUndRuecksprache,
   migration24EigenesProfilbild,
   migration25Erinnerungen,
+  migration26ProfilKommentare,
 ];
 
 /** The `PRAGMA user_version` a fully migrated database carries. */
@@ -654,6 +655,34 @@ function migration25Erinnerungen(db: Database) {
       anzahl INTEGER NOT NULL DEFAULT 1,
       PRIMARY KEY (bereich, gegenstand_id)
     );
+  `);
+}
+
+function migration26ProfilKommentare(db: Database) {
+  // Die Notiz an einer Person — was auf der Personenkarte untereinander
+  // geschrieben wird („schönes Bild!"). Kein Vorgang und kein Datensatz über
+  // jemanden, sondern eine Äußerung *von* jemandem: deshalb steht der Autor
+  // gleichberechtigt neben der Person, um die es geht.
+  //
+  // Fremdschlüssel mit ON DELETE CASCADE auf beide Seiten — anders als beim
+  // Protokoll, das eine Aussage über die Vergangenheit ist und sie überleben
+  // muss. Ein Kommentar ist Gegenwart: verschwindet ein Konto, verschwinden
+  // seine Wortmeldungen mit ihm, und an einer gelöschten Person hängt keine
+  // herrenlose Notiz mehr.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS profil_kommentare (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      /* Auf wessen Karte die Notiz steht. */
+      person_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      /* Wer sie geschrieben hat. */
+      autor_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      text TEXT NOT NULL,
+      /* Hauszeit als 'JJJJ-MM-TT HH:MM:SS', wie im Protokoll: die Karte zeigt
+         eine Wanduhrzeit, und die soll dieselbe sein wie auf der Stempeluhr. */
+      erstellt_am TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_profil_kommentare_person
+      ON profil_kommentare(person_id, id);
   `);
 }
 

@@ -22,6 +22,7 @@ export type Recht =
   | 'abwesenheit.pruefen'
   | 'spesen.erfassen'
   | 'spesen.pruefen'
+  | 'profil.kommentieren'
   | 'kalender.sehen'
   | 'kalender.gruende'
   | 'protokoll.alle'
@@ -74,6 +75,10 @@ export const RECHTE: Record<Recht, RechtBedeutung> = {
   'spesen.pruefen': {
     label: 'Spesen prüfen',
     beschreibung: 'Eingereichte Reisen aller Mitarbeitenden prüfen und entscheiden.',
+  },
+  'profil.kommentieren': {
+    label: 'Profile kommentieren',
+    beschreibung: 'Auf der Personenkarte einer Kollegin oder eines Kollegen einen Kommentar hinterlassen.',
   },
   'kalender.sehen': {
     label: 'Teamkalender sehen',
@@ -134,6 +139,7 @@ const GRUNDRECHTE: readonly Recht[] = [
   'zeit.erfassen',
   'abwesenheit.beantragen',
   'spesen.erfassen',
+  'profil.kommentieren',
   'kalender.sehen',
   'zugangscodes.sehen',
   'zugangscodes.erfassen',

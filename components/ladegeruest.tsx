@@ -242,6 +242,33 @@ export function ZeilenGeruest({zeilen = 6}: {zeilen?: number}) {
 }
 
 /**
+ * Die Trefferliste der Suche: Zeichen, Name, Zusatz — die Maße von
+ * `components/suche.tsx`.
+ *
+ * Keine fünfte Seitenfüllung, sondern die einzige, die keine Seite vertritt:
+ * sie steht in einem Dialog, der schon offen ist, und nur so lange, wie eine
+ * Frage unterwegs ist. Sie ist dort nötig, weil unter ihr noch die Antwort auf
+ * die *vorige* Frage liegt — und eine halbe Antwort liest sich wie eine ganze.
+ */
+export function TrefferGeruest({zeilen = 5}: {zeilen?: number}) {
+  return (
+    <VStack gap={1} padding={1}>
+      {Array.from({length: zeilen}, (_, z) => (
+        <HStack key={z} gap={3} vAlign="center" paddingInline={3} paddingBlock={2}>
+          <Skeleton width={28} height={28} radius="rounded" index={z} />
+          <StackItem size="fill">
+            <VStack gap={1}>
+              <Skeleton width="38%" height={14} index={z} />
+              <Skeleton width="22%" height={12} index={z} />
+            </VStack>
+          </StackItem>
+        </HStack>
+      ))}
+    </VStack>
+  );
+}
+
+/**
  * Ein Formular: Karten mit Feldern. Für die beiden Seiten, die keinen Zeitraum
  * haben und nichts zeichnen — Einstellungen und Profil.
  */

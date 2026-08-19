@@ -118,6 +118,7 @@ import {
   TiLockOpen,
   TiLockOpenOutline,
   TiMail,
+  TiMessages,
   TiMediaPause,
   TiMediaPauseOutline,
   TiMediaPlay,
@@ -340,6 +341,9 @@ export const SINNBILD = {
   herleitung: TiCalculator,
   trend: TiChartArea,
   email: TiMail,
+  /* Ein Wort an einer Personenkarte. Bewusst nicht `email`: die Post verlässt
+     das Haus, ein Kommentar bleibt darin und steht dort, wo er gemeint ist. */
+  kommentar: TiMessages,
 
   // ── Schrittwerk ──────────────────────────────────────────────────────────
   zurueck: TiChevronLeft,

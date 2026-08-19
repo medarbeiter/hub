@@ -2733,3 +2733,127 @@ a:has(.link-puls[data-laedt='true']) {
     display: block !important;
   }
 }
+
+/* Das Zuschnittfenster (components/bild-zuschnitt.tsx). Eigene Grammatik wie
+   die Tagesbahn: Astryx hat kein Zuschnittfenster, und was hier gezeichnet
+   wird, ist keine Bedeutung, sondern ein Ausschnitt. Rund und quadratisch,
+   weil das Bild später überall im Haus so steht (Avatar, --radius-full) — das
+   Fenster zeigt den Beschnitt, den es später gibt, nicht einen anderen.
+   240px ist eine Arbeitsgröße für ein Bild, kein Abstand; dafür gibt es keinen
+   Token. Die Bildmaße setzt die Komponente selbst, sie ergeben sich aus
+   Ausschnitt und Vergrößerung. touch-action: none, sonst scrollt das Telefon
+   die Seite statt den Ausschnitt zu verschieben. */
+.zuschnitt-fenster {
+  position: relative;
+  inline-size: 240px;
+  aspect-ratio: 1;
+  margin: 0;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--color-background-secondary);
+  box-shadow: inset 0 0 0 var(--border-width) var(--color-border-emphasized);
+  touch-action: none;
+  cursor: grab;
+}
+.zuschnitt-fenster:active {
+  cursor: grabbing;
+}
+.zuschnitt-fenster img {
+  position: absolute;
+  max-inline-size: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* Die Suche: ein Blatt, das nie seine Höhe ändert.
+
+   Astryx' `CommandPalette` bekommt eine Höchsthöhe und wächst darunter mit dem
+   Inhalt. Beim Tippen heißt das: die Liste springt bei jedem Buchstaben, und
+   die Zeile, auf die man gerade zielt, ist beim Klick eine andere. Deshalb
+   steht die Ergebnisfläche fest — sechs Zeilen beim Öffnen, gerollt wird
+   darin, nicht damit. Ein Maß, kein Token: die Höhe ist an die Zeilenzahl
+   gebunden, die hier lesbar sein soll, und die kennt das Thema nicht. Auf
+   niedrigen Fenstern gibt sie nach, sonst stünde die Fußzeile außerhalb des
+   Bildes. */
+/* Die Suche steht ganz links in der Stempelleiste, vor deren erster Angabe —
+   die Stelle, an der ein Blatt anfängt gelesen zu werden. Sie sieht aus wie
+   die Knöpfe rechts in derselben Leiste und wandert mit ihr aufs Telefon; sie
+   darf nur nicht schrumpfen, wenn die Angaben daneben breit werden. */
+.suche-knopf {
+  flex-shrink: 0;
+}
+
+.suche-blatt {
+  --suche-liste: min(21rem, 50vh);
+  --suche-reiter: 0px;
+}
+.suche-blatt .astryx-command-palette-list {
+  block-size: calc(var(--suche-liste) - var(--suche-reiter));
+}
+
+/* Die Reiterleiste nimmt sich ihren Platz von der Liste, nicht vom Blatt: die
+   Ergebnisfläche wird um genau die Höhe kürzer, die die Reiter einnehmen, und
+   das Blatt bleibt so hoch, wie es ohne sie war. Darum steht ihre Höhe hier
+   fest und wird nicht gemessen — ein Maß, das die Rechnung darunter gerade
+   nicht schätzen soll. Ohne Reiter ist sie null (siehe .suche-blatt oben). */
+.suche-blatt:has(.suche-reiter) {
+  --suche-reiter: 44px;
+}
+.suche-reiter {
+  block-size: var(--suche-reiter);
+  overflow: hidden;
+}
+
+/* Solange gefragt wird, steht das Gerüst über der Liste (components/suche.tsx).
+   Über ihr und nicht an ihrer Stelle: die Liste behält so ihre feste Höhe, das
+   Blatt seine, und es gibt kein Umbauen zwischen Frage und Antwort. Verankert
+   an der Fußzeile, weil deren Oberkante die Unterkante der Ergebnisfläche ist
+   — die Kopfhöhe muss dafür niemand kennen. Die alten Zeilen darunter werden
+   unsichtbar geschaltet und nicht nur verdeckt: `visibility: hidden` nimmt sie
+   auch aus dem Vorlesebaum, und dort wären sie dieselbe halbe Antwort. */
+.suche-blatt .astryx-layout-footer {
+  position: relative;
+}
+.suche-lade {
+  position: absolute;
+  inset-block-end: 100%;
+  inset-inline: 0;
+  block-size: calc(var(--suche-liste) - var(--suche-reiter));
+  overflow: hidden;
+  background: var(--color-background);
+}
+.suche-blatt:has(.suche-lade) .astryx-command-palette-list {
+  visibility: hidden;
+}
+
+/* Und die Antwort kommt, sie erscheint nicht. Ein Satz Zeilen, der schlagartig
+   dasteht, liest sich wie ein Bildwechsel; ein kurzes Aufsteigen sagt „das ist
+   neu" und führt das Auge an den Anfang der Liste. Nur transform, nie opacity
+   (eine nicht tickende Animation darf keinen Inhalt stranden lassen), und die
+   ersten vier Zeilen setzen gestaffelt auf — je Gruppe von vorn, weil die
+   Zählung in ihr beginnt. Kein dritter Bewegungsmoment, sondern derselbe
+   Auftritt wie beim wechselnden Zugangscode: --takt-schritt, --schwung-an.
+   Gezählt wird ab dem zweiten Kind: das erste ist die Überschrift der Gruppe,
+   die erste Zeile also nth-child(2) und ohne Verzug. */
+.suche-treffer {
+  animation: treffer-herein var(--takt-schritt) var(--schwung-an) both;
+}
+@keyframes treffer-herein {
+  from {
+    transform: translateY(0.4rem);
+  }
+}
+.suche-blatt .astryx-command-palette-item:nth-child(3) .suche-treffer {
+  animation-delay: 30ms;
+}
+.suche-blatt .astryx-command-palette-item:nth-child(4) .suche-treffer {
+  animation-delay: 60ms;
+}
+.suche-blatt .astryx-command-palette-item:nth-child(5) .suche-treffer {
+  animation-delay: 90ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  .suche-treffer {
+    animation: none;
+  }
+}
