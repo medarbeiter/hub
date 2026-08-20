@@ -82,11 +82,28 @@ html {
   scrollbar-gutter: stable;
 }
 
-/* Das Kontoschild der Freigabeseite: der umrandete Ausweis aus Googles
-   Einwilligungsblatt — die Rundung folgt der Kapselform des Inhalts. */
-.freigabe-konto {
+/* Die zwei Gruppen der Freigabeseite: das Konto und die weitergegebenen
+   Angaben. Der Rahmen macht aus schwebenden Zeilen je einen greifbaren
+   Kasten, die Haarlinie zwischen den Zeilen ist die Gruppierung selbst —
+   und der Gruppenkopf trägt dieselbe gedeckte Fläche wie das Markenband. */
+/* Das Freigabeblatt ist breiter als der schmale Anmeldebeleg: Markenband,
+   Kontozeile und Datengruppe sind Zeilen mit Inhalt, keine zwei Zugangsfelder
+   — 480 px lässt beide Überschriften einzeilig stehen. */
+.freigabe-rahmen {
+  max-inline-size: 480px;
+}
+
+.freigabe-gruppe {
   border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-element);
+  overflow: clip;
+  align-self: stretch;
+}
+.freigabe-gruppe > * + * {
+  border-block-start: var(--border-width) solid var(--color-border);
+}
+.freigabe-gruppe-kopf {
+  background: var(--color-background-muted);
 }
 
 /* Anmeldung und persönliche Prüfung sind ein Zugang statt zwei Seiten. Der

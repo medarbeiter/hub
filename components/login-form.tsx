@@ -55,6 +55,8 @@ export function LoginForm({
   googleHinweis = null,
   googleClientId = null,
   weiter = null,
+  weiterApp = null,
+  sitzungAbgelaufen = false,
 }: {
   initialEinrichtung: EinrichtungsDaten | null;
   /** Deutsche Erklärung eines gescheiterten Google-Rücklaufs (`?google=…`). */
@@ -63,6 +65,10 @@ export function LoginForm({
   googleClientId?: string | null;
   /** Serverseitig geprüftes Rücksprungziel einer App-Anmeldung (`?weiter=`). */
   weiter?: string | null;
+  /** Name der App hinter `weiter` — die Anmeldeseite sagt, wohin es danach geht. */
+  weiterApp?: string | null;
+  /** Die Sitzung lief auf der Freigabeseite ab — erklären, warum neu gefragt wird. */
+  sitzungAbgelaufen?: boolean;
 }) {
   const [email, setEmail] = useState('');
   /* Erst nach dem ersten Anstrich gelesen: der Server kennt den Eintrag nicht,
@@ -128,6 +134,23 @@ export function LoginForm({
                       <VStack gap={4} padding={5}>
                         {weiter && <input type="hidden" name="weiter" value={weiter} />}
                         {fehler && <Banner status="error" title={fehler} />}
+                        {/* Wer aus einer App hierher kam, erfährt es: die Seite
+                            ist sonst von einer gewöhnlichen Anmeldung nicht zu
+                            unterscheiden — und nach einer abgelaufenen Sitzung
+                            wäre der Rückwurf hierher schlicht rätselhaft. */}
+                        {sitzungAbgelaufen ? (
+                          <Banner
+                            status="warning"
+                            title={`Deine Sitzung war abgelaufen. Melde dich neu an – danach geht es weiter zu ${weiterApp ?? 'deiner App'}.`}
+                          />
+                        ) : weiterApp ? (
+                          <HStack gap={2} vAlign="center" wrap="nowrap">
+                            <Sinnbild sinn="weiter" />
+                            <Text type="supporting" color="secondary">
+                              Nach der Anmeldung geht es weiter zu {weiterApp}.
+                            </Text>
+                          </HStack>
+                        ) : null}
                         {/* Wer hier zuletzt gearbeitet hat, steht mit Gesicht
                             da statt als leeres Feld — gemerkt vom Gerät, nicht
                             nachgeschlagen (siehe zugang-merker.tsx). „Nicht

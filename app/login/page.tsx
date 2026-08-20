@@ -1,7 +1,7 @@
 import {redirect} from 'next/navigation';
 import {getSessionUser} from '@/lib/auth';
 import {googleKonfiguriert} from '@/lib/google';
-import {weiterZielGueltig} from '@/lib/oauth-apps';
+import {oauthClientById, weiterZielGueltig} from '@/lib/oauth-apps';
 import {LoginForm} from '@/components/login-form';
 import {
   einrichtungsDaten,
@@ -15,12 +15,18 @@ export const metadata = {title: 'Zugang – MedArbeiter Hub'};
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{google?: string; weiter?: string}>;
+  searchParams: Promise<{google?: string; weiter?: string; abgelaufen?: string}>;
 }) {
-  const {google, weiter} = await searchParams;
+  const {google, weiter, abgelaufen} = await searchParams;
   // Der Rücksprung einer App-Anmeldung: nur der eigene Autorisierungs-Endpunkt,
   // serverseitig geprüft — sonst wäre der Parameter eine offene Weiterleitung.
   const weiterZiel = weiterZielGueltig(weiter) ? weiter : null;
+  // Wohin es nach der Anmeldung geht, steht im geprüften Ziel selbst — der
+  // Name der App wird hier nachgeschlagen, damit die Anmeldeseite sagen kann,
+  // warum sie gerade gefragt wird.
+  const weiterApp = weiterZiel
+    ? (oauthClientById(new URL(weiterZiel, 'http://intern').searchParams.get('client_id') ?? '')?.name ?? null)
+    : null;
   const user = await getSessionUser();
   if (user && onboardingIstFertig(user.id)) redirect(weiterZiel ?? startPfad(user.id));
   return (
@@ -29,6 +35,8 @@ export default async function LoginPage({
         user ? einrichtungsDaten(user) : null
       }
       weiter={weiterZiel}
+      weiterApp={weiterApp}
+      sitzungAbgelaufen={Boolean(weiterZiel && abgelaufen)}
       googleClientId={googleKonfiguriert() ? (process.env.GOOGLE_CLIENT_ID ?? null) : null}
       googleHinweis={
         google === 'abgelehnt'

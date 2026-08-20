@@ -5,6 +5,8 @@ import {hatRecht} from '@/lib/rechte';
 import {fmtDate, fmtDuration} from '@/lib/format';
 import {googleKonfiguriert, googleKontoFuer} from '@/lib/google';
 import {onboardingProfil, persoenlicheEinstellungen} from '@/lib/onboarding';
+import {appAnmeldungenFuer} from '@/lib/oauth-apps';
+import {AppZugriffe} from '@/components/app-zugriffe';
 import {GoogleVerbindung} from '@/components/google-verbindung';
 import {PersoenlicheEinstellungenForm} from '@/components/persoenliche-einstellungen';
 import {ProfilbildFeld} from '@/components/profilbild-feld';
@@ -21,6 +23,7 @@ export default async function ProfilPage({
   const user = await requireUser();
   const profil = onboardingProfil(user);
   const konto = googleKontoFuer(user.id);
+  const apps = appAnmeldungenFuer(user.id);
   const {google} = await searchParams;
   const googleHinweis =
     google === 'verbunden'
@@ -55,6 +58,9 @@ export default async function ProfilPage({
             konfiguriert={googleKonfiguriert()}
             hinweis={googleHinweis}
           />
+          {/* Nur wenn es etwas zu sagen gibt: wer nie eine App benutzt hat,
+              bekommt keinen leeren Kasten dafür. */}
+          {apps.length > 0 && <AppZugriffe apps={apps} />}
         </VStack>
       }
       kontext={

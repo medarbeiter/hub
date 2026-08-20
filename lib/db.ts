@@ -47,6 +47,7 @@ const MIGRATIONS: Migration[] = [
   migration26ProfilKommentare,
   migration27RollenTabelle,
   migration28Vollzugriff,
+  migration29AppAnmeldungen,
 ];
 
 /** The `PRAGMA user_version` a fully migrated database carries. */
@@ -794,6 +795,22 @@ function migration28Vollzugriff(db: Database) {
       setzen.run(`${rolle.rechte},*`, rolle.schluessel);
     }
   }
+}
+
+/**
+ * Welche App dieses Konto je zur Anmeldung benutzt hat, mit letztem Zeitpunkt:
+ * die Grundlage von „Angemeldete Apps" auf /profil. Die Tokens taugen dafür
+ * nicht — sie leben eine Stunde und werden beim nächsten Ausstellen abgeräumt.
+ */
+function migration29AppAnmeldungen(db: Database) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS oauth_anmeldungen (
+      client_id INTEGER NOT NULL REFERENCES oauth_clients(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      zuletzt_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+      PRIMARY KEY (client_id, user_id)
+    );
+  `);
 }
 
 /**

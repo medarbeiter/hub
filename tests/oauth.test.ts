@@ -5,6 +5,8 @@ import {renderToStaticMarkup} from 'react-dom/server';
 import {wirksameRechte} from '../lib/rollen';
 import {createDb, setDbForTesting, type User} from '../lib/db';
 import {
+  appAnmeldungenFuer,
+  appZugriffBeenden,
   codeAusstellen,
   codeEinloesen,
   geheimnisErzeugen,
@@ -169,6 +171,27 @@ describe('tokenPruefen', () => {
     oauthTokensEntziehen(nutzerId);
     expect(tokenPruefen(token)).toBeNull();
     expect(db.query<{n: number}, [number]>('SELECT COUNT(*) n FROM oauth_codes WHERE user_id = ?').get(nutzerId)!.n).toBe(0);
+  });
+});
+
+describe('Angemeldete Apps', () => {
+  test('codeAusstellen vermerkt die Anmeldung; appZugriffBeenden räumt Tokens und Vermerk ab', async () => {
+    const {client, verwalter} = await neueAnbindung();
+    const person = neuerBenutzer('mitarbeiter');
+    codeAusstellen(client, person, client.redirect_uris[0]!);
+    expect(appAnmeldungenFuer(person).map((a) => a.name)).toEqual(['Dienstplan']);
+
+    const {token} = tokenAusstellen(client, person);
+    expect(appZugriffBeenden(person, client.id)?.name).toBe('Dienstplan');
+    expect(tokenPruefen(token)).toBeNull();
+    expect(appAnmeldungenFuer(person)).toEqual([]);
+    // Ein zweites Beenden findet nichts mehr vor.
+    expect(appZugriffBeenden(person, client.id)).toBeNull();
+
+    // Eine gesperrte Anbindung verschwindet aus der Liste, ohne den Vermerk zu löschen.
+    codeAusstellen(client, person, client.redirect_uris[0]!);
+    oauthClientSetzeAktiv(verwalter, client.id, false);
+    expect(appAnmeldungenFuer(person)).toEqual([]);
   });
 });
 

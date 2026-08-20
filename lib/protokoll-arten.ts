@@ -224,10 +224,11 @@ export const AKTIONEN = {
   'oauth.app-schluessel': {bereich: 'einstellungen', label: 'App-Geheimnis erneuert', eingriff: true},
   /* Routine wie das Anmelden selbst: einmal je Anmelde-Rundlauf, beim
      Ausstellen des Codes — nie je Token- oder Userinfo-Abruf. */
-  'oauth.app-anmeldung': {bereich: 'zugang', label: 'Über MedArbeiter bei App angemeldet', eingriff: false},
+  'oauth.app-anmeldung': {bereich: 'zugang', label: 'Über den Hub bei App angemeldet', eingriff: false},
   /* Das Nein auf der Freigabeseite. Routine, kein Eingriff — aber sichtbar:
      wiederholte Ablehnungen erzählen von einer App, der niemand traut. */
   'oauth.app-abgelehnt': {bereich: 'zugang', label: 'Anmeldung bei App abgelehnt', eingriff: false},
+  'oauth.app-trennen': {bereich: 'zugang', label: 'App-Zugriff aufs eigene Konto beendet', eingriff: true},
 } as const satisfies Record<string, AktionsArt>;
 
 export type ProtokollAktion = keyof typeof AKTIONEN;

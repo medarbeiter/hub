@@ -163,6 +163,7 @@ import {
   TiTree,
   TiUpload,
   TiUploadOutline,
+  TiTag,
   TiUser,
   TiUserAdd,
   TiUserAddOutline,
@@ -297,6 +298,11 @@ export const SINNBILD = {
   abmelden: TiPower,
   rolleMitarbeiter: TiUser,
   rolleVerwaltung: TiStarburst,
+  /* Die benannten Angaben der Freigabeseite: wer (Name), erreichbar wo
+     (email, oben), eingestuft wie (Rolle und Rechte). `person` teilt das
+     Zeichen mit rolleMitarbeiter wie arbeit/arbeitstag ihres. */
+  person: TiUser,
+  rolle: TiTag,
   passwort: TiKey,
   /* Die geteilten Einmalcodes der gemeinsamen Firmenkonten. Bewusst nicht der
      Schlüssel: `passwort` ist das persönliche Geheimnis einer Person, der

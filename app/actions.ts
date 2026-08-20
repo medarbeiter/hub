@@ -136,6 +136,7 @@ import {
   oauthClientSecretErneuern,
   oauthClientSetzeAktiv,
   oauthTokensEntziehen,
+  appZugriffBeenden,
   weiterZielGueltig,
 } from '@/lib/oauth-apps';
 import {otpauthParsen, VERFAHREN_STANDARD} from '@/lib/totp';
@@ -299,6 +300,23 @@ export async function googleTrennenAction(_prev: ActionState): Promise<ActionSta
   return OK;
 }
 
+/**
+ * „Zugriff beenden" unter Angemeldete Apps auf /profil: die Person selbst
+ * widerruft, was der Hub einer Hausanwendung über ihr Konto herausgibt.
+ */
+export async function appZugriffBeendenAction(clientNummer: number): Promise<ActionState> {
+  const user = await requireUser();
+  const app = appZugriffBeenden(user.id, clientNummer);
+  if (!app) return {error: 'Diese App-Anmeldung gibt es nicht mehr.'};
+  protokolliere({
+    akteur: user,
+    aktion: 'oauth.app-trennen',
+    gegenstand: `Zugriff von ${app.name} auf das eigene Konto beendet`,
+  });
+  revalidatePath('/profil');
+  return OK;
+}
+
 export async function logoutAction(formData?: FormData): Promise<void> {
   // Vor dem Zerstören der Sitzung gelesen: danach ist nicht mehr feststellbar,
   // wer sich abgemeldet hat.
@@ -308,6 +326,13 @@ export async function logoutAction(formData?: FormData): Promise<void> {
   // Wer sich aus dem neuen Blatt abmeldet, landet dort wieder — sonst wechselt
   // ein Klick unbemerkt die Oberfläche. Nur diese eine Angabe ist erlaubt,
   // damit das Feld keine offene Weiterleitung wird.
+  // Der Kontowechsel auf der Freigabeseite meldet ab, ohne die App-Anmeldung
+  // zu verlieren: das geprüfte Rücksprungziel geht als ?weiter= mit zur
+  // Anmeldung — dieselbe eine erlaubte Form wie bei loginAction.
+  const weiter = formData?.get('weiter');
+  if (typeof weiter === 'string' && weiterZielGueltig(weiter)) {
+    redirect(`/login?weiter=${encodeURIComponent(weiter)}`);
+  }
   redirect(formData?.get('zurueck') === '/new/login' ? '/new/login' : '/login');
 }
 

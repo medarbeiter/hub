@@ -28,8 +28,10 @@ export async function GET(request: NextRequest): Promise<Response> {
 
   const client = oauthClientById(clientId);
   if (!client || !client.redirect_uris.includes(redirectUri)) {
-    return new Response('Unbekannte oder gesperrte App-Anbindung.', {
-      status: 400,
+    // Auf die ungeprüfte URI wird weiter nicht weitergeleitet (RFC 6749
+    // §4.1.2.1) — aber der Mensch davor bekommt ein gestaltetes Blatt statt
+    // eines nackten Browsertexts.
+    return NextResponse.redirect(new URL('/freigeben/fehler', basis), {
       headers: {'Cache-Control': 'no-store'},
     });
   }
@@ -77,7 +79,9 @@ export async function POST(request: NextRequest): Promise<Response> {
   // Diese Werte stammen aus HTML und werden deshalb trotz der Prüfung beim
   // Anzeigen erneut geprüft. Auf eine ungeprüfte URI wird nie weitergeleitet.
   if (!client || !client.redirect_uris.includes(redirectUri) || !state) {
-    return weiter(new URL('/', basis));
+    // Wer hier landet, hat gerade „Weiter" geklickt — ein stiller Sprung auf
+    // die Startseite hieße: keine Antwort. Das Fehlerblatt erklärt es.
+    return weiter(new URL('/freigeben/fehler', basis));
   }
 
   const user = await getSessionUser();
@@ -85,7 +89,9 @@ export async function POST(request: NextRequest): Promise<Response> {
     const autorisierung =
       `/api/oauth/authorize?client_id=${encodeURIComponent(clientId)}` +
       `&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${encodeURIComponent(state)}`;
-    return weiter(new URL(`/login?weiter=${encodeURIComponent(autorisierung)}`, basis));
+    // ?abgelaufen=1: die Person stand schon auf der Freigabeseite — die
+    // Anmeldeseite erklärt, warum sie noch einmal gefragt wird.
+    return weiter(new URL(`/login?weiter=${encodeURIComponent(autorisierung)}&abgelaufen=1`, basis));
   }
 
   const ziel = new URL(redirectUri);
@@ -104,7 +110,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   protokolliere({
     akteur: user,
     aktion: 'oauth.app-anmeldung',
-    gegenstand: `Anmeldung bei ${client.name} über MedArbeiter`,
+    gegenstand: `Anmeldung bei ${client.name} über den Hub`,
   });
   ziel.searchParams.set('code', code);
   return weiter(ziel);

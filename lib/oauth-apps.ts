@@ -205,6 +205,12 @@ export function codeAusstellen(client: OauthClient, userId: number, redirectUri:
   );
   // Abgelaufenes gleich mit abräumen — das Sitzungsmuster aus createSession().
   db.query('DELETE FROM oauth_codes WHERE expires_at < ?').run(Date.now());
+  // Der bleibende Vermerk der Anmeldung: Tokens leben eine Stunde, dieser
+  // Eintrag trägt „Angemeldete Apps" auf /profil.
+  db.query(
+    `INSERT INTO oauth_anmeldungen (client_id, user_id) VALUES (?, ?)
+     ON CONFLICT(client_id, user_id) DO UPDATE SET zuletzt_at = datetime('now', 'localtime')`,
+  ).run(client.id, userId);
   return code;
 }
 
@@ -298,4 +304,49 @@ export function oauthTokensEntziehen(userId: number): void {
   const db = getDb();
   db.query('DELETE FROM oauth_tokens WHERE user_id = ?').run(userId);
   db.query('DELETE FROM oauth_codes WHERE user_id = ?').run(userId);
+}
+
+// ---------------------------------------------------------------------------
+// Angemeldete Apps — die Sicht der Person selbst (/profil)
+// ---------------------------------------------------------------------------
+
+export interface AppAnmeldung {
+  /** Interne Nummer der Anbindung (oauth_clients.id) — nie die client_id. */
+  clientNummer: number;
+  name: string;
+  zuletztAt: string;
+}
+
+/** Die aktiven Anbindungen, bei denen sich diese Person je angemeldet hat, jüngste zuerst. */
+export function appAnmeldungenFuer(userId: number): AppAnmeldung[] {
+  return getDb()
+    .query<AppAnmeldung, [number]>(
+      `SELECT c.id AS clientNummer, c.name, a.zuletzt_at AS zuletztAt
+       FROM oauth_anmeldungen a
+       JOIN oauth_clients c ON c.id = a.client_id AND c.aktiv = 1
+       WHERE a.user_id = ?
+       ORDER BY a.zuletzt_at DESC`,
+    )
+    .all(userId);
+}
+
+/**
+ * Beendet den Zugriff einer App auf das eigene Konto: Tokens, offene Codes
+ * und der Anmeldevermerk gehen. Die eigene Sitzung *in* der App endet erst
+ * mit deren Abmeldung — der Hub gibt ihr nur nichts mehr heraus.
+ */
+export function appZugriffBeenden(userId: number, clientNummer: number): {name: string} | null {
+  const db = getDb();
+  const zeile = db
+    .query<{name: string}, [number, number]>(
+      `SELECT c.name FROM oauth_anmeldungen a
+       JOIN oauth_clients c ON c.id = a.client_id
+       WHERE a.user_id = ? AND a.client_id = ?`,
+    )
+    .get(userId, clientNummer);
+  if (!zeile) return null;
+  db.query('DELETE FROM oauth_tokens WHERE user_id = ? AND client_id = ?').run(userId, clientNummer);
+  db.query('DELETE FROM oauth_codes WHERE user_id = ? AND client_id = ?').run(userId, clientNummer);
+  db.query('DELETE FROM oauth_anmeldungen WHERE user_id = ? AND client_id = ?').run(userId, clientNummer);
+  return zeile;
 }
