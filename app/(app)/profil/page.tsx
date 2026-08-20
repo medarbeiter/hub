@@ -46,7 +46,10 @@ export default async function ProfilPage({
           <Card padding={4} maxWidth={680}>
             <ProfilbildFeld hatBild={Boolean(user.avatar_datei)} userId={user.id} />
           </Card>
-          <PersoenlicheEinstellungenForm initial={persoenlicheEinstellungen(user.id)} />
+          <PersoenlicheEinstellungenForm
+            initial={persoenlicheEinstellungen(user.id)}
+            hatProfilbild={Boolean(user.avatar_datei)}
+          />
           <GoogleVerbindung
             konto={konto ? {email: konto.google_email, seit: fmtDate(konto.verbunden_at.slice(0, 10))} : null}
             konfiguriert={googleKonfiguriert()}

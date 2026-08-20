@@ -22,7 +22,13 @@ import {Sinnbild} from './sinnbilder';
 
 const INITIAL: ActionState = {error: null};
 
-export function PersoenlicheEinstellungenForm({initial}: {initial: PersoenlicheEinstellungen}) {
+export function PersoenlicheEinstellungenForm({
+  initial,
+  hatProfilbild = false,
+}: {
+  initial: PersoenlicheEinstellungen;
+  hatProfilbild?: boolean;
+}) {
   const [startansicht, setStartansicht] = useState<Startansicht>(initial.startansicht);
   const [hinweise, setHinweise] = useState(initial.hinweiseZuOffenenTagen);
   const [avatar, setAvatar] = useState<AvatarKey>(initial.avatar);
@@ -59,6 +65,7 @@ export function PersoenlicheEinstellungenForm({initial}: {initial: PersoenlicheE
           {gespeichert && <Banner status="success" title="Persönliche Einstellungen gespeichert." />}
           <AvatarAuswahl
             value={avatar}
+            hatBild={hatProfilbild}
             onChange={(value) => {
               setAvatar(value);
               geaendert();

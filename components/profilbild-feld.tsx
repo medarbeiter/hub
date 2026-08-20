@@ -26,7 +26,17 @@ import {Sinnbild} from './sinnbilder';
  * zwischengespeichert werden (api/avatar). Ohne diesen Zähler zeigte die
  * Vorschau nach dem Ersetzen weiter das alte Bild.
  */
-export function ProfilbildFeld({hatBild, userId}: {hatBild: boolean; userId: number}) {
+export function ProfilbildFeld({
+  hatBild,
+  userId,
+  onBild,
+}: {
+  hatBild: boolean;
+  userId: number;
+  /** Meldet dem Umfeld, ob jetzt ein Bild liegt — der Assistent hört mit,
+      weil ihn ein `router.refresh()` nicht erreicht. */
+  onBild?: (hat: boolean) => void;
+}) {
   const router = useRouter();
   const [isPending, start] = useTransition();
   const [fehler, setFehler] = useState<string | null>(null);
@@ -45,6 +55,7 @@ export function ProfilbildFeld({hatBild, userId}: {hatBild: boolean; userId: num
       setDatei(null);
       setGezeigt(jetztMitBild);
       setStand((n) => n + 1);
+      onBild?.(jetztMitBild);
       router.refresh();
     });
 

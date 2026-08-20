@@ -628,10 +628,13 @@ function ProfilSchritt({
   weiter: () => void;
   zurueck: () => void;
 }) {
+  // Eigener Stand statt Prop: der Assistent hat seine Serverdaten beim
+  // Betreten eingefroren, also sagt das Bildfeld selbst Bescheid.
+  const [hatBild, setHatBild] = useState(hatProfilbild);
   return (
     <>
-      <ProfilbildFeld hatBild={hatProfilbild} userId={userId} />
-      <AvatarAuswahl value={avatar} onChange={setAvatar} />
+      <ProfilbildFeld hatBild={hatProfilbild} userId={userId} onBild={setHatBild} />
+      <AvatarAuswahl value={avatar} onChange={setAvatar} hatBild={hatBild} />
       <SchrittNavigation zurueck={zurueck} weiter={weiter} />
     </>
   );
