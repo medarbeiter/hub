@@ -122,8 +122,16 @@ export default async function BerichtePage({searchParams}: PageProps) {
             <Button label="CSV für Lohnabrechnung" variant="secondary" size="sm" icon={<Sinnbild sinn="csv" />} />
           </a>
           <a href={`/api/export?art=spesen&monat=${month}`} download style={{textDecoration: 'none'}}>
-            <Button label="CSV Reisekosten" variant="secondary" size="sm" icon={<Sinnbild sinn="csv" />} />
+            <Button
+              label="Reisekosten (CSV + Belege)"
+              variant="secondary"
+              size="sm"
+              icon={<Sinnbild sinn="csv" />}
+            />
           </a>
+          <Link href={`/druck/spesen/${month}`} target="_blank" style={{textDecoration: 'none'}}>
+            <Button label="Reisekosten (PDF)" variant="secondary" size="sm" icon={<Sinnbild sinn="drucken" />} />
+          </Link>
           <Link href={`/druck/${month}`} target="_blank" style={{textDecoration: 'none'}}>
             <Button label="Druckansicht (PDF)" variant="secondary" size="sm" icon={<Sinnbild sinn="drucken" />} />
           </Link>

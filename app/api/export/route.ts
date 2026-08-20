@@ -12,8 +12,9 @@ import {
   type Erfassungsart,
   type ProtokollBereich,
 } from '@/lib/protokoll-arten';
-import {REISE_STATUS_LABEL, reisenForMonth} from '@/lib/spesen';
+import {BELEG_ART_LABEL, BELEG_TYPEN, belegDateiPfad, REISE_STATUS_LABEL, reisenForMonth} from '@/lib/spesen';
 import {activeUsers, isMonthLocked, monthRecord} from '@/lib/time';
+import {zipErstellen, type ZipEintrag} from '@/lib/zip';
 
 const CSV_HEADERS = (dateiname: string): HeadersInit => ({
   'Content-Type': 'text/csv; charset=utf-8',
@@ -37,7 +38,7 @@ export async function GET(request: Request): Promise<Response> {
     ? url.searchParams.get('monat')!
     : monthOf(todayISO());
 
-  if (url.searchParams.get('art') === 'spesen') return spesenCsv(month);
+  if (url.searchParams.get('art') === 'spesen') return spesenZip(month);
   if (url.searchParams.get('art') === 'protokoll') return protokollCsv(url);
 
   const lines: string[] = [
@@ -91,16 +92,26 @@ export async function GET(request: Request): Promise<Response> {
   return new Response(csv, {headers: CSV_HEADERS(`medarbeiter-zeiten-${month}.csv`)});
 }
 
-/** Eine Zeile je Reise, plus eine Summenzeile je Mitarbeiter. */
-function spesenCsv(month: string): Response {
+/**
+ * Der Spesen-Export ist ein ZIP: die CSV plus jede Belegdatei unter
+ * belege/<Person>/ — eine CSV allein kann kein Bild tragen, und eine
+ * Abrechnung ohne ihre Belege ist als Nachweis nicht vollständig.
+ *
+ * In der CSV: eine Zeile je Reise, darunter eine Zeile je Beleg (dieselbe
+ * Mischung der Körnungen wie die Summenzeilen — so prüft die Lohnabrechnung
+ * die Belegsumme gegen die Einzelbeträge), plus eine Summenzeile je
+ * Mitarbeiter. Die Spalte „Beleg-Datei" nennt den Pfad im Archiv.
+ */
+async function spesenZip(month: string): Promise<Response> {
   const lines: string[] = [
-    'Mitarbeiter;Von;Bis;Anlass;Ziel;Reisetage;Abwesenheit (Std.);Pauschale (EUR);Belege (EUR);Summe (EUR);Status;Genehmigt am',
+    'Mitarbeiter;Von;Bis;Anlass;Ziel;Reisetage;Abwesenheit (Std.);Pauschale (EUR);Belege (EUR);Summe (EUR);Status;Genehmigt am;Beleg-Datei',
   ];
+  const dateien: ZipEintrag[] = [];
 
   for (const u of activeUsers()) {
     const reisen = reisenForMonth(u.id, month);
     if (reisen.length === 0) continue;
-    for (const {reise, rechnung} of reisen) {
+    for (const {reise, belege, rechnung} of reisen) {
       lines.push(
         [
           u.name,
@@ -115,17 +126,79 @@ function spesenCsv(month: string): Response {
           fmtEuroPlain(rechnung.summeCent),
           REISE_STATUS_LABEL[reise.status],
           reise.entschieden_at ? reise.entschieden_at.slice(0, 10) : '',
+          '',
         ].join(';'),
       );
+      for (const b of belege) {
+        // Der Name im Archiv wird wie beim Upload neu gebildet (Beleg-Nummer
+        // und Datum), nie aus dem Client-Dateinamen — der steht als Angabe in
+        // der Zeile, taugt aber nicht als Pfad.
+        let dateiSpalte = 'ohne Datei';
+        if (b.datei) {
+          const endung = b.datei_typ ? BELEG_TYPEN[b.datei_typ] : undefined;
+          const datei = endung ? Bun.file(belegDateiPfad(b.datei)) : null;
+          if (datei && (await datei.exists())) {
+            const pfad = `belege/${dateiSlug(u.name)}/beleg-${b.id}-${b.datum}.${endung}`;
+            dateien.push({name: pfad, daten: new Uint8Array(await datei.arrayBuffer())});
+            dateiSpalte = pfad;
+          } else {
+            dateiSpalte = 'Datei fehlt';
+          }
+        }
+        lines.push(
+          [
+            u.name,
+            fmtDate(b.datum),
+            '',
+            feld(`Beleg: ${BELEG_ART_LABEL[b.art]}`),
+            feld(b.beschreibung ?? ''),
+            '',
+            '',
+            '',
+            fmtEuroPlain(b.betrag_cent),
+            '',
+            '',
+            '',
+            feld(dateiSpalte),
+          ].join(';'),
+        );
+      }
     }
     const summe = reisen.reduce((s, r) => s + r.rechnung.summeCent, 0);
     lines.push(
-      [u.name, `Summe ${month}`, '', '', '', '', '', '', '', fmtEuroPlain(summe), '', ''].join(';'),
+      [u.name, `Summe ${month}`, '', '', '', '', '', '', '', fmtEuroPlain(summe), '', '', ''].join(';'),
     );
   }
 
   const csv = '﻿' + lines.join('\r\n');
-  return new Response(csv, {headers: CSV_HEADERS(`medarbeiter-spesen-${month}.csv`)});
+  const zip = zipErstellen([
+    {name: `medarbeiter-spesen-${month}.csv`, daten: new TextEncoder().encode(csv)},
+    ...dateien,
+  ]);
+  return new Response(zip, {
+    headers: {
+      'Content-Type': 'application/zip',
+      'Content-Disposition': `attachment; filename="medarbeiter-spesen-${month}.zip"`,
+    },
+  });
+}
+
+/** Ein Personenname als Ordnername: ASCII, Bindestriche, nie leer. */
+function dateiSlug(name: string): string {
+  return (
+    name
+      .replaceAll('ä', 'ae')
+      .replaceAll('ö', 'oe')
+      .replaceAll('ü', 'ue')
+      .replaceAll('Ä', 'Ae')
+      .replaceAll('Ö', 'Oe')
+      .replaceAll('Ü', 'Ue')
+      .replaceAll('ß', 'ss')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'mitarbeiter'
+  );
 }
 
 /**
