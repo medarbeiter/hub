@@ -11,7 +11,8 @@ import {
   requireUser,
   verifyLogin,
 } from '@/lib/auth';
-import {RECHTE, istRecht, rolleLabel} from '@/lib/rechte';
+import {RECHTE, istRecht, type Recht} from '@/lib/rechte';
+import {rolleAendern, rolleAnlegen, rolleByKey, rolleLabel, rolleLoeschen} from '@/lib/rollen';
 import {
   activeUsers,
   confirmAutoClosed,
@@ -990,6 +991,65 @@ export async function userSetActiveAction(userId: number, active: boolean): Prom
     gegenstand: `Mitarbeiter ${betroffen?.name ?? userId}`,
     betroffen,
     nachher: {Zugang: active ? 'aktiv' : 'gesperrt'},
+    fehler: error,
+  });
+  revalidatePath('/', 'layout');
+  return {error};
+}
+
+// ---------------------------------------------------------------------------
+// Rollen (Recht rollen.verwalten)
+// ---------------------------------------------------------------------------
+
+/** Eine Rolle als Wertepaare fürs Protokoll — Name und die deutschen Namen ihrer Rechte. */
+function rolleWerte(rolle: {label: string; rechte: readonly Recht[]}) {
+  return {
+    Name: rolle.label,
+    Rechte: rolle.rechte.map((r) => RECHTE[r].label).join(', ') || '—',
+  };
+}
+
+/** Anlegen und Ändern in einer Aktion — ein leerer `schluessel` heißt anlegen (der Schlüssel entsteht erst aus dem Namen). */
+export async function rolleSpeichernAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const actor = await requireRecht('rollen.verwalten');
+  const schluessel = String(formData.get('schluessel') ?? '').trim();
+  const label = String(formData.get('label') ?? '').trim();
+  const rechte = formData.getAll('rechte').map(String).filter(istRecht);
+
+  const vorher = schluessel ? rolleByKey(schluessel) : null;
+  let error: string | null;
+  let neuerSchluessel = schluessel;
+  if (schluessel) {
+    error = rolleAendern(actor, schluessel, {label, rechte});
+  } else {
+    const ergebnis = rolleAnlegen(actor, {label, rechte});
+    error = 'error' in ergebnis ? ergebnis.error : null;
+    if (!('error' in ergebnis)) neuerSchluessel = ergebnis.schluessel;
+  }
+  // Was gespeichert wurde, ist die Wahrheit — nicht das Formular: fremde
+  // Rechte bleiben beim Mischen stehen, auch wenn sie nicht mitgeschickt wurden.
+  const gespeichert = error === null ? rolleByKey(neuerSchluessel) : null;
+  protokolliere({
+    akteur: actor,
+    aktion: schluessel ? 'rolle.aendern' : 'rolle.anlegen',
+    gegenstand: `Rolle ${vorher?.label ?? label}`,
+    vorher: vorher ? rolleWerte(vorher) : null,
+    nachher: gespeichert ? rolleWerte(gespeichert) : rolleWerte({label, rechte}),
+    fehler: error,
+  });
+  revalidatePath('/', 'layout');
+  return {error};
+}
+
+export async function rolleLoeschenAction(schluessel: string): Promise<ActionState> {
+  const actor = await requireRecht('rollen.verwalten');
+  const vorher = rolleByKey(schluessel);
+  const error = rolleLoeschen(actor, schluessel);
+  protokolliere({
+    akteur: actor,
+    aktion: 'rolle.loeschen',
+    gegenstand: `Rolle ${vorher?.label ?? schluessel}`,
+    vorher: vorher ? rolleWerte(vorher) : null,
     fehler: error,
   });
   revalidatePath('/', 'layout');

@@ -13,6 +13,7 @@ import {fmtDateRange, monthOf, nowMinutes, todayISO} from './format';
 import {berechneSpesen, pruefeSpanne, satzFuer, type SatzStufe, type SpesenRechnung} from './pauschale';
 import {spesenSaetze} from './settings';
 import {hatRecht} from './rechte';
+import {rolleLabel} from './rollen';
 
 export const REISE_STATUS_LABEL: Record<ReiseStatus, string> = {
   entwurf: 'Entwurf',
@@ -193,14 +194,18 @@ export function reisenZurPruefung(status: ReiseStatus | 'alle' = 'eingereicht'):
   return rows.map(({user_name, user_role, user_email, avatar_key, avatar_datei, ...reise}) => ({
     ...mitRechnung(reise as Reise),
     userName: user_name,
-    person: personAngabe({
-      id: reise.user_id,
-      name: user_name,
-      role: user_role,
-      email: user_email,
-      avatar_key,
-      avatar_datei,
-    }),
+    // Die Rolle als fertiges Wort — die Karte im Browser kann den Schlüssel
+    // eines frei benannten Rollensatzes nicht selbst übersetzen.
+    person: {
+      ...personAngabe({
+        id: reise.user_id,
+        name: user_name,
+        email: user_email,
+        avatar_key,
+        avatar_datei,
+      }),
+      rolle: rolleLabel(user_role),
+    },
   }));
 }
 

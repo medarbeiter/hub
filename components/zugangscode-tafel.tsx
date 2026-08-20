@@ -23,7 +23,6 @@ import {
   zugangscodeLoeschungAnfordernAction,
   type ActionState,
 } from '@/app/actions';
-import {ALLE_ROLLEN, ROLLEN} from '@/lib/rechte';
 import {DienstZeichen, markeFuer} from './dienst-zeichen';
 import {useMelde} from './melde';
 import {QrLeser} from './qr-leser';
@@ -64,11 +63,11 @@ interface KreisProps {
   /** Nur wer verwaltet, gibt für alle oder für Rollen frei. */
   darfVerwalten: boolean;
   personenWahl: PersonWahl[];
+  /** Die Rollen aus der Datenbank — leer, wenn die Person nicht verwaltet (dann steht der Kreis „Rollen" nicht zur Wahl). */
+  rollenWahl: PersonWahl[];
 }
 
 const INITIAL: ActionState = {error: null};
-
-const ROLLEN_OPTIONS = ALLE_ROLLEN.map((rolle) => ({value: rolle, label: ROLLEN[rolle].label}));
 
 /** „123 456" liest sich, „123456" wird abgezählt. Kopiert wird ohne Lücke. */
 function gruppiert(code: string): string {
@@ -128,6 +127,7 @@ function ZugangForm({
   selbstId,
   darfVerwalten,
   personenWahl,
+  rollenWahl,
   onDone,
 }: KreisProps & {
   zeile: ZugangscodeZeile | null;
@@ -276,7 +276,7 @@ function ZugangForm({
         {kreis === 'rolle' && (
           <MultiSelector
             label="Rollen"
-            options={ROLLEN_OPTIONS}
+            options={rollenWahl}
             value={rollen}
             onChange={setRollen}
             placeholder="Rollen wählen"
@@ -316,7 +316,7 @@ function ZugangForm({
  * jede Seite ihre eine Haupthandlung trägt (Abschluss, Berichte), statt unter
  * der Liste, wo er erst nach dem Scrollen sichtbar würde.
  */
-export function ZugangAnlegen({selbstId, darfVerwalten, personenWahl}: KreisProps) {
+export function ZugangAnlegen({selbstId, darfVerwalten, personenWahl, rollenWahl}: KreisProps) {
   const router = useRouter();
   const [offen, setOffen] = useState(false);
   return (
@@ -342,6 +342,7 @@ export function ZugangAnlegen({selbstId, darfVerwalten, personenWahl}: KreisProp
             selbstId={selbstId}
             darfVerwalten={darfVerwalten}
             personenWahl={personenWahl}
+            rollenWahl={rollenWahl}
             onDone={() => {
               setOffen(false);
               router.refresh();
@@ -377,6 +378,7 @@ export function ZugangscodeTafel({
   selbstId,
   darfVerwalten,
   personenWahl,
+  rollenWahl,
   gefiltert = false,
 }: KreisProps & {
   codes: ZugangscodeZeile[];
@@ -604,6 +606,7 @@ export function ZugangscodeTafel({
             selbstId={selbstId}
             darfVerwalten={darfVerwalten}
             personenWahl={personenWahl}
+            rollenWahl={rollenWahl}
             onDone={() => {
               setBearbeiten(null);
               router.refresh();

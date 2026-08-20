@@ -13,6 +13,7 @@ import {SprungmarkeDeutsch} from '@/components/sprungmarke';
 import {ZugangMerker} from '@/components/zugang-merker';
 import {attentionIssues, correctionQueue, excusedDays} from '@/lib/attention';
 import {navZaehler} from '@/lib/schnellzugriff';
+import {rolleLabel} from '@/lib/rollen';
 import {erinnerungslaufFaellig} from '@/lib/erinnerungen';
 import {persoenlicheEinstellungen} from '@/lib/onboarding';
 import {fmtDate} from '@/lib/format';
@@ -87,7 +88,7 @@ export default async function AppLayout({children}: {children: ReactNode}) {
           sideNav={
             <AppNav
               name={user.name}
-              role={user.role}
+              role={rolleLabel(user.role)}
               rechte={user.rechte ?? []}
               person={personAngabe({
                 id: user.id,

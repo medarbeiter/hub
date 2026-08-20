@@ -2,7 +2,8 @@ import {cookies} from 'next/headers';
 import {redirect} from 'next/navigation';
 import {getDb, type User} from './db';
 import {onboardingIstFertig} from './onboarding';
-import {effektiveRechte, hatRecht, type Recht} from './rechte';
+import {hatRecht, type Recht} from './rechte';
+import {wirksameRechte} from './rollen';
 
 const SESSION_COOKIE = 'medarbeiter_session';
 const SESSION_DAYS = 30;
@@ -74,7 +75,7 @@ export async function getSessionUser(): Promise<User | null> {
     .query<{recht: string}, [number]>('SELECT recht FROM benutzer_rechte WHERE user_id = ?')
     .all(user.id)
     .map((r) => r.recht);
-  (user as User).rechte = effektiveRechte(user.role, extra);
+  (user as User).rechte = wirksameRechte(user.role, extra);
   return user as User;
 }
 

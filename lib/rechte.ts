@@ -4,7 +4,8 @@
  * Rein und Client-importierbar, nach demselben Prinzip wie
  * `protokoll-arten.ts`: jede Stelle, die etwas erlaubt oder verbirgt, fragt
  * hier nach einem benannten Recht statt nach einer Rolle. Eine Rolle ist nur
- * noch ein vordefiniertes Bündel von Rechten; einzelnen Konten können darüber
+ * noch ein Bündel von Rechten — seit Migration 27 ein in der Anwendung
+ * pflegbarer Datensatz (lib/rollen.ts); einzelnen Konten können darüber
  * hinaus Zusatzrechte gegeben werden (`benutzer_rechte`).
  *
  * Wer prüft, prüft `hatRecht()` — nie `role === '…'`. Eine neue Server-Aktion
@@ -30,6 +31,7 @@ export type Recht =
   | 'zugangscodes.erfassen'
   | 'zugangscodes.verwalten'
   | 'mitarbeiter.verwalten'
+  | 'rollen.verwalten'
   | 'einstellungen.verwalten'
   | 'apps.verwalten';
 
@@ -108,6 +110,10 @@ export const RECHTE: Record<Recht, RechtBedeutung> = {
     label: 'Mitarbeiter verwalten',
     beschreibung: 'Konten anlegen, ändern, deaktivieren, Passwörter zurücksetzen.',
   },
+  'rollen.verwalten': {
+    label: 'Rollen verwalten',
+    beschreibung: 'Rollen anlegen, umbenennen, löschen und ihre Rechtebündel ändern — vergeben lässt sich nur, was man selbst trägt.',
+  },
   'einstellungen.verwalten': {
     label: 'Einstellungen',
     beschreibung: 'Unternehmensweite Einstellungen ändern.',
@@ -125,71 +131,71 @@ export function istRecht(x: string): x is Recht {
 }
 
 // ---------------------------------------------------------------------------
-// Rollen — vordefinierte Bündel
+// Rollen — Datensätze, kein Vokabular mehr
 // ---------------------------------------------------------------------------
 
-export type Rolle = 'mitarbeiter' | 'fulfillment' | 'vertrieb' | 'verwaltung' | 'geschaeftsfuehrung';
-
 /**
- * Was jedes Konto können muss, um seinen eigenen Datensatz zu führen. Auch
- * das sind Rechte und keine Selbstverständlichkeiten — sie stehen nur in
- * jeder Rolle, damit „alles braucht ein Recht" ohne Ausnahme gilt.
+ * Eine Rolle ist ein benanntes Rechtebündel und seit Migration 27 ein
+ * Datensatz (Tabelle `rollen`, gepflegt in lib/rollen.ts unter dem Recht
+ * `rollen.verwalten`). Hier bleibt nur, was rein und Client-importierbar
+ * bleiben muss: der Typ, die Etiketten der fünf mitgelieferten Rollen als
+ * Rückfall für Protokollzeilen, deren Rolle es nicht mehr gibt, und die
+ * Mengenarithmetik. Ein neues Recht erreicht bestehende Rollen nur über eine
+ * Migration oder die Rollenverwaltung — die Bündel leben in der Datenbank.
  */
-const GRUNDRECHTE: readonly Recht[] = [
-  'zeit.erfassen',
-  'abwesenheit.beantragen',
-  'spesen.erfassen',
-  'profil.kommentieren',
-  'kalender.sehen',
-  'zugangscodes.sehen',
-  'zugangscodes.erfassen',
-];
+export type Rolle = string;
 
-export interface RollenBedeutung {
+/** Eine Rolle, wie Server und Formulare sie austauschen. */
+export interface RollenEintrag {
+  schluessel: string;
   label: string;
-  rechte: readonly Recht[];
+  rechte: Recht[];
 }
 
-export const ROLLEN: Record<Rolle, RollenBedeutung> = {
-  mitarbeiter: {label: 'Mitarbeiter', rechte: GRUNDRECHTE},
-  fulfillment: {label: 'Fulfillment', rechte: GRUNDRECHTE},
-  vertrieb: {label: 'Vertrieb', rechte: GRUNDRECHTE},
-  verwaltung: {label: 'Verwaltung', rechte: ALLE_RECHTE},
-  geschaeftsfuehrung: {label: 'Geschäftsführung', rechte: ALLE_RECHTE},
+/** Die Etiketten der fünf mitgelieferten Rollen — nur noch Rückfall für alte Schlüssel ohne Datensatz. */
+export const STANDARD_ROLLEN_LABEL: Record<string, string> = {
+  mitarbeiter: 'Mitarbeiter',
+  fulfillment: 'Fulfillment',
+  vertrieb: 'Vertrieb',
+  verwaltung: 'Verwaltung',
+  geschaeftsfuehrung: 'Geschäftsführung',
 };
 
-export const ALLE_ROLLEN = Object.keys(ROLLEN) as Rolle[];
-
-export function istRolle(x: string): x is Rolle {
-  return Object.hasOwn(ROLLEN, x);
-}
-
-/** Deutsches Etikett einer Rolle; unbekannte Schlüssel (alte Protokollzeilen) bleiben, wie sie sind. */
-export function rolleLabel(rolle: string): string {
-  return istRolle(rolle) ? ROLLEN[rolle].label : rolle;
-}
-
-/** Die Rollen, deren Bündel ein bestimmtes Recht enthält — z. B. für die „letztes Verwalterkonto"-Sperre. */
-export function rollenMitRecht(recht: Recht): Rolle[] {
-  return ALLE_ROLLEN.filter((rolle) => ROLLEN[rolle].rechte.includes(recht));
-}
-
-/** Rollenbündel ∪ Zusatzrechte, dedupliziert und in Vokabular-Reihenfolge. */
-export function effektiveRechte(rolle: string, extra: readonly string[] = []): Recht[] {
-  const menge = new Set<string>([...(istRolle(rolle) ? ROLLEN[rolle].rechte : []), ...extra]);
+/** Bündel ∪ Zusatzrechte, dedupliziert und in Vokabular-Reihenfolge. */
+export function vereinigeRechte(buendel: readonly string[], extra: readonly string[] = []): Recht[] {
+  const menge = new Set<string>([...buendel, ...extra]);
   return ALLE_RECHTE.filter((recht) => menge.has(recht));
 }
 
 /**
- * Die eine Rechteprüfung. Trägt der Benutzer seine wirksamen Rechte schon bei
- * sich (die Sitzung lädt sie in `getSessionUser()`), zählen die; sonst greift
- * das vordefinierte Bündel seiner Rolle — so bleibt die Prüfung rein und
- * funktioniert auch für Zeilen, die ohne Zusatzrechte aus der Tabelle kommen.
+ * Was aus einem Rollenbündel wird, wenn jemand es bearbeitet: verhandelbar
+ * sind nur Rechte, die die bearbeitende Person selbst trägt — was sie nicht
+ * trägt, kann sie weder vergeben noch entfernen, es bleibt wie es war. So
+ * kann ein Konto mit `rollen.verwalten` niemandem geben, was es selbst nie
+ * hatte, und nichts stillschweigend abräumen.
+ */
+export function mischeRechte(
+  alt: readonly string[],
+  gewuenscht: readonly string[],
+  verfuegbar: readonly string[],
+): Recht[] {
+  const darf = new Set(verfuegbar);
+  const neu = new Set<string>(alt.filter((recht) => !darf.has(recht)));
+  for (const recht of gewuenscht) if (darf.has(recht)) neu.add(recht);
+  return ALLE_RECHTE.filter((recht) => neu.has(recht));
+}
+
+/**
+ * Die eine Rechteprüfung. Sie zählt ausschließlich die mitgereichten
+ * wirksamen Rechte (die Sitzung lädt sie in `getSessionUser()`, andere
+ * Träger bauen sie über `wirksameRechte()` in lib/rollen.ts). Ohne geladene
+ * Rechte gibt es kein Ja: die Bündel liegen in der Datenbank, und ein fest
+ * verdrahteter Rückfall spräche weiter, nachdem jemand die Rolle beschnitten
+ * hat.
  */
 export function hatRecht(
   traeger: {role: string; rechte?: readonly string[]},
   recht: Recht,
 ): boolean {
-  if (traeger.rechte) return traeger.rechte.includes(recht);
-  return istRolle(traeger.role) && ROLLEN[traeger.role].rechte.includes(recht);
+  return traeger.rechte?.includes(recht) ?? false;
 }

@@ -45,6 +45,7 @@ const MIGRATIONS: Migration[] = [
   migration24EigenesProfilbild,
   migration25Erinnerungen,
   migration26ProfilKommentare,
+  migration27RollenTabelle,
 ];
 
 /** The `PRAGMA user_version` a fully migrated database carries. */
@@ -686,6 +687,91 @@ function migration26ProfilKommentare(db: Database) {
   `);
 }
 
+function migration27RollenTabelle(db: Database) {
+  // Rollen werden Datensätze: das Bündel je Rolle liegt ab jetzt in der
+  // Tabelle `rollen` (Rechte kommagetrennt wie users.mail_abbestellt) und ist
+  // unter dem neuen Recht `rollen.verwalten` in der Anwendung pflegbar
+  // (lib/rollen.ts). Die fünf bisher in lib/rechte.ts fest verdrahteten
+  // Bündel werden eingefroren hierher übertragen — bewusst als Text und nicht
+  // aus dem lebenden Vokabular, denn eine ausgelieferte Migration ändert sich
+  // nie wieder.
+  //
+  // Und weil users.role seit Migration 17 eine CHECK-Klausel auf die fünf
+  // Namen trägt, wird die Tabelle ein zweites Mal nach dem dokumentierten
+  // Zwölf-Schritte-Weg neu aufgebaut (Spaltenstand nach Migration 24; die
+  // Fremdschlüssel sind während der Migrationen aus, siehe createDb). Welche
+  // Schlüssel gültig sind, prüft ab jetzt die Anwendung gegen `rollen`.
+  db.exec(`
+    CREATE TABLE rollen (
+      schluessel TEXT PRIMARY KEY,
+      label TEXT NOT NULL,
+      rechte TEXT NOT NULL DEFAULT ''
+    );
+
+    CREATE TABLE users_neu (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+      password_hash TEXT NOT NULL,
+      name TEXT NOT NULL,
+      role TEXT NOT NULL,
+      weekly_minutes INTEGER NOT NULL DEFAULT 2400,
+      active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      bundesland TEXT,
+      urlaubstage_jahr INTEGER NOT NULL DEFAULT 30,
+      profile_version INTEGER NOT NULL DEFAULT 1,
+      profile_accepted_version INTEGER NOT NULL DEFAULT 0,
+      onboarding_completed_at TEXT,
+      preferred_view TEXT NOT NULL DEFAULT 'tag' CHECK (preferred_view IN ('tag', 'woche', 'monat', 'konto')),
+      attention_reminders INTEGER NOT NULL DEFAULT 1,
+      must_change_password INTEGER NOT NULL DEFAULT 0,
+      google_einrichtung_abgeschlossen INTEGER NOT NULL DEFAULT 1,
+      avatar_key TEXT NOT NULL DEFAULT 'vertrieb-akquise'
+        CHECK (avatar_key IN (
+          'vertrieb-akquise', 'marketing', 'geschaeftsfuehrer', 'mercedes-amg-c-eo',
+          'key-account-management', 'pflegedienst', 'krankenhaus', 'headset-calling',
+          'adler', 'buchhaltung-controlling'
+        )),
+      mail_abbestellt TEXT NOT NULL DEFAULT '',
+      avatar_datei TEXT,
+      avatar_datei_typ TEXT
+    );
+
+    INSERT INTO users_neu (
+      id, email, password_hash, name, role, weekly_minutes, active, created_at,
+      bundesland, urlaubstage_jahr, profile_version, profile_accepted_version,
+      onboarding_completed_at, preferred_view, attention_reminders,
+      must_change_password, google_einrichtung_abgeschlossen, avatar_key,
+      mail_abbestellt, avatar_datei, avatar_datei_typ
+    )
+    SELECT
+      id, email, password_hash, name, role, weekly_minutes, active, created_at,
+      bundesland, urlaubstage_jahr, profile_version, profile_accepted_version,
+      onboarding_completed_at, preferred_view, attention_reminders,
+      must_change_password, google_einrichtung_abgeschlossen, avatar_key,
+      mail_abbestellt, avatar_datei, avatar_datei_typ
+    FROM users;
+
+    DROP TABLE users;
+    ALTER TABLE users_neu RENAME TO users;
+  `);
+  const grund =
+    'zeit.erfassen,abwesenheit.beantragen,spesen.erfassen,profil.kommentieren,' +
+    'kalender.sehen,zugangscodes.sehen,zugangscodes.erfassen';
+  const alle =
+    'zeit.erfassen,zeit.team,zeit.korrigieren,abschluss.verwalten,berichte.sehen,' +
+    'abwesenheit.beantragen,abwesenheit.pruefen,spesen.erfassen,spesen.pruefen,' +
+    'profil.kommentieren,kalender.sehen,kalender.gruende,protokoll.alle,' +
+    'zugangscodes.sehen,zugangscodes.erfassen,zugangscodes.verwalten,' +
+    'mitarbeiter.verwalten,rollen.verwalten,einstellungen.verwalten,apps.verwalten';
+  const ein = db.query('INSERT INTO rollen (schluessel, label, rechte) VALUES (?, ?, ?)');
+  ein.run('mitarbeiter', 'Mitarbeiter', grund);
+  ein.run('fulfillment', 'Fulfillment', grund);
+  ein.run('vertrieb', 'Vertrieb', grund);
+  ein.run('verwaltung', 'Verwaltung', alle);
+  ein.run('geschaeftsfuehrung', 'Geschäftsführung', alle);
+}
+
 /**
  * Bestehende Tagesarten in Spannen überführen. Aufeinanderfolgende Tage
  * derselben Art werden zu einer Abwesenheit zusammengezogen; ein Wochenende
@@ -882,7 +968,7 @@ export function setDbForTesting(db: Database | undefined): void {
   globalThis.__medarbeiterDbSchemaVersion = db ? SCHEMA_VERSION : undefined;
 }
 
-/** Die Rolle ist nur noch ein vordefiniertes Rechtebündel — Vokabular in lib/rechte.ts. */
+/** Der Schlüssel einer Rolle — seit Migration 27 ein Datensatz (Tabelle `rollen`, lib/rollen.ts), kein geschlossenes Vokabular mehr. */
 export type Role = import('./rechte').Rolle;
 
 export interface User {

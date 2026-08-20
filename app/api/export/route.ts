@@ -1,5 +1,6 @@
 import {getSessionUser} from '@/lib/auth';
-import {hatRecht, rolleLabel} from '@/lib/rechte';
+import {hatRecht} from '@/lib/rechte';
+import {rolleLabel} from '@/lib/rollen';
 import {fmtDate, fmtDuration, fmtEuroPlain, fmtTime, monthOf, todayISO} from '@/lib/format';
 import {protokollSeite} from '@/lib/protokoll';
 import {

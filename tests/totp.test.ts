@@ -1,6 +1,7 @@
 import {afterEach, describe, expect, test} from 'bun:test';
 import {createDb, getDb, setDbForTesting} from '../lib/db';
 import {base32Dekodieren, otpauthParsen, periodeEnde, totpCode} from '../lib/totp';
+import {ALLE_RECHTE, type Recht} from '../lib/rechte';
 import {
   aktuelleZugangscodes,
   alleZugangskonten,
@@ -107,7 +108,8 @@ describe('zugangscodes (Datensatz)', () => {
 
   const VERFAHREN = {algorithmus: 'SHA1', stellen: 6, periode: 30} as const;
   const ALLE = {sichtbarkeit: 'alle'} as const;
-  const ADMIN = {id: 1, role: 'verwaltung'} as const;
+  const BASIS: Recht[] = ['zugangscodes.sehen', 'zugangscodes.erfassen'];
+  const ADMIN = {id: 1, role: 'verwaltung', rechte: [...ALLE_RECHTE]};
   const SECRET = 'GEZDGNBVGY3TQOJQ';
 
   test('anlegen, ablesen, löschen — und das Geheimnis bleibt drinnen', () => {
@@ -166,8 +168,8 @@ describe('zugangscodes (Datensatz)', () => {
     const db = getDb();
     db.query("INSERT INTO users (email, password_hash, name, role) VALUES ('v@f.de', 'x', 'Vera Vertrieb', 'vertrieb')").run();
     db.query("INSERT INTO users (email, password_hash, name, role) VALUES ('m@f.de', 'x', 'Mia Mit', 'mitarbeiter')").run();
-    const vera = {id: 2, role: 'vertrieb'} as const;
-    const mia = {id: 3, role: 'mitarbeiter'} as const;
+    const vera = {id: 2, role: 'vertrieb', rechte: [...BASIS]};
+    const mia = {id: 3, role: 'mitarbeiter', rechte: [...BASIS]};
 
     zugangskontoAnlegen(ADMIN, {dienst: 'Offen', konto: null, secret: SECRET, verfahren: VERFAHREN, ...ALLE});
     zugangskontoAnlegen(ADMIN, {
@@ -215,8 +217,8 @@ describe('zugangscodes (Datensatz)', () => {
     const db = getDb();
     db.query("INSERT INTO users (email, password_hash, name, role) VALUES ('m@f.de', 'x', 'Mia Mit', 'mitarbeiter')").run();
     db.query("INSERT INTO users (email, password_hash, name, role) VALUES ('k@f.de', 'x', 'Kai Kollege', 'fulfillment')").run();
-    const mia = {id: 2, role: 'mitarbeiter'} as const;
-    const kai = {id: 3, role: 'fulfillment'} as const;
+    const mia = {id: 2, role: 'mitarbeiter', rechte: [...BASIS]};
+    const kai = {id: 3, role: 'fulfillment', rechte: [...BASIS]};
 
     // Für alle oder für Rollen freigeben kann nur, wer verwaltet.
     expect(typeof zugangskontoAnlegen(mia, {dienst: 'A', konto: null, secret: SECRET, verfahren: VERFAHREN, ...ALLE})).toBe('string');

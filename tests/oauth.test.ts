@@ -2,6 +2,7 @@ import {afterEach, beforeEach, describe, expect, test} from 'bun:test';
 import type {Database} from 'bun:sqlite';
 import {createElement, type ComponentType} from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
+import {wirksameRechte} from '../lib/rollen';
 import {createDb, setDbForTesting, type User} from '../lib/db';
 import {
   codeAusstellen,
@@ -34,7 +35,7 @@ function neuerBenutzer(role: string, email = `${crypto.randomUUID()}@firma.de`):
 }
 
 function alsActor(id: number, role: string): User {
-  return {id, role} as unknown as User;
+  return {id, role, rechte: wirksameRechte(role, [])} as unknown as User;
 }
 
 async function neueAnbindung(uris = ['https://app.firma.de/rueckkehr']) {

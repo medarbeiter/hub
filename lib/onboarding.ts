@@ -1,5 +1,6 @@
 import {getDb, type User} from './db';
-import {hatRecht, rolleLabel} from './rechte';
+import {hatRecht} from './rechte';
+import {rolleLabel} from './rollen';
 import {istAvatar, type AvatarKey} from './avatar';
 import {BUNDESLAENDER, isBundesland, type Bundesland} from './feiertage';
 import {googleKonfiguriert} from './google';

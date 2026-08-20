@@ -2,6 +2,7 @@ import {Badge, VStack} from '@astryxdesign/core';
 import {requireRecht} from '@/lib/auth';
 import {hatRecht} from '@/lib/rechte';
 import {einParameter} from '@/lib/format';
+import {alleRollen} from '@/lib/rollen';
 import {activeUsers} from '@/lib/time';
 import {aktuelleZugangscodes} from '@/lib/zugangscodes';
 import {ZeitRahmen} from '@/components/zeit-rahmen';
@@ -44,6 +45,11 @@ export default async function ZugangscodesPage({searchParams}: PageProps) {
   const personenWahl = darfErfassen
     ? activeUsers().map((u) => ({value: String(u.id), label: u.name}))
     : [];
+  // Der Rollenkreis steht nur Verwaltenden offen — alle anderen brauchen die
+  // Liste nicht und bekommen sie auch nicht.
+  const rollenWahl = darfVerwalten
+    ? alleRollen().map((r) => ({value: r.schluessel, label: r.label}))
+    : [];
   // Aus der ungefilterten Menge, und die Abfrage sortiert bereits nach Dienst.
   const dienste = [...new Set(alle.map((c) => c.dienst))];
 
@@ -70,7 +76,7 @@ export default async function ZugangscodesPage({searchParams}: PageProps) {
       figurMeta={dienst !== '' ? <Badge variant="neutral" label={dienst} /> : null}
       werkzeuge={
         darfErfassen ? (
-          <ZugangAnlegen selbstId={user.id} darfVerwalten={darfVerwalten} personenWahl={personenWahl} />
+          <ZugangAnlegen selbstId={user.id} darfVerwalten={darfVerwalten} personenWahl={personenWahl} rollenWahl={rollenWahl} />
         ) : null
       }
       belege={
@@ -85,6 +91,7 @@ export default async function ZugangscodesPage({searchParams}: PageProps) {
             selbstId={user.id}
             darfVerwalten={darfVerwalten}
             personenWahl={personenWahl}
+            rollenWahl={rollenWahl}
             gefiltert={gefiltert}
           />
         </VStack>

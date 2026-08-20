@@ -4,6 +4,7 @@
 
 import {afterEach, beforeEach, describe, expect, test} from 'bun:test';
 import type {Database} from 'bun:sqlite';
+import {wirksameRechte} from '../lib/rollen';
 import {createDb, setDbForTesting} from '../lib/db';
 import {
   KOMMENTAR_MAX_ZEICHEN,
@@ -26,11 +27,11 @@ afterEach(() => {
   db.close();
 });
 
-function person(name: string, role = 'mitarbeiter'): {id: number; role: string} {
+function person(name: string, role = 'mitarbeiter'): {id: number; role: string; rechte: string[]} {
   db.query('INSERT INTO users (email, password_hash, name, role, active) VALUES (?, ?, ?, ?, 1)')
     .run(`${name}@haus.de`, 'x', name, role);
   const id = db.query<{id: number}, []>('SELECT last_insert_rowid() AS id').get()!.id;
-  return {id, role};
+  return {id, role, rechte: wirksameRechte(role, [])};
 }
 
 describe('schreibeKommentar', () => {
@@ -67,11 +68,11 @@ describe('darfKommentarLoeschen', () => {
   });
 
   test('ein Unbeteiligter darf nicht', () => {
-    expect(darfKommentarLoeschen({id: 3, role: 'mitarbeiter'}, kommentar)).toBe(false);
+    expect(darfKommentarLoeschen({id: 3, role: 'mitarbeiter', rechte: []}, kommentar)).toBe(false);
   });
 
   test('wer Konten verwaltet, darf', () => {
-    expect(darfKommentarLoeschen({id: 3, role: 'verwaltung'}, kommentar)).toBe(true);
+    expect(darfKommentarLoeschen({id: 3, role: 'verwaltung', rechte: ['mitarbeiter.verwalten']}, kommentar)).toBe(true);
   });
 });
 

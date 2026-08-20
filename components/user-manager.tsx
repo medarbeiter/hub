@@ -26,16 +26,7 @@ import {
   type UserActionState,
 } from '@/app/actions';
 import {BUNDESLAENDER} from '@/lib/feiertage';
-import {
-  ALLE_RECHTE,
-  ALLE_ROLLEN,
-  RECHTE,
-  ROLLEN,
-  hatRecht,
-  rolleLabel,
-  type Recht,
-  type Rolle,
-} from '@/lib/rechte';
+import {ALLE_RECHTE, RECHTE, istRecht, type Recht, type Rolle, type RollenEintrag} from '@/lib/rechte';
 import {useMelde} from './melde';
 import type {PersonAngabe} from '@/lib/avatar';
 import {PersonenTafel, type PersonenZeile} from './personen-tafel';
@@ -59,24 +50,28 @@ export interface ManagedUser {
 interface UserManagerProps {
   users: ManagedUser[];
   selfId: number;
+  /** Die Rollen samt Bündeln, wie sie in der Datenbank stehen — der Browser kennt sie nicht mehr von selbst. */
+  rollen: RollenEintrag[];
 }
 
 const INITIAL: UserActionState = {error: null};
 
 const LAND_OPTIONS = Object.entries(BUNDESLAENDER).map(([value, label]) => ({value, label}));
 
-const ROLLEN_OPTIONS = ALLE_ROLLEN.map((rolle) => ({value: rolle, label: ROLLEN[rolle].label}));
-
 function UserForm({
   user,
+  rollen,
   onDone,
 }: {
   user: ManagedUser | null;
+  rollen: RollenEintrag[];
   onDone: (ergebnis?: {password: string; versandt?: UserActionState['versandt']}) => void;
 }) {
+  const rollenOptions = rollen.map((r) => ({value: r.schluessel, label: r.label}));
+  const vorgabe = rollen[0]?.schluessel ?? '';
   const [name, setName] = useState(user?.name ?? '');
   const [email, setEmail] = useState(user?.email ?? '');
-  const [role, setRole] = useState<Rolle>(user?.role ?? 'mitarbeiter');
+  const [role, setRole] = useState<Rolle>(user?.role ?? vorgabe);
   const [extraRechte, setExtraRechte] = useState<Recht[]>(user?.extra_rechte ?? []);
   const [weeklyHours, setWeeklyHours] = useState(user ? String(user.weekly_minutes / 60) : '40');
   const [urlaubstage, setUrlaubstage] = useState(String(user?.urlaubstage_jahr ?? 30));
@@ -99,7 +94,8 @@ function UserForm({
 
   // Nur, was das gewählte Bündel nicht ohnehin enthält — ein Haken, der
   // nichts hinzufügt, wäre eine Einstellung ohne Wirkung.
-  const waehlbareRechte = ALLE_RECHTE.filter((recht) => !ROLLEN[role].rechte.includes(recht));
+  const buendel = rollen.find((r) => r.schluessel === role)?.rechte ?? [];
+  const waehlbareRechte = ALLE_RECHTE.filter((recht) => !buendel.includes(recht));
   const gewaehlt = extraRechte.filter((recht) => waehlbareRechte.includes(recht));
 
   return (
@@ -117,16 +113,16 @@ function UserForm({
         />
         <Selector
           label="Rolle"
-          options={ROLLEN_OPTIONS}
+          options={rollenOptions}
           value={role}
-          onChange={(value) => setRole(value && value in ROLLEN ? (value as Rolle) : 'mitarbeiter')}
-          description="Jede Rolle ist ein vordefiniertes Rechtebündel; darunter lassen sich einzelne Rechte ergänzen."
+          onChange={(value) => setRole(value && rollen.some((r) => r.schluessel === value) ? value : vorgabe)}
+          description="Jede Rolle ist ein Rechtebündel; darunter lassen sich einzelne Rechte ergänzen."
         />
         {waehlbareRechte.length > 0 ? (
           <CheckboxList
             label="Zusätzliche Rechte"
             value={gewaehlt}
-            onChange={(values) => setExtraRechte(values.filter((v): v is Recht => v in RECHTE))}
+            onChange={(values) => setExtraRechte(values.filter(istRecht))}
             density="compact"
             hasDividers
           >
@@ -201,7 +197,9 @@ function UserForm({
   );
 }
 
-export function UserManager({users, selfId}: UserManagerProps) {
+export function UserManager({users, selfId, rollen}: UserManagerProps) {
+  const buendelVon = (role: string) => rollen.find((r) => r.schluessel === role)?.rechte ?? [];
+  const labelVon = (role: string) => rollen.find((r) => r.schluessel === role)?.label ?? role;
   const [editing, setEditing] = useState<ManagedUser | null>(null);
   const [isFormOpen, setFormOpen] = useState(false);
   const [oneTimePassword, setOneTimePassword] = useState<{
@@ -270,11 +268,11 @@ export function UserManager({users, selfId}: UserManagerProps) {
     marken: (
       <HStack gap={1} wrap="wrap" justify="end">
         <Badge
-          variant={hatRecht({role: user.role}, 'mitarbeiter.verwalten') ? 'info' : 'neutral'}
-          label={rolleLabel(user.role)}
+          variant={buendelVon(user.role).includes('mitarbeiter.verwalten') ? 'info' : 'neutral'}
+          label={labelVon(user.role)}
           icon={
             <Sinnbild
-              sinn={hatRecht({role: user.role}, 'mitarbeiter.verwalten') ? 'rolleVerwaltung' : 'rolleMitarbeiter'}
+              sinn={buendelVon(user.role).includes('mitarbeiter.verwalten') ? 'rolleVerwaltung' : 'rolleMitarbeiter'}
               groesse="zeile"
             />
           }
@@ -383,6 +381,7 @@ export function UserManager({users, selfId}: UserManagerProps) {
         {isFormOpen && (
           <UserForm
             user={editing}
+            rollen={rollen}
             onDone={(ergebnis) => {
               setFormOpen(false);
               if (ergebnis) setOneTimePassword({name: 'Neues Konto', ...ergebnis});

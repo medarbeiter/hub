@@ -24,8 +24,10 @@ import {
 
 let db: Database;
 
-const ANNA: Pick<User, 'id' | 'name' | 'role'> = {id: 1, name: 'Anna Berger', role: 'verwaltung'};
-const BERT: Pick<User, 'id' | 'name' | 'role'> = {id: 2, name: 'Bert Klein', role: 'mitarbeiter'};
+// Die wirksamen Rechte reisen mit (hatRecht kennt keine Bündel mehr); als
+// Literal, weil die Konstanten vor setDbForTesting entstehen.
+const ANNA: Pick<User, 'id' | 'name' | 'role' | 'rechte'> = {id: 1, name: 'Anna Berger', role: 'verwaltung', rechte: ['protokoll.alle']};
+const BERT: Pick<User, 'id' | 'name' | 'role' | 'rechte'> = {id: 2, name: 'Bert Klein', role: 'mitarbeiter', rechte: []};
 
 beforeEach(() => {
   db = createDb(':memory:');

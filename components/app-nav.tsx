@@ -33,12 +33,13 @@ import {
   type NavAktion,
 } from './nav-ausklapp';
 import {NavTagesstand} from './nav-tagesstand';
-import {rolleLabel, type Recht, type Rolle} from '@/lib/rechte';
+import {type Recht, type Rolle} from '@/lib/rechte';
 import {Sinnbild, gefuellt, umriss} from './sinnbilder';
 import {PersonZeichen} from './person-zeichen';
 
 interface AppNavProps {
   name: string;
+  /** Das fertige deutsche Wort der Rolle — das Layout löst den Schlüssel über lib/rollen.ts auf. */
   role: Rolle;
   /** Wirksame Rechte der Sitzung — die Leiste zeigt nur, was der Rechteschnitt hergibt. */
   rechte: Recht[];
@@ -777,7 +778,7 @@ function Kontozeile({
               {name}
             </Text>
             <Text type="supporting" size="sm" color="secondary" maxLines={1}>
-              {rolleLabel(role)}
+              {role}
             </Text>
           </VStack>
           <Sinnbild sinn="einstellungen" ton="sekundaer" />

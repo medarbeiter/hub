@@ -20,7 +20,8 @@
 
 import {personAngabe, type AvatarKey, type PersonAngabe} from './avatar';
 import {getDb, type TotpKonto, type User, type ZugangscodeLoeschung} from './db';
-import {hatRecht, istRolle, rolleLabel} from './rechte';
+import {hatRecht} from './rechte';
+import {istRolle, rolleLabel} from './rollen';
 import {base32Dekodieren, periodeEnde, totpCode, type TotpVerfahren} from './totp';
 
 /** 30 Minuten, den Bestätigungslink zu öffnen — lang genug fürs Postfach, kurz genug fürs Risiko. */

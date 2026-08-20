@@ -1,7 +1,8 @@
 import {personAngabe, type AvatarKey, type PersonAngabe} from './avatar';
 import {getDb, type Role, type User} from './db';
 import {isBundesland} from './feiertage';
-import {ROLLEN, hatRecht, istRecht, istRolle, type Recht} from './rechte';
+import {hatRecht, istRecht, type Recht} from './rechte';
+import {istRolle, rechteDerRolle, rolleLabel} from './rollen';
 import {ABWAEHLBARE_ARTEN, istMailArt, type MailArt} from './mail-arten';
 
 // Benutzerverwaltung — jeder Aufruf prüft das Recht `mitarbeiter.verwalten`.
@@ -38,7 +39,7 @@ function schreibeZusatzRechte(userId: number, role: Role, rechte: Recht[]): void
   db.query('DELETE FROM benutzer_rechte WHERE user_id = ?').run(userId);
   // Nur, was das Rollenbündel nicht ohnehin enthält — sonst bliebe ein
   // „Zusatzrecht" nach einem Rollenwechsel unsichtbar kleben.
-  const buendel = new Set<string>(istRolle(role) ? ROLLEN[role].rechte : []);
+  const buendel = new Set<string>(rechteDerRolle(role));
   for (const recht of new Set(rechte)) {
     if (!buendel.has(recht)) db.query('INSERT INTO benutzer_rechte (user_id, recht) VALUES (?, ?)').run(userId, recht);
   }
@@ -100,7 +101,9 @@ export function personAngabeById(userId: number): PersonAngabe | null {
       [number]
     >('SELECT id, name, role, email, avatar_key, avatar_datei FROM users WHERE id = ?')
     .get(userId);
-  return row ? personAngabe(row) : null;
+  // Die Rolle geht als deutsches Wort hinaus, nicht als Schlüssel: die Karte
+  // im Browser kann einen frei benannten Rollensatz nicht selbst übersetzen.
+  return row ? {...personAngabe(row), rolle: rolleLabel(row.role)} : null;
 }
 
 function validateUserInput(input: UserInput, excludeId?: number): string | null {
@@ -168,7 +171,7 @@ export function updateUser(actor: User, userId: number, input: UserInput): strin
   if (invalid) return invalid;
   // Wer sich selbst bearbeitet, darf sich die Benutzerverwaltung nicht nehmen —
   // sonst sperrte sich das letzte Verwalterkonto mit einem Klick selbst aus.
-  if (actor.id === userId && !hatRecht({role: input.role}, 'mitarbeiter.verwalten')
+  if (actor.id === userId && !rechteDerRolle(input.role).includes('mitarbeiter.verwalten')
       && !input.extraRechte.includes('mitarbeiter.verwalten')) {
     return 'Du kannst dir nicht selbst das Recht zur Benutzerverwaltung entziehen.';
   }
@@ -273,7 +276,7 @@ export function setUserActive(actor: User, userId: number, active: boolean): str
     // Rollenbündel oder als Zusatzrecht, entscheidet hatRecht, nicht das SQL.
     const target = getDb().query<{role: Role}, [number]>('SELECT role FROM users WHERE id = ?').get(userId);
     const targetVerwaltet = target
-      ? hatRecht({role: target.role}, 'mitarbeiter.verwalten') ||
+      ? rechteDerRolle(target.role).includes('mitarbeiter.verwalten') ||
         zusatzRechte(userId).includes('mitarbeiter.verwalten')
       : false;
     if (targetVerwaltet) {
@@ -281,7 +284,7 @@ export function setUserActive(actor: User, userId: number, active: boolean): str
         .query<{id: number; role: Role}, [number]>('SELECT id, role FROM users WHERE active = 1 AND id != ?')
         .all(userId);
       const nochJemand = andere.some((u) =>
-        hatRecht({role: u.role}, 'mitarbeiter.verwalten') || zusatzRechte(u.id).includes('mitarbeiter.verwalten'),
+        rechteDerRolle(u.role).includes('mitarbeiter.verwalten') || zusatzRechte(u.id).includes('mitarbeiter.verwalten'),
       );
       if (!nochJemand) return 'Das letzte Konto mit Benutzerverwaltung kann nicht deaktiviert werden.';
     }

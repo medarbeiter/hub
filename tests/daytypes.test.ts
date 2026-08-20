@@ -1,6 +1,7 @@
 import {afterEach, beforeEach, describe, expect, test} from 'bun:test';
 import type {Database} from 'bun:sqlite';
 import {createDb, setDbForTesting, type User} from '../lib/db';
+import {wirksameRechte} from '../lib/rollen';
 import {dayTypeCounts, resolveDayType, setDayType} from '../lib/daytypes';
 import {setSetting} from '../lib/settings';
 import {zeitkontoSummary} from '../lib/time';
@@ -21,6 +22,7 @@ beforeEach(() => {
   user = db
     .query<User, []>('SELECT id, email, name, role, weekly_minutes, active, created_at, bundesland FROM users')
     .get()!;
+  user.rechte = wirksameRechte(user.role, []);
 });
 
 afterEach(() => setDbForTesting(undefined));
@@ -158,7 +160,7 @@ describe('setDayType', () => {
     db.query("INSERT INTO users (email, password_hash, name, role) VALUES ('a@b.de', 'x', 'Andere', 'mitarbeiter')").run();
     const other = db.query<{id: number}, []>("SELECT id FROM users WHERE email = 'a@b.de'").get()!;
     expect(setDayType(user, other.id, MON, 'urlaub')).toBe('Keine Berechtigung.');
-    const chef: User = {...user, role: 'verwaltung'};
+    const chef: User = {...user, role: 'verwaltung', rechte: wirksameRechte('verwaltung', [])};
     expect(setDayType(chef, other.id, MON, 'urlaub')).toBeNull();
   });
 });

@@ -42,7 +42,8 @@ import {ausserHausLabel, fmtTage, istAntrag, laengeInTagen} from './abwesenheit-
 import {fmtDate, fmtDateRange, fmtDuration, fmtDurationSigned, fmtEuro, fmtMonth} from './format';
 import {MAIL_ARTEN, type MailArt, type MailInhalt} from './mail-arten';
 import {sendeAnAlle, sendeMail, type VersandErgebnis} from './mail';
-import {effektiveRechte, hatRecht, rolleLabel, type Recht} from './rechte';
+import {hatRecht, type Recht} from './rechte';
+import {rolleLabel, wirksameRechte} from './rollen';
 // Die Abbestellung ist eine Spalte an `users` und liegt deshalb dort, wo der
 // Personalstamm liegt — dieses Modul liest sie nur.
 import {abbestellteAus} from './users';
@@ -104,7 +105,7 @@ export function empfaengerMitRecht(recht: Recht, ausserId?: number): Empfaenger[
         .query<{recht: string}, [number]>('SELECT recht FROM benutzer_rechte WHERE user_id = ?')
         .all(row.id)
         .map((r) => r.recht);
-      return hatRecht({role: row.role, rechte: effektiveRechte(row.role, extra)}, recht);
+      return hatRecht({role: row.role, rechte: wirksameRechte(row.role, extra)}, recht);
     })
     .map((row) => ({
       id: row.id,

@@ -15,7 +15,8 @@
 // Datenbank liest, kann sich damit nirgends anmelden.
 
 import {getDb, type User} from './db';
-import {effektiveRechte, hatRecht, type Recht} from './rechte';
+import {hatRecht, type Recht} from './rechte';
+import {wirksameRechte} from './rollen';
 
 /** Ein Code trägt genau einen Anmelde-Rundlauf; 60 s decken jede Weiterleitung. */
 const CODE_TTL_MS = 60_000;
@@ -288,7 +289,7 @@ export function tokenPruefen(token: string): {user: User & {rechte: Recht[]}; cl
     .query<{recht: string}, [number]>('SELECT recht FROM benutzer_rechte WHERE user_id = ?')
     .all(userZeile.id)
     .map((r) => r.recht);
-  const user = {...userZeile, rechte: effektiveRechte(userZeile.role, extra)} as User & {rechte: Recht[]};
+  const user = {...userZeile, rechte: wirksameRechte(userZeile.role, extra)} as User & {rechte: Recht[]};
   return {user, clientId: client_id};
 }
 

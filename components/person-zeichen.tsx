@@ -13,7 +13,6 @@ import {
 } from '@astryxdesign/core';
 import {useEffect, useState, type ReactNode} from 'react';
 import type {PersonAngabe} from '@/lib/avatar';
-import {istRolle, ROLLEN} from '@/lib/rechte';
 import {Ausklapp} from './ausklapp';
 import {ProfilKommentare} from './profil-kommentare';
 import {Sinnbild} from './sinnbilder';
@@ -273,7 +272,9 @@ export function PersonKarte({
   // nachgeladene Angabe fünf Minuten alt sein darf (api/person). Sonst
   // holte die Karte ein gerade ersetztes Profilbild zurück.
   const angabe = nachgeladen ? {...nachgeladen, bild: person.bild} : person;
-  const rolle = angabe.rolle && istRolle(angabe.rolle) ? ROLLEN[angabe.rolle].label : null;
+  // Die Rolle kommt als fertiges Wort vom Server (lib/rollen.ts) — der
+  // Browser kennt die frei benannten Rollensätze nicht.
+  const rolle = angabe.rolle ?? null;
 
   return (
     <TafelDialog isOpen={isOpen} onOpenChange={onOpenChange} width={520}>

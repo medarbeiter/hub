@@ -1,6 +1,7 @@
 import {afterEach, beforeEach, expect, test} from 'bun:test';
 import type {Database} from 'bun:sqlite';
 import {createDb, setDbForTesting, type User} from '../lib/db';
+import {wirksameRechte} from '../lib/rollen';
 import {createAbwesenheit} from '../lib/abwesenheit';
 import {suche} from '../lib/suche';
 
@@ -27,6 +28,7 @@ beforeEach(() => {
     db.query('INSERT INTO users (email, password_hash, name, role) VALUES (?, ?, ?, ?)').run(email, 'x', name, rolle);
   }
   [anna, bert, chef] = db.query<User, []>(`SELECT ${SPALTEN} FROM users ORDER BY id`).all() as [User, User, User];
+  for (const u of [anna, bert, chef]) u.rechte = wirksameRechte(u.role, []);
 });
 
 afterEach(() => setDbForTesting(undefined));

@@ -1,6 +1,7 @@
 import {afterEach, beforeEach, describe, expect, test} from 'bun:test';
 import {Database} from 'bun:sqlite';
 import {createDb, setDbForTesting, type User} from '../lib/db';
+import {wirksameRechte} from '../lib/rollen';
 import {addDays, todayISO} from '../lib/format';
 import {setSpesenSaetze} from '../lib/settings';
 import {lockMonth} from '../lib/time';
@@ -44,6 +45,7 @@ function nutzer(id: number, name: string, role: 'mitarbeiter' | 'verwaltung'): U
     created_at: '2026-01-01',
     bundesland: null,
     urlaubstage_jahr: 30,
+    rechte: wirksameRechte(role, []),
   };
 }
 

@@ -1,5 +1,6 @@
 import {afterEach, describe, expect, test} from 'bun:test';
 import {createDb, getDb, setDbForTesting} from '../lib/db';
+import {wirksameRechte} from '../lib/rollen';
 import {AVATAR_KEYS} from '../lib/avatar';
 import {
   einrichtungNeuStarten,
@@ -69,7 +70,7 @@ describe('Onboarding', () => {
 
   test('die Verwaltung kann die Einrichtung neu starten; eine bestehende Google-Verknüpfung bleibt', () => {
     const id = neuerNutzer();
-    const verwaltung = {id: 999, role: 'verwaltung'} as User;
+    const verwaltung = {id: 999, role: 'verwaltung', rechte: wirksameRechte('verwaltung', [])} as User;
     onboardingAbschliessen(id, {startansicht: 'tag', hinweiseZuOffenenTagen: true, avatar: 'vertrieb-akquise', mailAbbestellt: []});
     expect(onboardingIstFertig(id)).toBe(true);
 

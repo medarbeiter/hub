@@ -3,7 +3,8 @@ import {ART_LABEL, STATUS_LABEL} from './abwesenheit-arten';
 import {personAngabe, type AvatarKey, type PersonAngabe} from './avatar';
 import {getDb, type AbwesenheitArt, type AbwesenheitStatus, type ReiseStatus, type User} from './db';
 import {fmtDate, monthOf, parseDatumEingabe, todayISO} from './format';
-import {hatRecht, rolleLabel, type Recht} from './rechte';
+import {hatRecht, type Recht} from './rechte';
+import {rolleLabel} from './rollen';
 import {REISE_STATUS_LABEL} from './spesen';
 import {sichtbareZugangskonten, zugangskontoName} from './zugangscodes';
 

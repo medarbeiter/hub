@@ -84,8 +84,9 @@ export interface PersonAngabe {
   /** Fertige Bildquelle — Foto oder Tierfigur, hier schon entschieden. */
   bild: string;
   /**
-   * Die Rolle als Schlüssel (`ROLLEN` in lib/rechte.ts macht daraus ein
-   * deutsches Wort). Nur für die Personenkarte gedacht.
+   * Die Rolle als fertiges deutsches Wort — der Server hat den Schlüssel
+   * schon über lib/rollen.ts aufgelöst (die Bündel sind Datensätze, der
+   * Browser kann sie nicht übersetzen). Nur für die Personenkarte gedacht.
    */
   rolle?: string;
   /**
@@ -100,14 +101,14 @@ export interface PersonAngabe {
 /**
  * Die eine Stelle, an der eine Benutzerzeile zur Personenangabe wird.
  *
- * Rolle und Adresse kommen mit, wenn die Zeile sie trägt — die meisten kommen
- * direkt aus `users`. Wo sie fehlen, holt die Personenkarte sie beim Öffnen
- * über `/api/person/<id>` nach; sie sind eine Zugabe, keine Voraussetzung.
+ * Die Adresse kommt mit, wenn die Zeile sie trägt; die Rolle setzt nur, wer
+ * ihr Etikett kennt (`personAngabeById` in lib/users.ts) — hier läge sonst
+ * der rohe Schlüssel. Wo beides fehlt, holt die Personenkarte es beim Öffnen
+ * über `/api/person/<id>` nach; es ist eine Zugabe, keine Voraussetzung.
  */
 export function personAngabe(user: {
   id: number;
   name: string;
-  role?: string;
   email?: string;
   avatar_key?: AvatarKey;
   avatar_datei?: string | null;
@@ -116,7 +117,6 @@ export function personAngabe(user: {
     id: user.id,
     name: user.name,
     bild: avatarQuelle(user),
-    ...(user.role ? {rolle: user.role} : {}),
     ...(user.email ? {email: user.email} : {}),
   };
 }
