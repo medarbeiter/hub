@@ -1,7 +1,7 @@
 import {personAngabe, type AvatarKey, type PersonAngabe} from './avatar';
 import {getDb, type Role, type User} from './db';
 import {isBundesland} from './feiertage';
-import {hatRecht, istRecht, type Recht} from './rechte';
+import {hatRecht, istRecht, vereinigeRechte, type Recht} from './rechte';
 import {istRolle, rechteDerRolle, rolleLabel} from './rollen';
 import {ABWAEHLBARE_ARTEN, istMailArt, type MailArt} from './mail-arten';
 
@@ -39,7 +39,7 @@ function schreibeZusatzRechte(userId: number, role: Role, rechte: Recht[]): void
   db.query('DELETE FROM benutzer_rechte WHERE user_id = ?').run(userId);
   // Nur, was das Rollenbündel nicht ohnehin enthält — sonst bliebe ein
   // „Zusatzrecht" nach einem Rollenwechsel unsichtbar kleben.
-  const buendel = new Set<string>(rechteDerRolle(role));
+  const buendel = new Set<string>(vereinigeRechte(rechteDerRolle(role)));
   for (const recht of new Set(rechte)) {
     if (!buendel.has(recht)) db.query('INSERT INTO benutzer_rechte (user_id, recht) VALUES (?, ?)').run(userId, recht);
   }
@@ -106,8 +106,11 @@ export function personAngabeById(userId: number): PersonAngabe | null {
   return row ? {...personAngabe(row), rolle: rolleLabel(row.role)} : null;
 }
 
-function validateUserInput(input: UserInput, excludeId?: number): string | null {
+function validateUserInput(actor: User, input: UserInput, excludeId?: number): string | null {
   if (!input.name.trim()) return 'Bitte einen Namen angeben.';
+  if (input.extraRechte.includes('*') && !hatRecht(actor, '*')) {
+    return 'Das Recht „Alle Rechte" kann nur vergeben, wer es selbst trägt.';
+  }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) return 'Bitte eine gültige E-Mail-Adresse angeben.';
   if (!istRolle(input.role)) return 'Ungültige Rolle.';
   if (input.extraRechte.some((r) => !istRecht(r))) return 'Unbekanntes Recht.';
@@ -137,7 +140,7 @@ export async function createUser(
   input: UserInput,
 ): Promise<{error: string} | {id: number; password: string}> {
   if (!hatRecht(actor, 'mitarbeiter.verwalten')) return {error: 'Keine Berechtigung.'};
-  const invalid = validateUserInput(input);
+  const invalid = validateUserInput(actor, input);
   if (invalid) return {error: invalid};
   const password = generatePassword();
   const hash = await Bun.password.hash(password);
@@ -167,12 +170,12 @@ export async function createUser(
 
 export function updateUser(actor: User, userId: number, input: UserInput): string | null {
   if (!hatRecht(actor, 'mitarbeiter.verwalten')) return 'Keine Berechtigung.';
-  const invalid = validateUserInput(input, userId);
+  const invalid = validateUserInput(actor, input, userId);
   if (invalid) return invalid;
   // Wer sich selbst bearbeitet, darf sich die Benutzerverwaltung nicht nehmen —
   // sonst sperrte sich das letzte Verwalterkonto mit einem Klick selbst aus.
-  if (actor.id === userId && !rechteDerRolle(input.role).includes('mitarbeiter.verwalten')
-      && !input.extraRechte.includes('mitarbeiter.verwalten')) {
+  if (actor.id === userId
+      && !vereinigeRechte(rechteDerRolle(input.role), input.extraRechte).includes('mitarbeiter.verwalten')) {
     return 'Du kannst dir nicht selbst das Recht zur Benutzerverwaltung entziehen.';
   }
   const db = getDb();
@@ -276,15 +279,14 @@ export function setUserActive(actor: User, userId: number, active: boolean): str
     // Rollenbündel oder als Zusatzrecht, entscheidet hatRecht, nicht das SQL.
     const target = getDb().query<{role: Role}, [number]>('SELECT role FROM users WHERE id = ?').get(userId);
     const targetVerwaltet = target
-      ? rechteDerRolle(target.role).includes('mitarbeiter.verwalten') ||
-        zusatzRechte(userId).includes('mitarbeiter.verwalten')
+      ? vereinigeRechte(rechteDerRolle(target.role), zusatzRechte(userId)).includes('mitarbeiter.verwalten')
       : false;
     if (targetVerwaltet) {
       const andere = getDb()
         .query<{id: number; role: Role}, [number]>('SELECT id, role FROM users WHERE active = 1 AND id != ?')
         .all(userId);
       const nochJemand = andere.some((u) =>
-        rechteDerRolle(u.role).includes('mitarbeiter.verwalten') || zusatzRechte(u.id).includes('mitarbeiter.verwalten'),
+        vereinigeRechte(rechteDerRolle(u.role), zusatzRechte(u.id)).includes('mitarbeiter.verwalten'),
       );
       if (!nochJemand) return 'Das letzte Konto mit Benutzerverwaltung kann nicht deaktiviert werden.';
     }

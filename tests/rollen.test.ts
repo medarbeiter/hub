@@ -42,11 +42,12 @@ describe('Migration 27', () => {
     expect(alleRollen().map((r) => r.schluessel).sort()).toEqual([
       'fulfillment', 'geschaeftsfuehrung', 'mitarbeiter', 'vertrieb', 'verwaltung',
     ]);
-    // Verwaltung trägt jedes Recht — auch das neue rollen.verwalten.
-    expect(rechteDerRolle('verwaltung')).toEqual(ALLE_RECHTE);
-    expect(rechteDerRolle('geschaeftsfuehrung')).toEqual(ALLE_RECHTE);
+    // Verwaltung trägt jedes Recht — seit Migration 28 auch den Vollzugriff „*".
+    expect([...rechteDerRolle('verwaltung')].sort()).toEqual([...ALLE_RECHTE].sort());
+    expect([...rechteDerRolle('geschaeftsfuehrung')].sort()).toEqual([...ALLE_RECHTE].sort());
     expect(rechteDerRolle('mitarbeiter')).toContain('zeit.erfassen');
     expect(rechteDerRolle('mitarbeiter')).not.toContain('mitarbeiter.verwalten');
+    expect(rechteDerRolle('mitarbeiter')).not.toContain('*'); // „*" nur an Rollen, die alles trugen
   });
 
   test('users.role trägt keine CHECK-Klausel mehr — ein frei benannter Schlüssel ist speicherbar', () => {
@@ -133,11 +134,11 @@ describe('rolleAendern', () => {
 
   test('keine Selbstaussperrung aus der eigenen Rolle', () => {
     const chef = benutzer('chef@t.de', 'verwaltung');
-    const ohneRollen = ALLE_RECHTE.filter((r) => r !== 'rollen.verwalten');
+    const ohneRollen = ALLE_RECHTE.filter((r) => r !== 'rollen.verwalten' && r !== '*');
     expect(rolleAendern(chef, 'verwaltung', {label: 'Verwaltung', rechte: ohneRollen})).toBe(
       'Du kannst dir nicht selbst das Recht „Rollen verwalten" entziehen.',
     );
-    const ohneMitarbeiter = ALLE_RECHTE.filter((r) => r !== 'mitarbeiter.verwalten');
+    const ohneMitarbeiter = ALLE_RECHTE.filter((r) => r !== 'mitarbeiter.verwalten' && r !== '*');
     expect(rolleAendern(chef, 'verwaltung', {label: 'Verwaltung', rechte: ohneMitarbeiter})).toBe(
       'Du kannst dir nicht selbst das Recht „Mitarbeiter verwalten" entziehen.',
     );
@@ -149,7 +150,7 @@ describe('rolleAendern', () => {
     const chef = benutzer('chef@t.de', 'verwaltung');
     db.query('INSERT INTO benutzer_rechte (user_id, recht) VALUES (?, ?)').run(chef.id, 'rollen.verwalten');
     db.query('INSERT INTO benutzer_rechte (user_id, recht) VALUES (?, ?)').run(chef.id, 'mitarbeiter.verwalten');
-    const ohneBeide = ALLE_RECHTE.filter((r) => r !== 'rollen.verwalten' && r !== 'mitarbeiter.verwalten');
+    const ohneBeide = ALLE_RECHTE.filter((r) => r !== 'rollen.verwalten' && r !== 'mitarbeiter.verwalten' && r !== '*');
     expect(rolleAendern(chef, 'verwaltung', {label: 'Verwaltung', rechte: ohneBeide})).toBeNull();
   });
 });

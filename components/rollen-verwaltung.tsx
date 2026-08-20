@@ -25,7 +25,7 @@ import {
 import {useRouter} from 'next/navigation';
 import {useActionState, useEffect, useRef, useState, useTransition} from 'react';
 import {rolleLoeschenAction, rolleSpeichernAction, type ActionState} from '@/app/actions';
-import {ALLE_RECHTE, RECHTE, istRecht, type Recht, type RollenEintrag} from '@/lib/rechte';
+import {ALLE_RECHTE, RECHTE, STUFEN, STUFEN_REIHENFOLGE, hatRecht, istRecht, type Recht, type RollenEintrag} from '@/lib/rechte';
 import {useMelde} from './melde';
 import {Sinnbild} from './sinnbilder';
 import {TafelDialog} from './tafel-dialog';
@@ -86,22 +86,35 @@ function RollenForm({
               : 'Aus dem Namen entsteht der feste Schlüssel der Rolle.'
           }
         />
-        <CheckboxList
-          label="Rechte"
-          value={rechte}
-          onChange={(values) => setRechte(values.filter(istRecht))}
-          density="compact"
-          hasDividers
-        >
-          {waehlbar.map((recht) => (
-            <CheckboxListItem
-              key={recht}
-              value={recht}
-              label={RECHTE[recht].label}
-              description={RECHTE[recht].beschreibung}
-            />
-          ))}
-        </CheckboxList>
+        {STUFEN_REIHENFOLGE.map((stufe) => {
+          const gruppe = waehlbar.filter((recht) => RECHTE[recht].stufe === stufe);
+          if (gruppe.length === 0) return null;
+          return (
+            <CheckboxList
+              key={stufe}
+              label={STUFEN[stufe].label}
+              description={STUFEN[stufe].beschreibung}
+              value={rechte.filter((recht) => RECHTE[recht].stufe === stufe)}
+              onChange={(values) =>
+                setRechte((alt) => [
+                  ...alt.filter((recht) => RECHTE[recht].stufe !== stufe),
+                  ...values.filter(istRecht),
+                ])
+              }
+              density="compact"
+              hasDividers
+            >
+              {gruppe.map((recht) => (
+                <CheckboxListItem
+                  key={recht}
+                  value={recht}
+                  label={RECHTE[recht].label}
+                  description={RECHTE[recht].beschreibung}
+                />
+              ))}
+            </CheckboxList>
+          );
+        })}
         {fest.length > 0 && (
           <Banner
             status="info"
@@ -158,13 +171,15 @@ export function RollenVerwaltung({rollen, eigeneRechte}: RollenVerwaltungProps) 
             <VStack gap={0}>
               <Text weight="medium">{rolle.label}</Text>
               <Text type="supporting" size="sm" color="secondary">
-                {rolle.rechte.length === 1 ? '1 Recht' : `${rolle.rechte.length} Rechte`}
+                {rolle.rechte.includes('*')
+                  ? 'Alle Rechte'
+                  : rolle.rechte.length === 1 ? '1 Recht' : `${rolle.rechte.length} Rechte`}
                 {' · '}
                 {rolle.konten === 1 ? '1 Konto' : `${rolle.konten} Konten`}
               </Text>
             </VStack>
             <HStack gap={1} justify="end" vAlign="center" wrap="nowrap">
-              {rolle.rechte.includes('mitarbeiter.verwalten') && (
+              {hatRecht({role: rolle.schluessel, rechte: rolle.rechte}, 'mitarbeiter.verwalten') && (
                 <Badge
                   variant="info"
                   label="Benutzerverwaltung"

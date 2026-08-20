@@ -46,6 +46,7 @@ const MIGRATIONS: Migration[] = [
   migration25Erinnerungen,
   migration26ProfilKommentare,
   migration27RollenTabelle,
+  migration28Vollzugriff,
 ];
 
 /** The `PRAGMA user_version` a fully migrated database carries. */
@@ -770,6 +771,29 @@ function migration27RollenTabelle(db: Database) {
   ein.run('vertrieb', 'Vertrieb', grund);
   ein.run('verwaltung', 'Verwaltung', alle);
   ein.run('geschaeftsfuehrung', 'Geschäftsführung', alle);
+}
+
+function migration28Vollzugriff(db: Database) {
+  // Das neue Recht „*" (Vollzugriff) übersteuert alle Einzelrechte und
+  // schließt künftige Rechte automatisch ein. Vergeben kann es nur, wer es
+  // selbst trägt — irgendjemand muss es also zuerst bekommen: jede Rolle, die
+  // in diesem Moment jedes der zwanzig Rechte trägt, erhält es. Die Liste
+  // steht eingefroren hier und nicht im lebenden Vokabular, denn eine
+  // ausgelieferte Migration ändert sich nie wieder.
+  const alle = (
+    'zeit.erfassen,zeit.team,zeit.korrigieren,abschluss.verwalten,berichte.sehen,' +
+    'abwesenheit.beantragen,abwesenheit.pruefen,spesen.erfassen,spesen.pruefen,' +
+    'profil.kommentieren,kalender.sehen,kalender.gruende,protokoll.alle,' +
+    'zugangscodes.sehen,zugangscodes.erfassen,zugangscodes.verwalten,' +
+    'mitarbeiter.verwalten,rollen.verwalten,einstellungen.verwalten,apps.verwalten'
+  ).split(',');
+  const setzen = db.query('UPDATE rollen SET rechte = ? WHERE schluessel = ?');
+  for (const rolle of db.query<{schluessel: string; rechte: string}, []>('SELECT schluessel, rechte FROM rollen').all()) {
+    const menge = new Set(rolle.rechte.split(',').map((r) => r.trim()));
+    if (!menge.has('*') && alle.every((recht) => menge.has(recht))) {
+      setzen.run(`${rolle.rechte},*`, rolle.schluessel);
+    }
+  }
 }
 
 /**

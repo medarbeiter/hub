@@ -2,7 +2,7 @@ import {Badge, VStack} from '@astryxdesign/core';
 import {requireRecht} from '@/lib/auth';
 import {personAngabe} from '@/lib/avatar';
 import {hatRecht} from '@/lib/rechte';
-import {alleRollen, kontenMitRolle, rechteDerRolle} from '@/lib/rollen';
+import {alleRollen, kontenMitRolle, wirksameRechte} from '@/lib/rollen';
 import {allUsers} from '@/lib/users';
 import {RollenVerwaltung} from '@/components/rollen-verwaltung';
 import {UserManager} from '@/components/user-manager';
@@ -18,7 +18,7 @@ export default async function MitarbeiterPage() {
   const aktive = users.filter((u) => u.active === 1);
   const stillgelegt = users.length - aktive.length;
   const verwalter = aktive.filter(
-    (u) => rechteDerRolle(u.role).includes('mitarbeiter.verwalten') || u.extra_rechte.includes('mitarbeiter.verwalten'),
+    (u) => wirksameRechte(u.role, u.extra_rechte).includes('mitarbeiter.verwalten'),
   ).length;
 
   return (
@@ -40,6 +40,7 @@ export default async function MitarbeiterPage() {
       belege={
         <VStack gap={6}>
           <UserManager
+            darfVollzugriff={hatRecht(actor, '*')}
             users={users.map((u) => ({
               id: u.id,
               name: u.name,

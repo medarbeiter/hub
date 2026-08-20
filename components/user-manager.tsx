@@ -26,7 +26,7 @@ import {
   type UserActionState,
 } from '@/app/actions';
 import {BUNDESLAENDER} from '@/lib/feiertage';
-import {ALLE_RECHTE, RECHTE, istRecht, type Recht, type Rolle, type RollenEintrag} from '@/lib/rechte';
+import {ALLE_RECHTE, RECHTE, STUFEN, STUFEN_REIHENFOLGE, istRecht, vereinigeRechte, type Recht, type Rolle, type RollenEintrag} from '@/lib/rechte';
 import {useMelde} from './melde';
 import type {PersonAngabe} from '@/lib/avatar';
 import {PersonenTafel, type PersonenZeile} from './personen-tafel';
@@ -52,6 +52,8 @@ interface UserManagerProps {
   selfId: number;
   /** Die Rollen samt Bündeln, wie sie in der Datenbank stehen — der Browser kennt sie nicht mehr von selbst. */
   rollen: RollenEintrag[];
+  /** Ob die angemeldete Person „*" selbst trägt — nur dann steht es zur Vergabe. */
+  darfVollzugriff: boolean;
 }
 
 const INITIAL: UserActionState = {error: null};
@@ -61,10 +63,12 @@ const LAND_OPTIONS = Object.entries(BUNDESLAENDER).map(([value, label]) => ({val
 function UserForm({
   user,
   rollen,
+  darfVollzugriff,
   onDone,
 }: {
   user: ManagedUser | null;
   rollen: RollenEintrag[];
+  darfVollzugriff: boolean;
   onDone: (ergebnis?: {password: string; versandt?: UserActionState['versandt']}) => void;
 }) {
   const rollenOptions = rollen.map((r) => ({value: r.schluessel, label: r.label}));
@@ -94,8 +98,10 @@ function UserForm({
 
   // Nur, was das gewählte Bündel nicht ohnehin enthält — ein Haken, der
   // nichts hinzufügt, wäre eine Einstellung ohne Wirkung.
-  const buendel = rollen.find((r) => r.schluessel === role)?.rechte ?? [];
-  const waehlbareRechte = ALLE_RECHTE.filter((recht) => !buendel.includes(recht));
+  const buendel = vereinigeRechte(rollen.find((r) => r.schluessel === role)?.rechte ?? []);
+  const waehlbareRechte = ALLE_RECHTE.filter(
+    (recht) => !buendel.includes(recht) && (recht !== '*' || darfVollzugriff),
+  );
   const gewaehlt = extraRechte.filter((recht) => waehlbareRechte.includes(recht));
 
   return (
@@ -119,22 +125,35 @@ function UserForm({
           description="Jede Rolle ist ein Rechtebündel; darunter lassen sich einzelne Rechte ergänzen."
         />
         {waehlbareRechte.length > 0 ? (
-          <CheckboxList
-            label="Zusätzliche Rechte"
-            value={gewaehlt}
-            onChange={(values) => setExtraRechte(values.filter(istRecht))}
-            density="compact"
-            hasDividers
-          >
-            {waehlbareRechte.map((recht) => (
-              <CheckboxListItem
-                key={recht}
-                value={recht}
-                label={RECHTE[recht].label}
-                description={RECHTE[recht].beschreibung}
-              />
-            ))}
-          </CheckboxList>
+          STUFEN_REIHENFOLGE.map((stufe) => {
+            const gruppe = waehlbareRechte.filter((recht) => RECHTE[recht].stufe === stufe);
+            if (gruppe.length === 0) return null;
+            return (
+              <CheckboxList
+                key={stufe}
+                label={`Zusätzlich: ${STUFEN[stufe].label.toLowerCase()}`}
+                description={STUFEN[stufe].beschreibung}
+                value={gewaehlt.filter((recht) => RECHTE[recht].stufe === stufe)}
+                onChange={(values) =>
+                  setExtraRechte((vorher) => [
+                    ...vorher.filter((recht) => RECHTE[recht].stufe !== stufe),
+                    ...values.filter(istRecht),
+                  ])
+                }
+                density="compact"
+                hasDividers
+              >
+                {gruppe.map((recht) => (
+                  <CheckboxListItem
+                    key={recht}
+                    value={recht}
+                    label={RECHTE[recht].label}
+                    description={RECHTE[recht].beschreibung}
+                  />
+                ))}
+              </CheckboxList>
+            );
+          })
         ) : (
           <Text type="supporting" size="sm" color="secondary" as="p">
             Diese Rolle umfasst bereits alle Rechte.
@@ -197,7 +216,7 @@ function UserForm({
   );
 }
 
-export function UserManager({users, selfId, rollen}: UserManagerProps) {
+export function UserManager({users, selfId, rollen, darfVollzugriff}: UserManagerProps) {
   const buendelVon = (role: string) => rollen.find((r) => r.schluessel === role)?.rechte ?? [];
   const labelVon = (role: string) => rollen.find((r) => r.schluessel === role)?.label ?? role;
   const [editing, setEditing] = useState<ManagedUser | null>(null);
@@ -380,6 +399,7 @@ export function UserManager({users, selfId, rollen}: UserManagerProps) {
         />
         {isFormOpen && (
           <UserForm
+            darfVollzugriff={darfVollzugriff}
             user={editing}
             rollen={rollen}
             onDone={(ergebnis) => {

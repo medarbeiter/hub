@@ -1,6 +1,7 @@
 import {describe, expect, test} from 'bun:test';
 import {
   ALLE_RECHTE,
+  STUFEN,
   RECHTE,
   STANDARD_ROLLEN_LABEL,
   hatRecht,
@@ -17,6 +18,7 @@ describe('Rechte-Vokabular', () => {
     for (const recht of ALLE_RECHTE) {
       expect(RECHTE[recht].label.length).toBeGreaterThan(0);
       expect(RECHTE[recht].beschreibung.length).toBeGreaterThan(0);
+      expect(STUFEN[RECHTE[recht].stufe]).toBeDefined();
       expect(istRecht(recht)).toBe(true);
     }
     expect(istRecht('quatsch')).toBe(false);
@@ -73,5 +75,24 @@ describe('mischeRechte', () => {
 
   test('Unbekanntes fällt heraus', () => {
     expect(mischeRechte([], ['quatsch'], ['zeit.erfassen', 'quatsch'])).toEqual([]);
+  });
+});
+
+describe('Vollzugriff („*")', () => {
+  test('hatRecht: „*" beantwortet jedes Recht mit Ja — auch unentfaltet', () => {
+    for (const recht of ALLE_RECHTE) {
+      expect(hatRecht({role: 'egal', rechte: ['*']}, recht)).toBe(true);
+    }
+  });
+
+  test('vereinigeRechte entfaltet „*" auf das ganze Vokabular', () => {
+    expect(vereinigeRechte(['*'])).toEqual(ALLE_RECHTE);
+    expect(vereinigeRechte(['zeit.erfassen'], ['*'])).toEqual(ALLE_RECHTE);
+  });
+
+  test('mischeRechte: „*" vergibt und entfernt nur, wer es selbst trägt', () => {
+    expect(mischeRechte([], ['*'], ['zeit.erfassen'])).toEqual([]);
+    expect(mischeRechte(['*'], [], ['zeit.erfassen'])).toEqual(['*']);
+    expect(mischeRechte([], ['*'], vereinigeRechte(['*']))).toEqual(['*']);
   });
 });
