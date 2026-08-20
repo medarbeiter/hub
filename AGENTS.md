@@ -93,7 +93,9 @@ Internal German employee time tracker for one company. Product truth lives in
   contrast-tested in `tests/kontrast.test.ts` like any other meaning-carrying surface (≥3:1). Only Phosphor — do not add
   `lucide-react`, Heroicons, or any other icon set alongside it. `react-icons` stays installed for exactly one thing:
   `components/dienst-zeichen.tsx` imports `react-icons/si` (Simple Icons) for the *brand* marks of recognised services.
-  Those are foreign logos, not house meanings, and Phosphor carries none of them.
+  Those are foreign logos, not house meanings, and Phosphor carries only a handful of them —
+  19 of the 57 brands referenced there, missing DATEV, Deutsche Bahn, SAP, Vercel, Xing, and
+  most others.
 - **Fonts are self-hosted** via `next/font` (variables `--font-poppins`/`--font-figtree`); never add Google Fonts `<link>` tags.
 - **Astryx rules** (block below): components own layout — no raw `<div>` layout; tokens only, no raw hex/px in UI code except where a token cannot express it (document why, as done in globals.css); custom visual grammar (timelines) uses semantic elements + `var(--…)` tokens.
 - The direction contract is the HTML comment in `app/layout.tsx` — keep it in the emitted markup.

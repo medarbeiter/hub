@@ -11,10 +11,15 @@
  * im Selector und ein Chevron in der Bereichsleiste müssen identisch aussehen.
  *
  * `size: '1em'` lässt Astryx die Größe über die Schriftgröße steuern. Das
- * Gewicht ist hier durchgehend `bold` — dieselbe Wahl und dieselbe Begründung
- * wie bei der Form `umriss` im Vokabular (siehe Kopf von sinnbilder.tsx): auch
- * ein Häkchen in einer 14-px-Checkbox muss Masse tragen. Ausgewählt-Zustände
- * gibt es hier keine, deshalb bleibt es bei einem Gewicht.
+ * Gewicht ist `bold` für die Bedienelemente (Häkchen, Chevrons, Werkzeuge) —
+ * dieselbe Wahl und Begründung wie bei der Form `umriss` im Vokabular (siehe
+ * Kopf von sinnbilder.tsx): auch ein Häkchen in einer 14-px-Checkbox muss
+ * Masse tragen. Die vier Statuszeichen (`success`, `error`, `warning`, `info`)
+ * und `chevronDown` waren als Typicons gefüllte Flächen, keine Konturen, und
+ * bleiben es: sie tragen `fill`, nicht `bold` — Astryx' eigene `defaultIcons`
+ * verlangen für Statuszeichen ausdrücklich volle Flächen für die
+ * Farberkennbarkeit, und hier gibt es, anders als bei `umriss`, keinen
+ * Auswahlzustand, der eine Kontur erzwingt.
  *
  * Der SSR-Eingang wie im Vokabular: kein `useContext`, damit das Modul aus
  * Server- wie Client-Komponenten importierbar bleibt.
@@ -64,20 +69,30 @@ const iconProps = {
   focusable: false as const,
 };
 
+/** Statuszeichen und der ausgewählte Chevron waren gefüllte Typicons, keine Konturen. */
+const filledIconProps = {
+  size: '1em',
+  weight: 'fill' as const,
+  'aria-hidden': true as const,
+  focusable: false as const,
+};
+
 export const neutralIconRegistry: IconRegistry = {
   close: <XIcon {...iconProps} />,
-  chevronDown: <CaretDownIcon {...iconProps} />,
+  chevronDown: <CaretDownIcon {...filledIconProps} />,
   chevronLeft: <CaretLeftIcon {...iconProps} />,
   chevronRight: <CaretRightIcon {...iconProps} />,
   check: <CheckIcon {...iconProps} />,
   /* Die vier Statuszeichen sind eine Familie: Kreis mit Haken, Kreis mit
      Kreuz, Dreieck, Kreis mit i — dieselben Zeichen wie `hinweis`, `warnung`
      und `fehler` im Vokabular. `close` bleibt daneben das nackte Kreuz: es ist
-     eine Handlung, kein Zustand. */
-  success: <CheckCircleIcon {...iconProps} />,
-  error: <XCircleIcon {...iconProps} />,
-  warning: <WarningIcon {...iconProps} />,
-  info: <InfoIcon {...iconProps} />,
+     eine Handlung, kein Zustand. Anders als `umriss` im Vokabular gibt es hier
+     keinen Auswahlzustand, der eine Kontur erzwingt — die vier bleiben darum
+     gefüllt, wie die Typicons, die sie ersetzen. */
+  success: <CheckCircleIcon {...filledIconProps} />,
+  error: <XCircleIcon {...filledIconProps} />,
+  warning: <WarningIcon {...filledIconProps} />,
+  info: <InfoIcon {...filledIconProps} />,
   calendar: <CalendarIcon {...iconProps} />,
   clock: <ClockIcon {...iconProps} />,
   externalLink: <ArrowSquareOutIcon {...iconProps} />,
