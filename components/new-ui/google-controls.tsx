@@ -1,9 +1,8 @@
 'use client';
 
-import {Alert, Button, Spinner} from '@heroui/react';
+import {Banner, Button} from '@astryxdesign/core';
 import {useEffect, useRef, useState} from 'react';
 import {mitGis} from '@/components/gis';
-import {Fehlermeldung} from './auth-flow';
 
 const KNOPF_HOECHSTBREITE = 400;
 
@@ -76,7 +75,7 @@ export function GoogleAnmeldeKnopf({clientId}: {clientId: string}) {
 
   return (
     <div className="flex flex-col gap-3">
-      {fehler && <Fehlermeldung text={fehler} />}
+      {fehler && <Banner status="error" title={fehler} />}
       <div className="flex min-h-10 justify-center" ref={knopfRef} />
     </div>
   );
@@ -159,7 +158,7 @@ export function GoogleVerknuepfung({
 
   return (
     <div className="flex flex-col gap-5">
-      {hinweis && <Fehlermeldung text={hinweis} />}
+      {hinweis && <Banner status="error" title={hinweis} />}
 
       <div className="flex flex-col gap-0.5 rounded-2xl bg-surface-secondary px-5 py-4">
         <span className="text-xs text-muted">Firmen-E-Mail</span>
@@ -167,43 +166,41 @@ export function GoogleVerknuepfung({
       </div>
 
       {!konfiguriert && !mock && (
-        <Alert status="warning">
-          <Alert.Indicator />
-          <Alert.Content>
-            <Alert.Title>Google ist noch nicht eingerichtet</Alert.Title>
-            <Alert.Description>
-              Bitte die Verwaltung, die Google-Zugangsdaten der Anwendung zu hinterlegen. Erst
-              danach kannst du die Einrichtung abschließen.
-            </Alert.Description>
-          </Alert.Content>
-        </Alert>
+        <Banner
+          description="Bitte die Verwaltung, die Google-Zugangsdaten der Anwendung zu hinterlegen. Erst danach kannst du die Einrichtung abschließen."
+          status="warning"
+          title="Google ist noch nicht eingerichtet"
+        />
       )}
 
       {konfiguriert && clientId && <div className="flex min-h-10 justify-center" ref={knopfRef} />}
 
       {konfiguriert && (
         <Button
-          fullWidth
-          isPending={leiteWeiter}
-          size="lg"
-          type="button"
-          variant={clientId ? 'ghost' : 'primary'}
-          onPress={() => {
+          isLoading={leiteWeiter}
+          label="Über Weiterleitung verbinden"
+          onClick={() => {
             setLeiteWeiter(true);
             window.location.assign('/api/google/start?zurueck=new-login');
           }}
-        >
-          {leiteWeiter && <Spinner color="current" size="sm" />}
-          Über Weiterleitung verbinden
-        </Button>
+          size="lg"
+          type="button"
+          variant={clientId ? 'ghost' : 'primary'}
+          width="100%"
+        />
       )}
 
       {!konfiguriert && mock && (
         <form action={mockAbsenden}>
-          <Button fullWidth isDisabled={gespeichert} isPending={laeuft} size="lg" type="submit">
-            {laeuft && <Spinner color="current" size="sm" />}
-            Verknüpfung simulieren (Entwicklung)
-          </Button>
+          <Button
+            isDisabled={gespeichert}
+            isLoading={laeuft}
+            label="Verknüpfung simulieren (Entwicklung)"
+            size="lg"
+            type="submit"
+            variant="primary"
+            width="100%"
+          />
         </form>
       )}
     </div>

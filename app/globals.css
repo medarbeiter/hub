@@ -269,6 +269,18 @@ html {
   border-block-start: var(--border-width) solid var(--color-border);
 }
 
+/* `/new`'s own brand mark: a gold wash at the top of the page, its own
+   identity rather than a reuse of `.zugang-seite`'s. Named class over the
+   Tailwind arbitrary value it replaces, pointing at the same token the
+   header band (`.kopf-band`) already uses. */
+.access-page {
+  background: radial-gradient(
+    120% 58% at 50% -12%,
+    var(--color-accent-muted) 0%,
+    transparent 62%
+  );
+}
+
 /* Die Profilfiguren sind zehn lokale Bilder. Sie bleiben eine rein lokale
    Wahl: Kein Foto-Upload und keine fremde URL erfährt, wer sich anmeldet. */
 /* Die Kante des Profilzeichens.

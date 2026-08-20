@@ -1,21 +1,18 @@
 'use client';
 
 import {
-  Alert,
+  Banner,
   Button,
   Card,
-  Checkbox,
-  Description,
-  Input,
-  Label,
-  Radio,
-  RadioGroup,
-  Separator,
-  Spinner,
+  CheckboxInput,
+  Divider,
+  Heading,
+  SegmentedControl,
+  SegmentedControlItem,
   Switch,
-  TextField,
-  Typography,
-} from '@heroui/react';
+  Text,
+  TextInput,
+} from '@astryxdesign/core';
 import Image from 'next/image';
 import {useActionState, useEffect, useRef, useState, type ReactNode} from 'react';
 import {
@@ -28,7 +25,8 @@ import {
   type LoginState,
   type PasswortState,
 } from '@/app/actions';
-import {AVATARE, type AvatarKey} from '@/lib/avatar';
+import {AvatarAuswahl} from '@/components/avatar-auswahl';
+import type {AvatarKey} from '@/lib/avatar';
 import type {
   EinrichtungsDaten,
   OnboardingProfil,
@@ -60,27 +58,6 @@ function nachObenRollen(weich = false) {
 /*  Gemeinsame Bausteine                                                       */
 /* -------------------------------------------------------------------------- */
 
-export function Fehlermeldung({text}: {text: string}) {
-  return (
-    <Alert role="alert" status="danger">
-      <Alert.Indicator />
-      <Alert.Content>
-        <Alert.Title>{text}</Alert.Title>
-      </Alert.Content>
-    </Alert>
-  );
-}
-
-/** Ein Knopf, der eine Server-Aktion auslöst, sagt selbst, dass er läuft. */
-function Ladeinhalt({laeuft, children}: {laeuft: boolean; children: ReactNode}) {
-  return (
-    <>
-      {laeuft && <Spinner color="current" size="sm" />}
-      {children}
-    </>
-  );
-}
-
 function Marke() {
   return (
     <div className="flex items-center justify-center gap-2.5">
@@ -94,12 +71,12 @@ function Marke() {
 function Bühnenkopf({titel, satz}: {titel: string; satz: string}) {
   return (
     <div className="flex flex-col gap-2">
-      <Typography className="tracking-tight text-balance" type="h2">
+      <Heading className="tracking-tight text-balance" level={2}>
         {titel}
-      </Typography>
-      <Typography className="max-w-[46ch] text-pretty" color="muted" type="body-sm">
+      </Heading>
+      <Text className="max-w-[46ch] text-pretty" as="p" color="secondary" type="supporting">
         {satz}
-      </Typography>
+      </Text>
     </div>
   );
 }
@@ -115,9 +92,7 @@ function Schrittfuss({
   return (
     <div className="mt-2 flex flex-wrap items-center justify-between gap-3 border-t border-separator pt-6">
       {zurueck ? (
-        <Button size="lg" type="button" variant="ghost" onPress={zurueck}>
-          Zurück
-        </Button>
+        <Button label="Zurück" size="lg" type="button" variant="ghost" onClick={zurueck} />
       ) : (
         <span />
       )}
@@ -149,7 +124,7 @@ export function NewAuthFlow({
   }, [loginState.einrichtung]);
 
   return (
-    <main className="min-h-dvh bg-[radial-gradient(120%_58%_at_50%_-12%,#f7edd2_0%,transparent_62%)]">
+    <main className="access-page min-h-dvh">
       <div className="mx-auto flex min-h-dvh w-full max-w-[42rem] flex-col justify-center gap-8 px-5 py-10 sm:py-16">
         <Marke />
         {einrichtung ? (
@@ -178,79 +153,75 @@ function Anmeldung({
   laeuft: boolean;
   clientId: string | null;
 }) {
-  const [sichtbar, setSichtbar] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [feststelltaste, setFeststelltaste] = useState(false);
 
   return (
-    <div className="neu-auftritt mx-auto flex w-full max-w-[27rem] flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-[27rem] flex-col gap-6">
       <div className="flex flex-col gap-2">
-        <Typography className="text-center tracking-tight" type="h1">
+        <Heading className="text-center tracking-tight" level={1}>
           Willkommen zurück
-        </Typography>
-        <Typography className="text-center" color="muted" type="body-sm">
+        </Heading>
+        <Text as="p" className="text-center" color="secondary" type="supporting">
           Melde dich an, um deine Zeit zu erfassen.
-        </Typography>
+        </Text>
       </div>
 
-      <Card className="p-7 sm:p-8" variant="default">
-        <form action={absenden} className="flex flex-col gap-5">
-          {fehler && <Fehlermeldung text={fehler} />}
+      <Card className="p-7 sm:p-8">
+        <form
+          action={absenden}
+          className="flex flex-col gap-5"
+          onKeyDown={(event) => setFeststelltaste(event.getModifierState('CapsLock'))}
+          onKeyUp={(event) => setFeststelltaste(event.getModifierState('CapsLock'))}
+        >
+          {fehler && <Banner status="error" title={fehler} />}
 
-          <TextField fullWidth isDisabled={laeuft} name="email" type="email">
-            <Label>E-Mail</Label>
-            <Input
-              autoComplete="username"
-              autoFocus
-              enterKeyHint="next"
-              placeholder="vorname.name@firma.de"
-            />
-          </TextField>
-
-          <TextField
-            fullWidth
+          <TextInput
+            htmlName="email"
             isDisabled={laeuft}
-            name="password"
-            type={sichtbar ? 'text' : 'password'}
-            onKeyDown={(event) => setFeststelltaste(event.getModifierState('CapsLock'))}
-            onKeyUp={(event) => setFeststelltaste(event.getModifierState('CapsLock'))}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <Label>Passwort</Label>
-              <Button
-                className="-me-2 h-7 px-2 text-xs"
-                type="button"
-                variant="ghost"
-                onPress={() => setSichtbar((offen) => !offen)}
-              >
-                {sichtbar ? 'Verbergen' : 'Anzeigen'}
-              </Button>
-            </div>
-            <Input autoComplete="current-password" enterKeyHint="go" placeholder="Dein Passwort" />
-            {feststelltaste && (
-              <Description className="text-warning">Feststelltaste ist aktiviert.</Description>
-            )}
-          </TextField>
+            label="E-Mail"
+            onChange={setEmail}
+            placeholder="vorname.name@firma.de"
+            type="email"
+            value={email}
+            width="100%"
+          />
 
-          <Button className="mt-1" fullWidth isPending={laeuft} size="lg" type="submit">
-            <Ladeinhalt laeuft={laeuft}>Anmelden</Ladeinhalt>
-          </Button>
+          <TextInput
+            htmlName="password"
+            isDisabled={laeuft}
+            label="Passwort"
+            onChange={setPassword}
+            placeholder="Dein Passwort"
+            status={feststelltaste ? {type: 'warning', message: 'Feststelltaste ist aktiviert.'} : undefined}
+            type="password"
+            value={password}
+            width="100%"
+          />
+
+          <Button
+            className="mt-1"
+            isLoading={laeuft}
+            label="Anmelden"
+            size="lg"
+            type="submit"
+            variant="primary"
+            width="100%"
+          />
         </form>
 
         {clientId && (
           <>
-            <div className="my-6 flex items-center gap-3">
-              <Separator className="flex-1" />
-              <span className="text-xs text-muted">oder</span>
-              <Separator className="flex-1" />
-            </div>
+            <Divider className="my-6" label="oder" />
             <GoogleAnmeldeKnopf clientId={clientId} />
           </>
         )}
       </Card>
 
-      <p className="text-center text-xs leading-relaxed text-muted">
+      <Text as="p" className="text-center" color="secondary" type="supporting">
         Passwort vergessen? Die Verwaltung stellt dir ein neues Startpasswort aus.
-      </p>
+      </Text>
     </div>
   );
 }
@@ -290,7 +261,7 @@ function Einrichtung({
 
   return (
     <div className="mx-auto flex w-full flex-col gap-6">
-      <Card className="overflow-hidden p-0" variant="default">
+      <Card className="overflow-hidden" padding={0}>
         <div className="flex flex-col gap-4 px-7 pt-7 sm:px-10 sm:pt-9">
           <div className="flex items-baseline justify-between gap-4">
             <span className="text-xs font-semibold tracking-[0.08em] text-muted uppercase">
@@ -321,7 +292,7 @@ function Einrichtung({
           </ol>
         </div>
 
-        <div key={schritt} className="neu-auftritt flex flex-col gap-7 p-7 sm:p-10">
+        <div key={schritt} className="flex flex-col gap-7 p-7 sm:p-10">
           {schritt === 'passwort' && <PasswortSchritt weiter={weiter} />}
           {schritt === 'google' && (
             <GoogleSchritt daten={daten} hinweis={googleHinweis} weiter={weiter} />
@@ -354,9 +325,7 @@ function Einrichtung({
 
       <form action={logoutAction} className="text-center">
         <input name="zurueck" type="hidden" value="/new/login" />
-        <Button size="sm" type="submit" variant="ghost">
-          Mit einem anderen Konto anmelden
-        </Button>
+        <Button label="Mit einem anderen Konto anmelden" size="sm" type="submit" variant="ghost" />
       </form>
     </div>
   );
@@ -367,7 +336,6 @@ function Einrichtung({
 function PasswortSchritt({weiter}: {weiter: () => void}) {
   const [passwort, setPasswort] = useState('');
   const [wiederholung, setWiederholung] = useState('');
-  const [sichtbar, setSichtbar] = useState(false);
   const [state, absenden, laeuft] = useActionState(
     eigenesPasswortAendernAction,
     PASSWORT_INITIAL,
@@ -399,42 +367,29 @@ function PasswortSchritt({weiter}: {weiter: () => void}) {
         satz="Dein Startpasswort war nur für die erste Anmeldung gedacht. Wähle jetzt eines, das nur du kennst."
         titel="Mach dein Konto zu deinem"
       />
-      {state.error && <Fehlermeldung text={state.error} />}
+      {state.error && <Banner status="error" title={state.error} />}
 
       <div className="flex flex-col gap-5">
-        <TextField
-          fullWidth
+        <TextInput
+          hasAutoFocus
+          htmlName="neuesPasswort"
           isDisabled={laeuft || state.gespeichert}
-          name="neuesPasswort"
-          type={sichtbar ? 'text' : 'password'}
-          value={passwort}
+          label="Neues Passwort"
           onChange={setPasswort}
-        >
-          <div className="flex items-center justify-between gap-2">
-            <Label>Neues Passwort</Label>
-            <Button
-              className="-me-2 h-7 px-2 text-xs"
-              type="button"
-              variant="ghost"
-              onPress={() => setSichtbar((offen) => !offen)}
-            >
-              {sichtbar ? 'Verbergen' : 'Anzeigen'}
-            </Button>
-          </div>
-          <Input autoComplete="new-password" autoFocus />
-        </TextField>
+          type="password"
+          value={passwort}
+          width="100%"
+        />
 
-        <TextField
-          fullWidth
+        <TextInput
+          htmlName="passwortWiederholung"
           isDisabled={laeuft || state.gespeichert}
-          name="passwortWiederholung"
-          type={sichtbar ? 'text' : 'password'}
-          value={wiederholung}
+          label="Neues Passwort wiederholen"
           onChange={setWiederholung}
-        >
-          <Label>Neues Passwort wiederholen</Label>
-          <Input autoComplete="new-password" />
-        </TextField>
+          type="password"
+          value={wiederholung}
+          width="100%"
+        />
       </div>
 
       <ul aria-label="Anforderungen an das Passwort" className="flex flex-col gap-2">
@@ -459,12 +414,12 @@ function PasswortSchritt({weiter}: {weiter: () => void}) {
       <Schrittfuss zurueck={null}>
         <Button
           isDisabled={!vollstaendig || state.gespeichert}
-          isPending={laeuft}
+          isLoading={laeuft}
+          label="Passwort speichern"
           size="lg"
           type="submit"
-        >
-          <Ladeinhalt laeuft={laeuft}>Passwort speichern</Ladeinhalt>
-        </Button>
+          variant="primary"
+        />
       </Schrittfuss>
     </form>
   );
@@ -492,7 +447,7 @@ function GoogleSchritt({
         satz="Genehmigte Urlaube und gemeldete Abwesenheiten landen automatisch in deinem Google Kalender. Eine Krankmeldung erscheint dort nur als „Abwesend“."
         titel="Dein Kalender, automatisch aktuell"
       />
-      {state.error && <Fehlermeldung text={state.error} />}
+      {state.error && <Banner status="error" title={state.error} />}
       <GoogleVerknuepfung
         clientId={daten.googleClientId}
         email={daten.profil.email}
@@ -556,54 +511,39 @@ function StammdatenSchritt({
       </dl>
 
       {!profil.bundesland && (
-        <Alert status="warning">
-          <Alert.Indicator />
-          <Alert.Content>
-            <Alert.Title>Kein Feiertagskalender hinterlegt</Alert.Title>
-            <Alert.Description>
-              Du kannst fortfahren. Bitte die Verwaltung, ein Bundesland für dich oder das
-              Unternehmen einzutragen.
-            </Alert.Description>
-          </Alert.Content>
-        </Alert>
+        <Banner
+          description="Du kannst fortfahren. Bitte die Verwaltung, ein Bundesland für dich oder das Unternehmen einzutragen."
+          status="warning"
+          title="Kein Feiertagskalender hinterlegt"
+        />
       )}
       {profil.stammdatenFehler && (
-        <Alert status="danger">
-          <Alert.Indicator />
-          <Alert.Content>
-            <Alert.Title>Die Einrichtung ist noch nicht vollständig</Alert.Title>
-            <Alert.Description>
-              {profil.stammdatenFehler} Bitte wende dich an die Verwaltung.
-            </Alert.Description>
-          </Alert.Content>
-        </Alert>
+        <Banner
+          description={`${profil.stammdatenFehler} Bitte wende dich an die Verwaltung.`}
+          status="error"
+          title="Die Einrichtung ist noch nicht vollständig"
+        />
       )}
 
-      <Checkbox
+      <CheckboxInput
+        description="Deine Bestätigung wird protokolliert. Nach einer Änderung wirst du erneut gefragt."
+        disabledMessage="Die Verwaltung muss zuerst die Stammdaten korrigieren."
         isDisabled={Boolean(profil.stammdatenFehler)}
-        isSelected={bestaetigt}
+        label="Ja, diese Angaben sind richtig."
         onChange={setBestaetigt}
-      >
-        <Checkbox.Content>
-          <Checkbox.Control>
-            <Checkbox.Indicator />
-          </Checkbox.Control>
-          Ja, diese Angaben sind richtig.
-        </Checkbox.Content>
-        <Description>
-          Deine Bestätigung wird protokolliert. Nach einer Änderung wirst du erneut gefragt.
-        </Description>
-      </Checkbox>
+        value={bestaetigt}
+        width="100%"
+      />
 
       <Schrittfuss zurueck={zurueck}>
         <Button
           isDisabled={!bestaetigt || Boolean(profil.stammdatenFehler)}
+          label="Weiter"
+          onClick={weiter}
           size="lg"
           type="button"
-          onPress={weiter}
-        >
-          Weiter
-        </Button>
+          variant="primary"
+        />
       </Schrittfuss>
     </div>
   );
@@ -611,6 +551,12 @@ function StammdatenSchritt({
 
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Die Profilfigur — dieselbe Auswahl wie in `login-form.tsx`, hier ohne einen
+ * Foto-Upload daneben: `/new`s Einrichtung bietet keinen Bildupload an, also
+ * bleibt `AvatarAuswahl` mit `hatBild=false` (ihr Vorgabewert) dauerhaft im
+ * gewählten Zustand statt im eingeklappten Rückfall-Hinweis.
+ */
 function ProfilSchritt({
   wert,
   setWert,
@@ -629,44 +575,10 @@ function ProfilSchritt({
         titel="Wer begleitet dich?"
       />
 
-      <RadioGroup
-        aria-label="Profilfigur"
-        value={wert}
-        onChange={(naechster) => setWert(naechster as AvatarKey)}
-      >
-        {/* Das Bild ist das Ziel, nicht ein Punkt daneben: die ganze Kachel
-            schaltet, und die Wahl liest sich als goldener Ring. Die Bilder
-            gehen über `next/image` — die Vorlagen sind 1254px und knapp 2 MB
-            das Stück, roh geladen wären das siebzehn Megabyte für ein Raster. */}
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-          {AVATARE.map((eintrag) => (
-            <Radio
-              key={eintrag.key}
-              className="group rounded-2xl border border-border bg-surface p-2.5 transition-colors duration-200 data-[selected=true]:border-[#8f6e06] data-[selected=true]:bg-accent-soft"
-              value={eintrag.key}
-            >
-              <Radio.Content className="flex flex-col items-center gap-2 text-center">
-                <Image
-                  alt=""
-                  className="size-14 rounded-full ring-2 ring-transparent transition-[--tw-ring-color] duration-200 group-data-[selected=true]:ring-[#8f6e06]"
-                  height={1254}
-                  sizes="56px"
-                  src={eintrag.bild}
-                  width={1254}
-                />
-                <span className="min-h-8 text-[11px] leading-tight text-balance">
-                  {eintrag.label}
-                </span>
-              </Radio.Content>
-            </Radio>
-          ))}
-        </div>
-      </RadioGroup>
+      <AvatarAuswahl onChange={setWert} value={wert} />
 
       <Schrittfuss zurueck={zurueck}>
-        <Button size="lg" type="button" onPress={weiter}>
-          Weiter
-        </Button>
+        <Button label="Weiter" onClick={weiter} size="lg" type="button" variant="primary" />
       </Schrittfuss>
     </div>
   );
@@ -674,11 +586,11 @@ function ProfilSchritt({
 
 /* -------------------------------------------------------------------------- */
 
-const ANSICHTEN: Array<{wert: Startansicht; titel: string; satz: string}> = [
-  {wert: 'tag', titel: 'Tag', satz: 'Der schnelle Start in den Tag'},
-  {wert: 'woche', titel: 'Woche', satz: 'Die Arbeitswoche im Überblick'},
-  {wert: 'monat', titel: 'Monat', satz: 'Planung und Vollständigkeit'},
-  {wert: 'konto', titel: 'Konto', satz: 'Saldo und offene Tage'},
+const ANSICHTEN: Array<{wert: Startansicht; titel: string}> = [
+  {wert: 'tag', titel: 'Tag'},
+  {wert: 'woche', titel: 'Woche'},
+  {wert: 'monat', titel: 'Monat'},
+  {wert: 'konto', titel: 'Konto'},
 ];
 
 function ArbeitsplatzSchritt({
@@ -706,52 +618,30 @@ function ArbeitsplatzSchritt({
         satz="Beides kannst du später jederzeit unter „Mein Profil“ ändern."
         titel="So möchtest du starten"
       />
-      {state.error && <Fehlermeldung text={state.error} />}
+      {state.error && <Banner status="error" title={state.error} />}
 
-      <RadioGroup
-        className="gap-3"
+      <SegmentedControl
+        label="Startansicht nach der Anmeldung"
+        layout="fill"
+        onChange={(value) => setStartansicht(value as Startansicht)}
         value={startansicht}
-        onChange={(naechste) => setStartansicht(naechste as Startansicht)}
       >
-        <Label>Startansicht nach der Anmeldung</Label>
-        <div className="grid gap-2.5 sm:grid-cols-2">
-          {ANSICHTEN.map((ansicht) => (
-            <Radio
-              key={ansicht.wert}
-              className="rounded-2xl border border-border bg-surface p-4 transition-colors duration-200 data-[selected=true]:border-[#8f6e06] data-[selected=true]:bg-accent-soft"
-              value={ansicht.wert}
-            >
-              <Radio.Content className="items-start gap-3">
-                <Radio.Control className="mt-0.5">
-                  <Radio.Indicator />
-                </Radio.Control>
-                <span className="flex flex-col gap-0.5 text-start">
-                  <span className="text-sm font-medium">{ansicht.titel}</span>
-                  <span className="text-xs text-muted">{ansicht.satz}</span>
-                </span>
-              </Radio.Content>
-            </Radio>
-          ))}
-        </div>
-      </RadioGroup>
+        {ANSICHTEN.map((ansicht) => (
+          <SegmentedControlItem key={ansicht.wert} label={ansicht.titel} value={ansicht.wert} />
+        ))}
+      </SegmentedControl>
 
       {/* Der Schalter steht rechts, seine Bedeutung links: gelesen wird von
           links, geschaltet wird am Ende der Zeile. */}
       <Switch
-        className="w-full flex-row-reverse items-center justify-between gap-4 rounded-2xl border border-border bg-surface p-4"
-        isSelected={hinweise}
+        description="Zeigt einen Hinweis, wenn vergangene Tage noch geprüft werden müssen."
+        label="An offene Tage erinnern"
+        labelPosition="start"
+        labelSpacing="spread"
         onChange={setHinweise}
-      >
-        <Switch.Control>
-          <Switch.Thumb />
-        </Switch.Control>
-        <Switch.Content className="flex flex-1 flex-col items-start gap-0.5 text-start">
-          <Label>An offene Tage erinnern</Label>
-          <Description>
-            Zeigt einen Hinweis, wenn vergangene Tage noch geprüft werden müssen.
-          </Description>
-        </Switch.Content>
-      </Switch>
+        value={hinweise}
+        width="100%"
+      />
 
       <input name="datenBestaetigt" type="hidden" value={bestaetigt ? 'ja' : 'nein'} />
       <input name="avatar" type="hidden" value={avatar} />
@@ -759,9 +649,7 @@ function ArbeitsplatzSchritt({
       <input name="hinweiseZuOffenenTagen" type="hidden" value={hinweise ? 'ja' : 'nein'} />
 
       <Schrittfuss zurueck={zurueck}>
-        <Button isPending={laeuft} size="lg" type="submit">
-          <Ladeinhalt laeuft={laeuft}>Arbeitsplatz öffnen</Ladeinhalt>
-        </Button>
+        <Button isLoading={laeuft} label="Arbeitsplatz öffnen" size="lg" type="submit" variant="primary" />
       </Schrittfuss>
     </form>
   );

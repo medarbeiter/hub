@@ -1,16 +1,12 @@
-import './neu.css';
-
 import type {ReactNode} from 'react';
 
 /**
- * Das neue Blatt. Eigenes Segment, eigenes Stilblatt — die alte Astryx-Welt
- * unter `/` bleibt unverändert, bis sie Route für Route hierher zieht.
- *
- * Kein `I18nProvider`: HeroUI bringt in diesem Ablauf keine eingebaute
- * Zeichenkette an die Oberfläche. Sobald eine erscheint, kommt er als
- * Client-Hülle hierher — er ist ein Client-Bauteil und darf hier nicht direkt
- * stehen.
+ * `/new` war als eigenes, HeroUI-basiertes Blatt gedacht, in das die alte
+ * Astryx-Welt Route für Route hätte ziehen sollen. Der Plan drehte sich um:
+ * die Organisation stellte auf Astryx um, also holt dieses Segment jetzt
+ * nach, was `/login` bereits ist — kein eigenes Stilblatt mehr nötig, es
+ * trägt dieselbe Astryx-Theming-Kette wie der Rest der Anwendung.
  */
 export default function NeuLayout({children}: {children: ReactNode}) {
-  return <div className="neu-wurzel">{children}</div>;
+  return <>{children}</>;
 }
