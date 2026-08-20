@@ -358,8 +358,12 @@ interface PersonenReiheProps {
    * Die Einzelnamen hängen an den Bildern selbst.
    */
   beschriftung?: string;
-  /** Wohin ein einzelnes Gesicht führt, falls es irgendwohin führt. */
-  href?: (person: PersonAngabe) => string;
+  /**
+   * Wohin ein einzelnes Gesicht führt, falls es irgendwohin führt — als
+   * Muster mit `:id`, nicht als Funktion: die Reihe steht auch in
+   * Serverkomponenten, und eine Funktion überquert diese Grenze nicht.
+   */
+  hrefMuster?: string;
 }
 
 /**
@@ -376,10 +380,12 @@ export function PersonenReihe({
   max = 5,
   groesse = 'zeile',
   beschriftung,
-  href,
+  hrefMuster,
 }: PersonenReiheProps) {
   const [offen, setOffen] = useState(false);
   if (personen.length === 0) return null;
+
+  const ziel = (p: PersonAngabe) => hrefMuster?.replace(':id', String(p.id));
 
   const gezeigt = personen.slice(0, max);
   const rest = personen.length - gezeigt.length;
@@ -394,7 +400,7 @@ export function PersonenReihe({
               Die Gruppe zieht Maß und Überlappung über ihren Kontext, auch
               durch das Zeichen hindurch. */}
           {gezeigt.map((p) => (
-            <PersonZeichen key={p.id} person={p} groesse={groesse} href={href?.(p)} />
+            <PersonZeichen key={p.id} person={p} groesse={groesse} href={ziel(p)} />
           ))}
           {rest > 0 && (
             <AvatarGroupOverflow count={rest} onClick={() => setOffen((o) => !o)} />
@@ -408,7 +414,7 @@ export function PersonenReihe({
           <VStack gap={1}>
             {personen.map((p) => (
               <StackItem key={p.id}>
-                <PersonZeichen person={p} groesse="winzig" mitName href={href?.(p)} />
+                <PersonZeichen person={p} groesse="winzig" mitName href={ziel(p)} />
               </StackItem>
             ))}
           </VStack>

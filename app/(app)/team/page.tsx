@@ -127,7 +127,7 @@ export default async function TeamPage({searchParams}: PageProps) {
             <PersonenReihe
               personen={anwesende}
               beschriftung={`${anwesende.length} eingestempelt`}
-              href={(p) => `/team/${p.id}?tag=${date}`}
+              hrefMuster={`/team/:id?tag=${date}`}
             />
           )}
           {offeneTage > 0 && (
