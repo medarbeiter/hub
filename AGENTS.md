@@ -33,14 +33,15 @@ Internal German employee time tracker for one company. Product truth lives in
 - `components/app-hinweis.tsx` — the PWA install notice. Shows only when installing is actually possible (a captured `beforeinstallprompt`, or Safari on iOS), never before the third visit, and never again once dismissed. It stays a band in the flow: it is an offer, not a notice, and must not take the one corner reserved for notices.
 - `components/app-nav.tsx` — the sidebar. It stays on its own paper, deliberately **outside** the content column's gold crown (user decision 2026-08-07): the shell reads as two sections, and the crown (clock strip + Kopf) belongs to the content. The logo mark is 40px (never smaller than its own wordmark), and the selected item wears gold wash + bronze ink + a 1px `--color-icon-accent` inset hairline (the Monatsgitter's open-day marking; pairings in `tests/kontrast.test.ts`). An item **may expand in place** (`nav-ausklapp.tsx`): a state line and **at most two** actions, hung on a thread line under the item's icon. Nothing floats — `SideNavItem`'s own `collapsible` does the work, so the motion is Astryx's (`grid-template-rows` 0fr→1fr). Opens on a click of the chevron *or* on half a second of hover (`NavVerweilen`; a hover-opened item closes again on leave, a clicked one stays). At most one open at a time. **Nothing may live only in there** — it is a shortcut, never the only path, so a touch device (no hover) loses no capability. Counts come from `lib/schnellzugriff.ts` (`navZaehler`, computed once per render, plain data only), and a count of 0 renders nothing. **Only where there is something to say**: Meine Zeit, Abwesenheit, Teamkalender, Reisen & Spesen, Abwesenheit prüfen, Berichte. Team, Spesen prüfen, Monatsabschluss, Protokoll, Mitarbeiter and Einstellungen are plain links — their badge already carries the count, and a branch that only restates it is a chevron that costs a click to learn nothing.
 - `components/clock-bar.tsx` + `components/kopf-deckung.tsx` — the stamp strip and its **Deckung**: the bar states today's facts (seit / Std. heute / Feierabend or rest to Soll) **only where nothing else does**. The strip is the **top stripe of the Kopf band**, not a white band above it: full `--color-accent-muted`, no hairline at rest, hairline + `--shadow-low` only while it floats over scrolled content (`data-schwebt` from an IntersectionObserver sentinel, `.stempel-fuehler`). Meaning-carrying things standing on the wash carry their own edge: the gold primary button and the accent dot a bronze hairline, the orange pause dot a warning-text hairline (2.78:1 on the wash without it). On the phone (≤920px, fixed to the bottom edge) the strip returns to white and the button hairline comes off. It never spells the status out — the button beside it already names the next action. Coverage is `URL ∧ im Bild`: `zeitAusUrl()` (`lib/bereiche.ts`, shared with `app/(app)/page.tsx` so the two can never disagree) says whether this is the Tag range on today, and `HeuteDeckung` — rendered by `ZeitRahmen` when `decktHeute` — reports via IntersectionObserver whether that Kopf is still on screen. The URL half is server-known, so the bar never flashes on hydration. The ArbZG advisory and errors are outside the collapsing group and always show.
-- `components/sinnbilder.tsx` — **the icon vocabulary: one meaning, one sign.** Typicons via `react-icons/ti`
-  (context-free — the library only touches `React.createContext` when it exists — so server *and* client components may use
-  it). Call sites name a meaning (`<Sinnbild sinn="einstempeln" />`), never a glyph; `umriss()`/`gefuellt()` give the
-  component form Astryx wants for `SideNavItem.icon`/`.selectedIcon` and `TextInput.startIcon`. Typicons has **no weight
-  axis**, so instead of three weights there are two forms — `voll` (the default; the mass carries the 3:1 floor at every
-  size) and `umriss` (only for "not selected / not running", and only where Typicons ships an `…Outline` counterpart;
-  otherwise it falls back to `voll`). Add a new icon by adding a meaning here; never import an icon package anywhere else.
-  `theme/icons.tsx` re-registers Astryx's own built-ins to the same family.
+- `components/sinnbilder.tsx` — **the icon vocabulary: one meaning, one sign.** Phosphor via
+  `@phosphor-icons/react/ssr` — the **SSR entry**, because the default one reads `IconContext` through `useContext` and
+  this module is imported from server *and* client components. Call sites name a meaning
+  (`<Sinnbild sinn="einstempeln" />`), never a glyph; `umriss()`/`gefuellt()` give the component form Astryx wants for
+  `SideNavItem.icon`/`.selectedIcon` and `TextInput.startIcon`. Phosphor carries one component per meaning with a weight
+  axis, so the two forms are two weights — `voll` = `fill` (the default) and `umriss` = `bold` (only for "not selected /
+  not running"; `bold` and not `regular` because a 14-px `regular` stroke lands under 0.9 px). Every meaning has both
+  forms, so there is no fallback and no table of exceptions. Add a new icon by adding a meaning here; never import an
+  icon package anywhere else. `theme/icons.tsx` re-registers Astryx's own built-ins to the same family.
 - `theme/medarbeiterTheme.ts` — the design tokens SOURCE. After editing run `bunx astryx theme build theme/medarbeiterTheme.ts -o theme/medarbeiter.css` (regenerates css/js/d.ts). Never hand-edit the generated files.
 - `scripts/seed.ts` — `bun scripts/seed.ts` creates the admin; `--demo` adds synthetic demo employees/times (never present demo data as real).
 - `locales/de.json` — German catalog for Astryx built-in strings; extend it when a new component surfaces an English built-in.
@@ -89,8 +90,10 @@ Internal German employee time tracker for one company. Product truth lives in
 - **Icons are a vocabulary, not decoration.** Every glyph comes from `components/sinnbilder.tsx` and is named by meaning, so
   the same action wears the same sign everywhere. Icons never speak alone — each sits beside its label and is always
   `aria-hidden`. Default tone is `erben` (currentColor) so a glyph in a gold button inherits the dark ink; explicit tones are
-  contrast-tested in `tests/kontrast.test.ts` like any other meaning-carrying surface (≥3:1). Only `react-icons/ti` —
-  do not add `lucide-react`, Phosphor, or any other icon set alongside it.
+  contrast-tested in `tests/kontrast.test.ts` like any other meaning-carrying surface (≥3:1). Only Phosphor — do not add
+  `lucide-react`, Heroicons, or any other icon set alongside it. `react-icons` stays installed for exactly one thing:
+  `components/dienst-zeichen.tsx` imports `react-icons/si` (Simple Icons) for the *brand* marks of recognised services.
+  Those are foreign logos, not house meanings, and Phosphor carries none of them.
 - **Fonts are self-hosted** via `next/font` (variables `--font-poppins`/`--font-figtree`); never add Google Fonts `<link>` tags.
 - **Astryx rules** (block below): components own layout — no raw `<div>` layout; tokens only, no raw hex/px in UI code except where a token cannot express it (document why, as done in globals.css); custom visual grammar (timelines) uses semantic elements + `var(--…)` tokens.
 - The direction contract is the HTML comment in `app/layout.tsx` — keep it in the emitted markup.
