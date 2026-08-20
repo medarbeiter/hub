@@ -2,6 +2,7 @@ import {NextResponse, type NextRequest} from 'next/server';
 import {createSession} from '@/lib/auth';
 import {getDb, type User} from '@/lib/db';
 import {benutzerFuerGoogleLogin, googleKonfiguriert, pruefeIdToken} from '@/lib/google';
+import {weiterZielGueltig} from '@/lib/oauth-apps';
 import {onboardingIstFertig, startPfad} from '@/lib/onboarding';
 import {protokolliere} from '@/lib/protokoll';
 
@@ -17,8 +18,11 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (!googleKonfiguriert()) {
     return NextResponse.json({fehler: 'Die Google-Anbindung ist nicht konfiguriert.'}, {status: 503});
   }
-  const body = (await request.json().catch(() => null)) as {credential?: unknown} | null;
+  const body = (await request.json().catch(() => null)) as {credential?: unknown; weiter?: unknown} | null;
   const credential = typeof body?.credential === 'string' ? body.credential : '';
+  // Rücksprung einer App-Anmeldung (`/login?weiter=…`): kommt aus dem Browser
+  // und wird deshalb wie in loginAction gegen das feste Präfix geprüft.
+  const weiter = typeof body?.weiter === 'string' ? body.weiter : null;
   if (!credential) return NextResponse.json({fehler: 'Es fehlt das Google-Token.'}, {status: 400});
 
   const geprueft = await pruefeIdToken(credential);
@@ -59,5 +63,12 @@ export async function POST(request: NextRequest): Promise<Response> {
     aktion: 'anmelden.google',
     gegenstand: 'Anmeldung an MedArbeiter über Google',
   });
-  return NextResponse.json({ok: true, ziel: onboardingIstFertig(user.id) ? startPfad(user.id) : '/login'});
+  // Wie in loginAction: eine offene Einrichtung geht vor, das `weiter`
+  // verfällt dort — die anfragende App wiederholt ihre Weiterleitung danach.
+  const ziel = !onboardingIstFertig(user.id)
+    ? '/login'
+    : weiterZielGueltig(weiter)
+      ? weiter
+      : startPfad(user.id);
+  return NextResponse.json({ok: true, ziel});
 }

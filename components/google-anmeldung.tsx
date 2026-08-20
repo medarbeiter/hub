@@ -11,7 +11,14 @@ import {Banner, Text, VStack} from '@astryxdesign/core';
 import {useEffect, useRef, useState} from 'react';
 import {mitGis} from './gis';
 
-export function GoogleAnmeldung({clientId}: {clientId: string}) {
+export function GoogleAnmeldung({
+  clientId,
+  weiter = null,
+}: {
+  clientId: string;
+  /** Serverseitig geprüftes Rücksprungziel einer App-Anmeldung (`?weiter=`). */
+  weiter?: string | null;
+}) {
   const knopfRef = useRef<HTMLDivElement | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
   const laeuft = useRef(false);
@@ -29,7 +36,7 @@ export function GoogleAnmeldung({clientId}: {clientId: string}) {
           const post = await fetch('/api/google/anmelden', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({credential: antwort.credential}),
+            body: JSON.stringify({credential: antwort.credential, weiter}),
           }).catch(() => null);
           const daten = post
             ? ((await post.json().catch(() => null)) as {ok?: boolean; ziel?: string; fehler?: string} | null)
@@ -61,7 +68,7 @@ export function GoogleAnmeldung({clientId}: {clientId: string}) {
       abmelden();
       window.google?.accounts.id.cancel();
     };
-  }, [clientId]);
+  }, [clientId, weiter]);
 
   return (
     <VStack gap={3}>

@@ -2,6 +2,7 @@
 
 import {useEffect, useState} from 'react';
 import {Button, HStack, Text, VStack} from '@astryxdesign/core';
+import {Sinnbild} from '@/components/sinnbilder';
 
 /**
  * Die Entscheidung der Freigabeseite: zwei normale POST-Formulare, weil danach
@@ -52,6 +53,7 @@ export function FreigabeFormulare({
             type="submit"
             variant="secondary"
             label="Abbrechen"
+            icon={<Sinnbild sinn="zurueckweisen" />}
             isLoading={laden === 'abbrechen'}
             isDisabled={laden === 'anmelden'}
           />
@@ -62,6 +64,7 @@ export function FreigabeFormulare({
             type="submit"
             variant="primary"
             label="Weiter"
+            endContent={<Sinnbild sinn="weiter" />}
             isLoading={laden === 'anmelden'}
             isDisabled={laden === 'abbrechen'}
           />

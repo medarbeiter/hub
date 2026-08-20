@@ -46,16 +46,19 @@ export default async function FreigabeSeite({
       <VStack className="zugang-rahmen" width="100%" gap={4} paddingInline={4} hAlign="center">
         <Card className="zugang-karte" padding={0} width="100%" elevation="med">
           <VStack gap={0}>
+            {/* Die Kopfzeile ist das Markenband, nicht die Frage der Seite —
+                als h2 in Zeilengröße bleibt sie einzeilig neben dem Logo,
+                die eigentliche Überschrift ist das „Weiter zu <App>". */}
             <HStack className="zugang-kopf" gap={3} paddingInline={5} paddingBlock={3} vAlign="center" wrap="nowrap">
               <Image className="zugang-logo-marke" src="/logo-mark.png" alt="MedArbeiter" width={40} height={40} priority />
-              <Heading level={1}>Mit MedArbeiter anmelden</Heading>
+              <Heading level={2}>Mit MedArbeiter anmelden</Heading>
             </HStack>
-            <VStack gap={4} padding={5}>
-              <VStack gap={2} hAlign="center">
-                <Heading level={2}>Weiter zu {client.name}</Heading>
+            <VStack gap={5} padding={5}>
+              <VStack gap={3} hAlign="start">
+                <Heading level={1}>Weiter zu {client.name}</Heading>
                 {/* Welches Konto gleich weitergereicht wird, ist die eine Frage
-                    dieser Seite — es steht deshalb als umrandeter Ausweis in
-                    der Mitte, wie das Kontoschild bei Google. */}
+                    dieser Seite — es steht deshalb als umrandeter Ausweis da,
+                    wie das Kontoschild bei Google. */}
                 <HStack className="freigabe-konto" gap={2} paddingInline={4} paddingBlock={2} vAlign="center" wrap="nowrap">
                   <PersonZeichen
                     person={personAngabe(user)}

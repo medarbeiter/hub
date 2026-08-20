@@ -192,7 +192,7 @@ export function LoginForm({
                           isLoading={loginPending}
                         />
                         {googleClientId && phase === 'anmeldung' && (
-                          <GoogleAnmeldung clientId={googleClientId} />
+                          <GoogleAnmeldung clientId={googleClientId} weiter={weiter} />
                         )}
                       </VStack>
                     </form>
