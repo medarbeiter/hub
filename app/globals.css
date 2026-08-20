@@ -82,6 +82,13 @@ html {
   scrollbar-gutter: stable;
 }
 
+/* Das Kontoschild der Freigabeseite: der umrandete Ausweis aus Googles
+   Einwilligungsblatt — die Rundung folgt der Kapselform des Inhalts. */
+.freigabe-konto {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-full);
+}
+
 /* Anmeldung und persönliche Prüfung sind ein Zugang statt zwei Seiten. Der
    schmale Anmeldebeleg wird nach erfolgreicher Prüfung zum Einrichtungsblatt:
    400/720 px sind Inhaltsmaße für zwei unterschiedliche Aufgaben (zwei

@@ -182,16 +182,17 @@ describe('geheimnisErzeugen', () => {
 });
 
 test('die Freigabe sendet als normaler POST statt als Server Action', async () => {
-  const seite = (await import('../app/freigeben/page')) as Record<string, unknown>;
-  const Formulare = seite.FreigabeFormulare;
+  const modul = (await import('../components/freigabe-formulare')) as Record<string, unknown>;
+  const Formulare = modul.FreigabeFormulare;
   expect(typeof Formulare).toBe('function');
   if (typeof Formulare !== 'function') return;
 
   const html = renderToStaticMarkup(
-    createElement(Formulare as ComponentType<{clientId: string; redirectUri: string; state: string}>, {
+    createElement(Formulare as ComponentType<{clientId: string; redirectUri: string; state: string; appName: string}>, {
       clientId: 'haus-app',
       redirectUri: 'https://app.firma.de/rueckkehr',
       state: 'csrf-wert',
+      appName: 'Haus-App',
     }),
   );
   expect(html.match(/<form action="\/api\/oauth\/authorize" method="post">/g)).toHaveLength(2);

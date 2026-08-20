@@ -2,7 +2,7 @@ import Image from 'next/image';
 import {redirect} from 'next/navigation';
 import {Card, Heading, HStack, Text, VStack} from '@astryxdesign/core';
 import {getSessionUser} from '@/lib/auth';
-import {AbsendeKnopf} from '@/components/absende-knopf';
+import {FreigabeFormulare} from '@/components/freigabe-formulare';
 import {PersonZeichen} from '@/components/person-zeichen';
 import {personAngabe} from '@/lib/avatar';
 import {oauthClientById} from '@/lib/oauth-apps';
@@ -16,6 +16,11 @@ export const metadata = {title: 'Freigabe – MedArbeiter Hub'};
  * die angemeldete Person hierher, und erst ihr Klick stellt den Code aus
  * (POST /api/oauth/authorize). Schalenlos wie die Anmeldung selbst — wer hier steht,
  * ist auf dem Weg in eine andere App, nicht im Hub.
+ *
+ * Der Aufbau folgt Googles Einwilligungsblatt, weil es das eine ist, das jede
+ * Person hier schon kennt: oben die Anmeldestelle, dann „Weiter zu <App>" als
+ * Ziel, das Konto als umrandeter Ausweis in der Mitte, die Folgen als ein
+ * Satz — und die Entscheidung heißt „Weiter", nicht noch einmal „Anmelden".
  */
 export default async function FreigabeSeite({
   searchParams,
@@ -43,62 +48,38 @@ export default async function FreigabeSeite({
           <VStack gap={0}>
             <HStack className="zugang-kopf" gap={3} paddingInline={5} paddingBlock={3} vAlign="center" wrap="nowrap">
               <Image className="zugang-logo-marke" src="/logo-mark.png" alt="MedArbeiter" width={40} height={40} priority />
-              <Heading level={1}>Anmeldung freigeben</Heading>
+              <Heading level={1}>Mit MedArbeiter anmelden</Heading>
             </HStack>
             <VStack gap={4} padding={5}>
-              {/* Welches Konto hier gleich weitergereicht wird, ist die eine
-                  Frage dieser Seite — sie steht deshalb als Person da und
-                  nicht als Nebensatz. */}
-              <PersonZeichen
-                person={personAngabe(user)}
-                groesse="karte"
-                mitName
-                betont
-                unterzeile={user.email}
-              />
-              <Text>{client.name} möchte dich über MedArbeiter anmelden – mit diesem Konto.</Text>
+              <VStack gap={2} hAlign="center">
+                <Heading level={2}>Weiter zu {client.name}</Heading>
+                {/* Welches Konto gleich weitergereicht wird, ist die eine Frage
+                    dieser Seite — es steht deshalb als umrandeter Ausweis in
+                    der Mitte, wie das Kontoschild bei Google. */}
+                <HStack className="freigabe-konto" gap={2} paddingInline={4} paddingBlock={2} vAlign="center" wrap="nowrap">
+                  <PersonZeichen
+                    person={personAngabe(user)}
+                    groesse="karte"
+                    mitName
+                    betont
+                    unterzeile={user.email}
+                  />
+                </HStack>
+              </VStack>
               <Text type="supporting" color="secondary">
-                Die App erfährt dabei Name, E-Mail-Adresse, Rolle und Rechte deines Kontos.
+                Wenn du fortfährst, gibt MedArbeiter Name, E-Mail-Adresse sowie Rolle und Rechte
+                dieses Kontos an {client.name} weiter. Dein Passwort bleibt bei MedArbeiter.
               </Text>
-              <FreigabeFormulare clientId={client.client_id} redirectUri={redirect_uri} state={state} />
+              <FreigabeFormulare
+                clientId={client.client_id}
+                redirectUri={redirect_uri}
+                state={state}
+                appName={client.name}
+              />
             </VStack>
           </VStack>
         </Card>
       </VStack>
     </main>
-  );
-}
-
-export function FreigabeFormulare({
-  clientId,
-  redirectUri,
-  state,
-}: {
-  clientId: string;
-  redirectUri: string;
-  state: string;
-}) {
-  const felder = (entscheidung: 'abbrechen' | 'anmelden') => (
-    <>
-      <input type="hidden" name="client_id" value={clientId} />
-      <input type="hidden" name="redirect_uri" value={redirectUri} />
-      <input type="hidden" name="state" value={state} />
-      <input type="hidden" name="entscheidung" value={entscheidung} />
-    </>
-  );
-
-  return (
-    <HStack gap={2} justify="end">
-      {/* Ein normaler POST ist hier absichtlich die Protokollgrenze: danach
-          folgt eine externe OAuth-Weiterleitung, keine RSC-Navigation. */}
-      <form action="/api/oauth/authorize" method="post">
-        {felder('abbrechen')}
-        <AbsendeKnopf label="Abbrechen" variant="secondary" />
-      </form>
-      <form action="/api/oauth/authorize" method="post">
-        {felder('anmelden')}
-        <AbsendeKnopf label="Anmelden" variant="primary" />
-      </form>
-    </HStack>
   );
 }
