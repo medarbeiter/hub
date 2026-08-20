@@ -349,12 +349,15 @@ export const medarbeiterTheme = defineTheme({
     '--color-text-gray': ['#262626', '#e5e5e5'],
 
     // =========================================================================
-    // Radius — slightly larger than default (kept as-is)
+    // Radius — die Hausleiter, dieselbe wie in MedArbeiter One (theme/house.ts).
+    // Der Hub trug bis hierher eine engere Sprosse auf inner/element/container;
+    // dass zwei Anwendungen desselben Hauses verschieden runde Ecken haben, ist
+    // kein Unterschied, den jemand erklären könnte. Also eine Leiter, beide Apps.
     // =========================================================================
     '--radius-none': '0.25rem',
-    '--radius-inner': '0.375rem',
-    '--radius-element': '0.625rem',
-    '--radius-container': '0.75rem',
+    '--radius-inner': '0.5rem',
+    '--radius-element': '0.75rem',
+    '--radius-container': '1rem',
     '--radius-page': '1.75rem',
     '--radius-full': '9999px',
 

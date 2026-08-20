@@ -200,7 +200,7 @@ Light-mode depth is quiet and structural: white surfaces float on the tinted pap
 
 ## Shapes
 
-Nothing is truly square: even `--radius-none` is 0.25rem. The ladder runs inner 0.375rem → element 0.625rem → container 0.75rem → page 1.75rem → full pill. Timeline segments use element radius (0.625rem); tracks, bars, mini-timelines, and the now-pill are full-radius pills. Pause is the one outlined shape in the system — a dashed `--border-emphasized` border on muted parchment.
+Nothing is truly square: even `--radius-none` is 0.25rem. The ladder runs inner 0.5rem → element 0.75rem → container 1rem → page 1.75rem → full pill — the same ladder MedArbeiter One carries, because two apps of one house may not round their corners differently. A timeline segment takes the radius of the lane it sits on, not one fixed value: element radius on the `buehne`, the full-height day on „Meine Zeit"; inner radius on the `zeile` rows of a day stack (Bahnen-Stapel, Reise-Tafel); the 10px `band` sparkline is a pill throughout. Tracks, bars, and the now-pill are full-radius pills. Pause is the one outlined shape in the system — a dashed `--border-emphasized` border on muted parchment.
 
 ## Components
 
