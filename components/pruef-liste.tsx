@@ -4,6 +4,7 @@ import {Badge, Button, HStack, Text, VStack} from '@astryxdesign/core';
 import {useRouter} from 'next/navigation';
 import {useState, useTransition} from 'react';
 import {reisenGenehmigenAlleAction} from '@/app/actions';
+import {sicher} from '@/lib/aktion';
 import {fmtDateRange, fmtDuration, fmtEuro} from '@/lib/format';
 import {PruefStapel} from './pruef-stapel';
 import {ReiseTafel, STATUS_VARIANT, type ReiseAnsicht} from './reise-tafel';
@@ -75,7 +76,7 @@ export function AlleGenehmigenButton({anzahl}: {anzahl: number}) {
 
   const lauf = () =>
     start(async () => {
-      const outcome = await reisenGenehmigenAlleAction();
+      const outcome = await sicher(reisenGenehmigenAlleAction)();
       setBestaetigt(false);
       setErgebnis(
         outcome.error ??

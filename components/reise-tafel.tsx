@@ -12,6 +12,7 @@ import {
   reiseZurueckweisenAction,
   reiseZurueckziehenAction,
 } from '@/app/actions';
+import {sicher} from '@/lib/aktion';
 import type {ReiseStatus} from '@/lib/db';
 import {
   fmtDate,
@@ -131,7 +132,7 @@ export function ReiseTafel({
 
   const lauf = (fn: () => Promise<{error: string | null}>) =>
     start(async () => {
-      const {error} = await fn();
+      const {error} = await sicher(fn)();
       if (error) melde({ton: 'fehler', titel: error, dauerhaft: true});
       else {
         setLoeschen(false);

@@ -23,6 +23,7 @@ import {
   zugangscodeLoeschungAnfordernAction,
   type ActionState,
 } from '@/app/actions';
+import {sicher, sicheresFormular} from '@/lib/aktion';
 import {DienstZeichen, markeFuer} from './dienst-zeichen';
 import {useMelde} from './melde';
 import {QrLeser} from './qr-leser';
@@ -158,7 +159,7 @@ function ZugangForm({
   );
 
   const [state, formAction, isPending] = useActionState(
-    zeile ? zugangscodeAendernAction : zugangscodeAnlegenAction,
+    sicheresFormular(zeile ? zugangscodeAendernAction : zugangscodeAnlegenAction),
     INITIAL,
   );
   const lastState = useRef(state);
@@ -449,7 +450,7 @@ export function ZugangscodeTafel({
 
   const entfernen = (zeile: ZugangscodeZeile) =>
     startTransition(async () => {
-      const result = await zugangscodeLoeschungAnfordernAction(zeile.id);
+      const result = await sicher(zugangscodeLoeschungAnfordernAction)(zeile.id);
       setLoeschen(null);
       if (result.error) {
         melde({ton: 'fehler', titel: result.error, dauerhaft: true});

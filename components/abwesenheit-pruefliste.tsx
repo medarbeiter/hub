@@ -4,6 +4,7 @@ import {Badge, Button, HStack, Text, TextInput, VStack} from '@astryxdesign/core
 import {useRouter} from 'next/navigation';
 import {useState, useTransition} from 'react';
 import {abwesenheitGenehmigenAction, abwesenheitZurueckweisenAction} from '@/app/actions';
+import {sicher} from '@/lib/aktion';
 import {ART_LABEL, STATUS_LABEL, fmtTage, fmtUmfang} from '@/lib/abwesenheit-arten';
 import type {AbwesenheitArt, AbwesenheitStatus} from '@/lib/db';
 import {fmtDateRange} from '@/lib/format';
@@ -124,7 +125,7 @@ function Entscheidung({zeile: z}: {zeile: PruefZeile}) {
 
   const lauf = (fn: () => Promise<{error: string | null}>) =>
     start(async () => {
-      const {error} = await fn();
+      const {error} = await sicher(fn)();
       if (error) {
         melde({ton: 'fehler', titel: error, dauerhaft: true});
         return;

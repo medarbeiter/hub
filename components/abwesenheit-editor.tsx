@@ -18,6 +18,7 @@ import {RadioList, RadioListItem} from '@astryxdesign/core/RadioList';
 import {useRouter} from 'next/navigation';
 import {useEffect, useState, useTransition} from 'react';
 import {abwesenheitSaveAction} from '@/app/actions';
+import {sicher} from '@/lib/aktion';
 import {
   ART_LABEL,
   ABWESENHEIT_ARTEN,
@@ -118,7 +119,7 @@ export function AbwesenheitEditor(props: AbwesenheitEditorProps) {
       if (minutenAktiv) fd.set('minuten', String(minuten));
       if (istAntrag(art)) fd.set('ruecksprache', ruecksprache ? 'ja' : '');
       if (art === 'krank' && auDatei) fd.set('au', auDatei);
-      const {error} = await abwesenheitSaveAction({error: null}, fd);
+      const {error} = await sicher(abwesenheitSaveAction)({error: null}, fd);
       if (error) {
         setFehler(error);
         return;

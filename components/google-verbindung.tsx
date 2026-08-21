@@ -3,6 +3,7 @@
 import {Banner, Button, Card, Heading, HStack, Text, VStack} from '@astryxdesign/core';
 import {useActionState, useState} from 'react';
 import {googleTrennenAction, type ActionState} from '@/app/actions';
+import {sicheresFormular} from '@/lib/aktion';
 
 const INITIAL: ActionState = {error: null};
 
@@ -23,7 +24,7 @@ export function GoogleVerbindung({
   /** Deutsche Erklärung eines Google-Rücklaufs (`?google=…`), auch die gute Nachricht. */
   hinweis: {ton: 'success' | 'error'; text: string} | null;
 }) {
-  const [state, formAction, isPending] = useActionState(googleTrennenAction, INITIAL);
+  const [state, formAction, isPending] = useActionState(sicheresFormular(googleTrennenAction), INITIAL);
   const [leiteWeiter, setLeiteWeiter] = useState(false);
 
   return (

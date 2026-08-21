@@ -3,6 +3,7 @@
 import {useState, useTransition} from 'react';
 import {Button, Card, Heading, HStack, Text, VStack} from '@astryxdesign/core';
 import {appZugriffBeendenAction} from '@/app/actions';
+import {sicher} from '@/lib/aktion';
 import type {AppAnmeldung} from '@/lib/oauth-apps';
 import {fmtDate} from '@/lib/format';
 import {useMelde} from './melde';
@@ -23,7 +24,7 @@ export function AppZugriffe({apps}: {apps: AppAnmeldung[]}) {
   const beenden = (clientNummer: number) => {
     setLaeuft(clientNummer);
     starte(async () => {
-      const ergebnis = await appZugriffBeendenAction(clientNummer);
+      const ergebnis = await sicher(appZugriffBeendenAction)(clientNummer);
       setLaeuft(null);
       if (ergebnis.error) {
         melde({ton: 'fehler', titel: 'Zugriff nicht beendet', text: ergebnis.error});

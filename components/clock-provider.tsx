@@ -3,6 +3,7 @@
 import {createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode} from 'react';
 import {useRouter} from 'next/navigation';
 import {stampAction, undoStampAction} from '@/app/actions';
+import {sicher} from '@/lib/aktion';
 import {daySummary, fmtTime, nowMinutes, type DaySummary, type TimelineSegment} from '@/lib/format';
 import {checkDay, feierabendPrognose, type DayCompliance, type Prognose} from '@/lib/arbzg';
 import {useMelde} from './melde';
@@ -38,6 +39,13 @@ export interface ClockValue {
    */
   stempelungen: number;
 }
+
+// Beide Stempelwege liegen unter dem Netz aus `lib/aktion.ts`: eine Seite, die
+// lange offen lag, ruft eine Aktions-ID, die es nicht mehr gibt, und die
+// verworfene Zusage riss vorher die ganze Schale in `error.tsx`. Auf
+// Modulebene umhüllt, damit die Aktion über Renderdurchläufe dieselbe bleibt.
+const stempeln = sicher(stampAction);
+const rueckgaengig = sicher(undoStampAction);
 
 const ClockContext = createContext<ClockValue | null>(null);
 
@@ -154,7 +162,7 @@ export function ClockProvider(props: ClockProviderProps) {
       if (action === 'fortsetzen') next = [...closeOpen(base), openSegment('arbeit')];
       if (action === 'ausstempeln') next = closeOpen(base);
       setOptimistic(next);
-      const result = await stampAction(action);
+      const result = await stempeln(action);
       if (result.error) {
         setOptimistic(null);
         return result;
@@ -174,7 +182,13 @@ export function ClockProvider(props: ClockProviderProps) {
               label: 'Rückgängig',
               onClick: () => {
                 dismiss();
-                void undoStampAction().then(() => router.refresh());
+                void rueckgaengig().then((r) => {
+                  // Schweigen hieße hier: der Eintrag gilt als zurückgenommen,
+                  // obwohl er ausgestempelt bleibt. Auch die fachliche Absage
+                  // („Rückgängig ist nicht mehr möglich.") stand vorher nirgends.
+                  if (r.error) melde({ton: 'fehler', titel: r.error, dauerhaft: true});
+                  router.refresh();
+                });
               },
             },
           ],

@@ -15,6 +15,7 @@ import {
 import {useRouter} from 'next/navigation';
 import {useState, useTransition} from 'react';
 import {belegAddAction} from '@/app/actions';
+import {sicher} from '@/lib/aktion';
 import {fmtDateLong, fmtDateRange, parseEuro} from '@/lib/format';
 import {DatumFeld} from './datum-feld';
 import {Sinnbild, umriss} from './sinnbilder';
@@ -74,7 +75,7 @@ export function BelegDialog({isOpen, onOpenChange, reiseId, vonISO, bisISO}: Bel
       fd.set('betrag', betrag);
       fd.set('beschreibung', beschreibung);
       if (datei) fd.set('datei', datei);
-      const {error} = await belegAddAction({error: null}, fd);
+      const {error} = await sicher(belegAddAction)({error: null}, fd);
       if (error) {
         setFehler(error);
         return;

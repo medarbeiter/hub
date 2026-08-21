@@ -25,6 +25,7 @@ import {
 import {useRouter} from 'next/navigation';
 import {useActionState, useEffect, useRef, useState, useTransition} from 'react';
 import {rolleLoeschenAction, rolleSpeichernAction, type ActionState} from '@/app/actions';
+import {sicher, sicheresFormular} from '@/lib/aktion';
 import {ALLE_RECHTE, RECHTE, STUFEN, STUFEN_REIHENFOLGE, hatRecht, istRecht, type Recht, type RollenEintrag} from '@/lib/rechte';
 import {useMelde} from './melde';
 import {Sinnbild} from './sinnbilder';
@@ -60,7 +61,7 @@ function RollenForm({
   const [rechte, setRechte] = useState<Recht[]>(
     (rolle?.rechte ?? []).filter((recht) => eigeneRechte.includes(recht)),
   );
-  const [state, formAction, isPending] = useActionState(rolleSpeichernAction, INITIAL);
+  const [state, formAction, isPending] = useActionState(sicheresFormular(rolleSpeichernAction), INITIAL);
   const lastState = useRef(state);
 
   useEffect(() => {
@@ -150,7 +151,7 @@ export function RollenVerwaltung({rollen, eigeneRechte}: RollenVerwaltungProps) 
 
   const loeschen = (rolle: VerwalteteRolle) =>
     startTransition(async () => {
-      const result = await rolleLoeschenAction(rolle.schluessel);
+      const result = await sicher(rolleLoeschenAction)(rolle.schluessel);
       if (result.error) melde({ton: 'fehler', titel: result.error, dauerhaft: true});
       setConfirmDelete(null);
       router.refresh();

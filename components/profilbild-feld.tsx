@@ -4,6 +4,7 @@ import {Avatar, Banner, Button, FileInput, HStack, Heading, Text, VStack} from '
 import {useRouter} from 'next/navigation';
 import {useState, useTransition} from 'react';
 import {profilbildAction} from '@/app/actions';
+import {sicher} from '@/lib/aktion';
 import {AVATAR_MAX_BYTES} from '@/lib/avatar';
 import {BildZuschnitt} from './bild-zuschnitt';
 import {Sinnbild} from './sinnbilder';
@@ -47,7 +48,7 @@ export function ProfilbildFeld({
   const lauf = (fd: FormData, jetztMitBild: boolean) =>
     start(async () => {
       setFehler(null);
-      const {error} = await profilbildAction({error: null}, fd);
+      const {error} = await sicher(profilbildAction)({error: null}, fd);
       if (error) {
         setFehler(error);
         return;

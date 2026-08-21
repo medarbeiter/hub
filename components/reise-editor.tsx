@@ -15,6 +15,7 @@ import {
 import {createISOTimeString} from '@astryxdesign/core/utils';
 import {useActionState, useEffect, useRef, useState} from 'react';
 import {reiseSaveAction, type ActionState} from '@/app/actions';
+import {sicheresFormular} from '@/lib/aktion';
 import {
   fmtDateLong,
   fmtDuration,
@@ -65,7 +66,7 @@ interface ReiseEditorProps {
  * an der Wohnung und nicht am Arbeitsplatz, also entscheidet ein Mensch.
  */
 export function ReiseEditor(props: ReiseEditorProps) {
-  const [state, formAction, isSaving] = useActionState(reiseSaveAction, INITIAL);
+  const [state, formAction, isSaving] = useActionState(sicheresFormular(reiseSaveAction), INITIAL);
   const lastState = useRef(state);
 
   const [startDate, setStartDate] = useState(props.startDatum);

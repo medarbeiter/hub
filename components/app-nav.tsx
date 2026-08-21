@@ -4,7 +4,6 @@ import {
   Button,
   HStack,
   SideNav,
-  SideNavHeading,
   SideNavItem,
   SideNavSection,
   StatusDot,
@@ -22,6 +21,7 @@ import type {PersonAngabe} from '@/lib/avatar';
 import type {NavZaehler} from '@/lib/schnellzugriff';
 import {fmtDuration, fmtMonth, fmtTime, monthOf} from '@/lib/format';
 import {useClockOptional} from './clock-provider';
+import {useMelde} from './melde';
 import {
   NavAktionen,
   NavEintrag,
@@ -51,6 +51,45 @@ interface AppNavProps {
 
 /** Wo der Zustand der Schiene überlebt. */
 const SCHIENE_SCHLUESSEL = 'medarbeiter:leiste-eingeklappt';
+
+/**
+ * Die Marke im Kopf der Leiste — mit zweifarbigem Wortzug ("MedArbeiter" in
+ * der Fließfarbe, der Anwendungsname in der Markenfarbe #e3b028), was
+ * Astryx' `SideNavHeading` nicht kann: ihr `heading` nimmt nur reinen Text,
+ * keine Kindelemente. Layout und Maße 1:1 aus deren "ganze Überschrift ist
+ * ein Verweis"-Zweig übernommen (kein Menü, keine Unter-/Überschrift):
+ * derselbe Zeilenfluss (spacing-2 Lücke, spacing-8 Mindesthöhe,
+ * spacing-2 Innenabstand seitlich), derselbe Textschnitt (`Text
+ * type="large"`, der intern dieselben Token trägt: --text-large-size,
+ * --font-weight-semibold, --text-large-leading).
+ */
+function Marke({ name, eingeklappt }: { name: string; eingeklappt: boolean }) {
+  const bild = <Image src="/logo-mark.png" alt="" width={40} height={40} />;
+  if (eingeklappt) {
+    return (
+      <Link
+        href="/"
+        className="marke-kopf marke-kopf-eng"
+        title={`MedArbeiter ${name}`}
+        aria-label={`MedArbeiter ${name}`}
+      >
+        {bild}
+      </Link>
+    );
+  }
+  return (
+    <Link href="/" className="marke-kopf" aria-label={`MedArbeiter ${name}`}>
+      {bild}
+      <Text
+        type="large"
+        maxLines={1}
+        style={{ flex: 1, minWidth: 0, fontSize: 'calc(var(--text-large-size) * 1.2)' }}
+      >
+        MedArbeiter <span style={{ color: '#e3b028' }}>{name}</span>
+      </Text>
+    </Link>
+  );
+}
 
 /**
  * Die Dichte richtet sich nach der Länge der Liste, nicht nach dem Geschmack.
@@ -166,12 +205,7 @@ export function AppNav({name, role, rechte, person, heute, zaehler}: AppNavProps
         // 40 px, nicht 28: die Marke ankert die Ecke der Anwendung und darf
         // nicht kleiner stehen als der Wortzug daneben — bei 28 px las sie
         // sich als Favicon neben dem eigenen Namen.
-        <SideNavHeading
-          heading="MedArbeiter"
-          subheading="Hub"
-          headingHref="/"
-          icon={<Image src="/logo-mark.png" alt="" width={40} height={40} />}
-        />
+        <Marke name="Hub" eingeklappt={eingeklappt} />
       }
       footer={
         <>
@@ -587,12 +621,17 @@ function MeineZeitEintrag({
   offen: boolean;
 }) {
   const [läuft, starte] = useTransition();
+  const melde = useMelde();
   const status = clock?.status ?? 'aus';
 
   const stempeln = (was: 'einstempeln' | 'pause' | 'fortsetzen' | 'ausstempeln') => {
     if (!clock) return;
-    starte(() => {
-      void clock.stamp(was);
+    starte(async () => {
+      // Derselbe Weg wie in der Stempelleiste — und dieselbe Folge: was der
+      // Server ablehnt, muss auch hier zu lesen sein. Vorher verfiel die
+      // Antwort ungelesen, ein „Du bist bereits eingestempelt." sagte niemand.
+      const {error} = await clock.stamp(was);
+      if (error) melde({ton: 'fehler', titel: error, dauerhaft: true});
     });
   };
 

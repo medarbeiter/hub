@@ -25,6 +25,7 @@ import {
   type LoginState,
   type PasswortState,
 } from '@/app/actions';
+import {sicheresFormular} from '@/lib/aktion';
 import {AvatarAuswahl} from '@/components/avatar-auswahl';
 import type {AvatarKey} from '@/lib/avatar';
 import type {
@@ -115,7 +116,7 @@ export function NewAuthFlow({
   googleClientId: string | null;
 }) {
   const [einrichtung, setEinrichtung] = useState(initialSetup);
-  const [loginState, loginAbsenden, loginLaeuft] = useActionState(loginAction, LOGIN_INITIAL);
+  const [loginState, loginAbsenden, loginLaeuft] = useActionState(sicheresFormular(loginAction), LOGIN_INITIAL);
 
   useEffect(() => {
     if (!loginState.einrichtung) return;
@@ -337,7 +338,7 @@ function PasswortSchritt({weiter}: {weiter: () => void}) {
   const [passwort, setPasswort] = useState('');
   const [wiederholung, setWiederholung] = useState('');
   const [state, absenden, laeuft] = useActionState(
-    eigenesPasswortAendernAction,
+    sicheresFormular(eigenesPasswortAendernAction),
     PASSWORT_INITIAL,
   );
   const weitergereicht = useRef(false);
@@ -437,7 +438,7 @@ function GoogleSchritt({
   weiter: () => void;
 }) {
   const [state, absenden, laeuft] = useActionState(
-    googleOauthMockVerbindenAction,
+    sicheresFormular(googleOauthMockVerbindenAction),
     PASSWORT_INITIAL,
   );
 
@@ -610,7 +611,7 @@ function ArbeitsplatzSchritt({
   bestaetigt: boolean;
   zurueck: (() => void) | null;
 }) {
-  const [state, absenden, laeuft] = useActionState(onboardingCompleteAction, SETUP_INITIAL);
+  const [state, absenden, laeuft] = useActionState(sicheresFormular(onboardingCompleteAction), SETUP_INITIAL);
 
   return (
     <form action={absenden} className="flex flex-col gap-7">

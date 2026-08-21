@@ -601,6 +601,28 @@ html {
   transition: none !important;
 }
 
+/* Die Marke im Kopf der Leiste (components/app-nav.tsx, `Marke()`) —
+ * dieselben Maße wie Astryx' eigener `SideNavHeading` im "ganze Überschrift
+ * ist ein Verweis"-Zweig (spacing-2 Lücke und Innenabstand, spacing-8
+ * Mindesthöhe, radius-element, kein Rahmen, geerbte Farbe, kein
+ * Unterstrich), hier von Hand nachgebaut, weil `heading` dort nur reinen
+ * Text nimmt und den zweifarbigen Wortzug nicht tragen könnte. */
+.marke-kopf {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-height: var(--spacing-8);
+  padding-inline: var(--spacing-2);
+  box-sizing: border-box;
+  border-radius: var(--radius-element);
+  cursor: pointer;
+  color: inherit;
+  text-decoration: none;
+}
+.marke-kopf-eng {
+  display: inline-flex;
+}
+
 /* Der Ruf in der Schiene.
  *
  * Eingeklappt lässt Astryx das `endContent` weg — in einer Zeichenspalte ist

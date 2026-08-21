@@ -4,6 +4,7 @@ import {Banner, Button, DialogHeader, FileInput, HStack, Text, VStack} from '@as
 import {useRouter} from 'next/navigation';
 import {useState, useTransition} from 'react';
 import {auUploadAction} from '@/app/actions';
+import {sicher} from '@/lib/aktion';
 import {Sinnbild} from './sinnbilder';
 import {TafelDialog} from './tafel-dialog';
 
@@ -34,7 +35,7 @@ export function AuNachreichen(props: AuNachreichenProps) {
       fd.set('abwesenheitId', String(props.abwesenheitId));
       fd.set('jahr', props.jahr);
       if (datei) fd.set('au', datei);
-      const {error} = await auUploadAction({error: null}, fd);
+      const {error} = await sicher(auUploadAction)({error: null}, fd);
       if (error) {
         setFehler(error);
         return;

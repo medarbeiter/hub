@@ -24,6 +24,7 @@ import {
   type ActionState,
   type AppAnbindungState,
 } from '@/app/actions';
+import {sicher, sicheresFormular} from '@/lib/aktion';
 import {useMelde} from './melde';
 import {Sinnbild} from './sinnbilder';
 import {TafelDialog} from './tafel-dialog';
@@ -51,8 +52,8 @@ interface EinmalGeheimnis {
 function AppForm({zeile, onDone}: {zeile: AppZeile | null; onDone: (geheimnis: EinmalGeheimnis | null) => void}) {
   const [name, setName] = useState(zeile?.name ?? '');
   const [uris, setUris] = useState(zeile?.redirect_uris.join('\n') ?? '');
-  const [anlegenState, anlegenAction, anlegenPending] = useActionState(appAnlegenAction, ANLEGEN_INITIAL);
-  const [aendernState, aendernAction, aendernPending] = useActionState(appAendernAction, AENDERN_INITIAL);
+  const [anlegenState, anlegenAction, anlegenPending] = useActionState(sicheresFormular(appAnlegenAction), ANLEGEN_INITIAL);
+  const [aendernState, aendernAction, aendernPending] = useActionState(sicheresFormular(appAendernAction), AENDERN_INITIAL);
   const state = zeile ? aendernState : anlegenState;
   const isPending = anlegenPending || aendernPending;
 
@@ -207,14 +208,14 @@ export function AppAnbindungenTafel({zeilen}: {zeilen: AppZeile[]}) {
 
   const schalte = (zeile: AppZeile) =>
     startTransition(async () => {
-      const result = await appAktivAction(zeile.id, zeile.aktiv !== 1);
+      const result = await sicher(appAktivAction)(zeile.id, zeile.aktiv !== 1);
       if (result.error) melde({ton: 'fehler', titel: result.error, dauerhaft: true});
       router.refresh();
     });
 
   const geheimnisErneuern = (zeile: AppZeile) =>
     startTransition(async () => {
-      const result = await appSecretErneuernAction(zeile.id);
+      const result = await sicher(appSecretErneuernAction)(zeile.id);
       setErneuern(null);
       if (result.error) {
         melde({ton: 'fehler', titel: result.error, dauerhaft: true});

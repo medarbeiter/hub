@@ -3,6 +3,8 @@
 import {Button, HStack, Text, VStack} from '@astryxdesign/core';
 import {useState, useTransition} from 'react';
 import {protokollPruefenAction} from '@/app/actions';
+import {AKTION_FEHLGESCHLAGEN} from '@/lib/aktion';
+import {useMelde} from './melde';
 import {Sinnbild} from './sinnbilder';
 
 interface Befund {
@@ -23,6 +25,7 @@ interface Befund {
 export function KettenPruefung() {
   const [befund, setBefund] = useState<Befund | null>(null);
   const [laeuft, starte] = useTransition();
+  const melde = useMelde();
 
   return (
     <VStack gap={3}>
@@ -40,7 +43,17 @@ export function KettenPruefung() {
         isLoading={laeuft}
         onClick={() =>
           starte(async () => {
-            setBefund(await protokollPruefenAction());
+            // Hier gibt es keinen `{error}`, in den das Netz aus `lib/aktion.ts`
+            // fallen könnte — und einen Befund zu erfinden, wäre eine Aussage
+            // über die Unversehrtheit der Kette, die niemand nachgerechnet
+            // hat. Also bleibt der alte Befund stehen und der Fehlschlag wird
+            // gesagt: kein Urteil ist besser als ein erfundenes.
+            try {
+              setBefund(await protokollPruefenAction());
+            } catch (fehler) {
+              console.error('[MedArbeiter] Kettenprüfung nicht abgeschlossen', fehler);
+              melde({ton: 'fehler', titel: AKTION_FEHLGESCHLAGEN, dauerhaft: true});
+            }
           })
         }
       />

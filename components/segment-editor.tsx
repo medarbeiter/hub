@@ -15,6 +15,7 @@ import {
 import {createISOTimeString} from '@astryxdesign/core/utils';
 import {useActionState, useEffect, useRef, useState, useTransition} from 'react';
 import {segmentDeleteAction, segmentSaveAction, type ActionState} from '@/app/actions';
+import {sicher, sicheresFormular} from '@/lib/aktion';
 import {fmtDateLong, fmtDuration, fmtTime, isoToMin, type TimelineSegment} from '@/lib/format';
 import {fmtSpanne, pausenSchnitte, schnittVerlust, type PausenSchnitt} from '@/lib/pausenschnitt';
 import {Sinnbild} from './sinnbilder';
@@ -84,7 +85,7 @@ export function SegmentEditor({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleting, startDelete] = useTransition();
-  const [state, formAction, isSaving] = useActionState(segmentSaveAction, INITIAL);
+  const [state, formAction, isSaving] = useActionState(sicheresFormular(segmentSaveAction), INITIAL);
   const lastState = useRef(state);
 
   // Re-sync when a different entry (or a fresh one) is opened.
@@ -241,7 +242,7 @@ export function SegmentEditor({
                     icon={<Sinnbild sinn="entfernen" />}
                     onClick={() =>
                       startDelete(async () => {
-                        const result = await segmentDeleteAction(segment.id);
+                        const result = await sicher(segmentDeleteAction)(segment.id);
                         if (result.error) setDeleteError(result.error);
                         else onOpenChange(false);
                       })

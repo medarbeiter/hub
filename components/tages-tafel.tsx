@@ -5,6 +5,7 @@ import {Verweis as Link} from './verweis';
 import {useRouter} from 'next/navigation';
 import {useEffect, useMemo, useState, useTransition} from 'react';
 import {segmentConfirmAction, segmentResizeAction, segmentSaveAction} from '@/app/actions';
+import {sicher} from '@/lib/aktion';
 import type {Issue} from '@/lib/attention';
 import type {DayTypeKind} from '@/lib/db';
 import {fmtDate, fmtDateLong, fmtDuration, fmtTime, type Span, type TimelineSegment} from '@/lib/format';
@@ -91,7 +92,7 @@ export function TagesTafel(props: TagesTafelProps) {
 
   const onResize = (segment: TimelineSegment, startMin: number, endMin: number) => {
     startTransition(async () => {
-      const result = await segmentResizeAction(segment.id, startMin, endMin);
+      const result = await sicher(segmentResizeAction)(segment.id, startMin, endMin);
       if (result.error) melde({ton: 'fehler', titel: result.error, dauerhaft: true});
       router.refresh();
     });
@@ -114,7 +115,7 @@ export function TagesTafel(props: TagesTafelProps) {
       form.set('kind', 'arbeit');
       form.set('start', fmtTime(startMin));
       form.set('end', fmtTime(endMin));
-      const result = await segmentSaveAction({error: null}, form);
+      const result = await sicher(segmentSaveAction)({error: null}, form);
       if (result.error) {
         setEntwurf(null);
         melde({ton: 'fehler', titel: result.error, dauerhaft: true});
@@ -206,7 +207,7 @@ export function TagesTafel(props: TagesTafelProps) {
                   const target = props.segments.find((s) => s.auto_closed === 1);
                   if (!target) return;
                   startConfirm(async () => {
-                    const result = await segmentConfirmAction(target.id);
+                    const result = await sicher(segmentConfirmAction)(target.id);
                     if (result.error) melde({ton: 'fehler', titel: result.error, dauerhaft: true});
                     router.refresh();
                   });

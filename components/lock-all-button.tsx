@@ -4,6 +4,7 @@ import {Button, HStack, Text} from '@astryxdesign/core';
 import {useRouter} from 'next/navigation';
 import {useState, useTransition} from 'react';
 import {lockAllAction} from '@/app/actions';
+import {sicher} from '@/lib/aktion';
 import {Sinnbild} from './sinnbilder';
 
 interface LockAllButtonProps {
@@ -22,7 +23,7 @@ export function LockAllButton({month, lockableCount}: LockAllButtonProps) {
 
   const run = () =>
     startTransition(async () => {
-      const outcome = await lockAllAction(month);
+      const outcome = await sicher(lockAllAction)(month);
       setConfirming(false);
       if (outcome.error) setResult(outcome.error);
       else {

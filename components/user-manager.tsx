@@ -25,6 +25,7 @@ import {
   userUpdateAction,
   type UserActionState,
 } from '@/app/actions';
+import {sicher, sicheresFormular} from '@/lib/aktion';
 import {BUNDESLAENDER} from '@/lib/feiertage';
 import {ALLE_RECHTE, RECHTE, STUFEN, STUFEN_REIHENFOLGE, istRecht, vereinigeRechte, type Recht, type Rolle, type RollenEintrag} from '@/lib/rechte';
 import {useMelde} from './melde';
@@ -84,7 +85,7 @@ function UserForm({
   // Anmelden ohnehin ersetzt werden muss, ist vertretbar im Postfach. Wer das
   // nicht will, nimmt den Haken heraus und bekommt es nur angezeigt.
   const [perMail, setPerMail] = useState(true);
-  const [state, formAction, isPending] = useActionState(user ? userUpdateAction : userCreateAction, INITIAL);
+  const [state, formAction, isPending] = useActionState(sicheresFormular(user ? userUpdateAction : userCreateAction), INITIAL);
   const lastState = useRef(state);
 
   useEffect(() => {
@@ -240,7 +241,7 @@ export function UserManager({users, selfId, rollen, darfVollzugriff}: UserManage
   // ist auf genau diesen Weg angewiesen.
   const resetPasswordFor = (user: ManagedUser) =>
     startTransition(async () => {
-      const result = await userResetPasswordAction(user.id, true);
+      const result = await sicher(userResetPasswordAction)(user.id, true);
       if (result.error) melde({ton: 'fehler', titel: result.error, dauerhaft: true});
       else if (result.password) {
         setOneTimePassword({name: user.name, password: result.password, versandt: result.versandt});
@@ -249,7 +250,7 @@ export function UserManager({users, selfId, rollen, darfVollzugriff}: UserManage
 
   const setActive = (user: ManagedUser, value: boolean) =>
     startTransition(async () => {
-      const result = await userSetActiveAction(user.id, value);
+      const result = await sicher(userSetActiveAction)(user.id, value);
       if (result.error) melde({ton: 'fehler', titel: result.error, dauerhaft: true});
       setConfirmDeactivate(null);
       router.refresh();
@@ -257,7 +258,7 @@ export function UserManager({users, selfId, rollen, darfVollzugriff}: UserManage
 
   const neustartFor = (user: ManagedUser) =>
     startTransition(async () => {
-      const result = await einrichtungNeuStartenAction(user.id);
+      const result = await sicher(einrichtungNeuStartenAction)(user.id);
       if (result.error) melde({ton: 'fehler', titel: result.error, dauerhaft: true});
       else {
         melde({

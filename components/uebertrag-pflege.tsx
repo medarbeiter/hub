@@ -4,6 +4,7 @@ import {Button, Card, Divider, HStack, Heading, StackItem, Text, TextInput, VSta
 import {useRouter} from 'next/navigation';
 import {useState, useTransition} from 'react';
 import {uebertragSaveAction} from '@/app/actions';
+import {sicher} from '@/lib/aktion';
 import {Sinnbild} from './sinnbilder';
 
 export interface UebertragZeile {
@@ -106,7 +107,7 @@ function UebertragZeileForm({jahr, zeile}: {jahr: string; zeile: UebertragZeile}
         setFehler('Bitte eine ganze Zahl ab 0 angeben.');
         return;
       }
-      const {error} = await uebertragSaveAction(zeile.userId, jahr, tage);
+      const {error} = await sicher(uebertragSaveAction)(zeile.userId, jahr, tage);
       if (error) {
         setFehler(error);
         return;

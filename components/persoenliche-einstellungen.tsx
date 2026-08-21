@@ -14,6 +14,7 @@ import {
 } from '@astryxdesign/core';
 import {useActionState, useEffect, useRef, useState} from 'react';
 import {personalSettingsSaveAction, type ActionState} from '@/app/actions';
+import {sicheresFormular} from '@/lib/aktion';
 import type {AvatarKey} from '@/lib/avatar';
 import type {PersoenlicheEinstellungen, Startansicht} from '@/lib/onboarding';
 import {ABWAEHLBARE_ARTEN, MAIL_ARTEN, type MailArt} from '@/lib/mail-arten';
@@ -39,7 +40,7 @@ export function PersoenlicheEinstellungenForm({
     ABWAEHLBARE_ARTEN.filter((art) => !initial.mailAbbestellt.includes(art)),
   );
   const [gespeichert, setGespeichert] = useState(false);
-  const [state, formAction, isPending] = useActionState(personalSettingsSaveAction, INITIAL);
+  const [state, formAction, isPending] = useActionState(sicheresFormular(personalSettingsSaveAction), INITIAL);
   const letzterStand = useRef(state);
 
   useEffect(() => {

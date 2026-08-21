@@ -8,6 +8,7 @@ import {
   abwesenheitEinreichenAction,
   abwesenheitZurueckziehenAction,
 } from '@/app/actions';
+import {sicher} from '@/lib/aktion';
 import {ART_LABEL, STATUS_LABEL, fmtTage, restanspruch, type Anspruch} from '@/lib/abwesenheit-arten';
 import type {AbwesenheitArt, AbwesenheitStatus} from '@/lib/db';
 import {AbwesenheitEditor, type AbwesenheitEntwurf} from './abwesenheit-editor';
@@ -80,7 +81,7 @@ export function AbwesenheitAnsicht(props: AbwesenheitAnsichtProps) {
 
   const lauf = (fn: () => Promise<{error: string | null}>) =>
     start(async () => {
-      const {error} = await fn();
+      const {error} = await sicher(fn)();
       if (error) melde({ton: 'fehler', titel: error, dauerhaft: true});
       router.refresh();
     });

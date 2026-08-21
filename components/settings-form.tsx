@@ -3,6 +3,7 @@
 import {Badge, Banner, Button, Card, Heading, HStack, Selector, Switch, Text, TextInput, VStack} from '@astryxdesign/core';
 import {useActionState, useEffect, useRef, useState} from 'react';
 import {settingsSaveAction, type ActionState} from '@/app/actions';
+import {sicheresFormular} from '@/lib/aktion';
 import {BUNDESLAENDER} from '@/lib/feiertage';
 import {mailArtLabel} from '@/lib/mail-arten';
 import type {VersandZeile} from '@/lib/mail-buch';
@@ -65,7 +66,7 @@ export function SettingsForm(props: SettingsFormProps) {
   const [absender, setAbsender] = useState(props.mailAbsender);
   const [stufen, setStufen] = useState(props.spesenStufen);
   const [isSaved, setSaved] = useState(false);
-  const [state, formAction, isSaving] = useActionState(settingsSaveAction, INITIAL);
+  const [state, formAction, isSaving] = useActionState(sicheresFormular(settingsSaveAction), INITIAL);
   const lastState = useRef(state);
 
   useEffect(() => {

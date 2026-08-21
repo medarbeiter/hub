@@ -3,6 +3,7 @@
 import {Banner, Button, HStack, StackItem, Text, TextArea, VStack} from '@astryxdesign/core';
 import {useCallback, useEffect, useState, useTransition} from 'react';
 import {profilKommentarAction, profilKommentarLoeschenAction} from '@/app/actions';
+import {sicher} from '@/lib/aktion';
 import type {ProfilKommentar} from '@/lib/profil-kommentare';
 import {PersonZeichen} from './person-zeichen';
 import {Sinnbild} from './sinnbilder';
@@ -59,7 +60,7 @@ export function ProfilKommentare({personId, isOpen}: {personId: number; isOpen: 
   const handeln = (tun: () => Promise<{error: string | null}>) =>
     start(async () => {
       setFehler(null);
-      const {error} = await tun();
+      const {error} = await sicher(tun)();
       if (error) {
         setFehler(error);
         return;
@@ -69,7 +70,7 @@ export function ProfilKommentare({personId, isOpen}: {personId: number; isOpen: 
 
   const senden = () =>
     handeln(async () => {
-      const ergebnis = await profilKommentarAction(personId, text);
+      const ergebnis = await sicher(profilKommentarAction)(personId, text);
       if (!ergebnis.error) setText('');
       return ergebnis;
     });

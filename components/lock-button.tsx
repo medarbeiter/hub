@@ -4,6 +4,7 @@ import {Button} from '@astryxdesign/core';
 import {useRouter} from 'next/navigation';
 import {useTransition} from 'react';
 import {lockMonthAction, unlockMonthAction} from '@/app/actions';
+import {sicher} from '@/lib/aktion';
 import {useMelde} from './melde';
 import {Sinnbild} from './sinnbilder';
 
@@ -21,7 +22,7 @@ export function LockButton({userId, month, isLocked, disabledReason}: LockButton
 
   const run = () =>
     startTransition(async () => {
-      const result = isLocked ? await unlockMonthAction(userId, month) : await lockMonthAction(userId, month);
+      const result = isLocked ? await sicher(unlockMonthAction)(userId, month) : await sicher(lockMonthAction)(userId, month);
       if (result.error) melde({ton: 'fehler', titel: result.error, dauerhaft: true});
       router.refresh();
     });

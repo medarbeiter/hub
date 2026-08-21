@@ -26,6 +26,7 @@ import {
   type LoginState,
   type PasswortState,
 } from '@/app/actions';
+import {sicheresFormular} from '@/lib/aktion';
 import type {AvatarKey} from '@/lib/avatar';
 import type {EinrichtungsDaten, OnboardingProfil, Startansicht} from '@/lib/onboarding';
 import {AbsendeKnopf} from './absende-knopf';
@@ -84,7 +85,7 @@ export function LoginForm({
   const [capsLock, setCapsLock] = useState(false);
   const [sichtbareEinrichtung, setSichtbareEinrichtung] = useState(initialEinrichtung);
   const [phase, setPhase] = useState<Zugangsphase>(initialEinrichtung ? 'einrichtung' : 'anmeldung');
-  const [loginState, loginFormAction, loginPending] = useActionState(loginAction, LOGIN_INITIAL);
+  const [loginState, loginFormAction, loginPending] = useActionState(sicheresFormular(loginAction), LOGIN_INITIAL);
   const neueEinrichtung = loginState.einrichtung;
 
   useEffect(() => {
@@ -446,7 +447,7 @@ function Einrichtung({
 function PasswortSchritt({weiter}: {weiter: () => void}) {
   const [passwort, setPasswort] = useState('');
   const [wiederholung, setWiederholung] = useState('');
-  const [state, formAction, isPending] = useActionState(eigenesPasswortAendernAction, PASSWORT_INITIAL);
+  const [state, formAction, isPending] = useActionState(sicheresFormular(eigenesPasswortAendernAction), PASSWORT_INITIAL);
   const weiterGeplant = useRef(false);
 
   useEffect(() => {
@@ -521,7 +522,7 @@ function GoogleOauthSchritt({
   hinweis: string | null;
   weiter: () => void;
 }) {
-  const [state, formAction, isPending] = useActionState(googleOauthMockVerbindenAction, PASSWORT_INITIAL);
+  const [state, formAction, isPending] = useActionState(sicheresFormular(googleOauthMockVerbindenAction), PASSWORT_INITIAL);
   const [leiteWeiter, setLeiteWeiter] = useState(false);
   const weiterGeplant = useRef(false);
 
@@ -680,7 +681,7 @@ function ArbeitsplatzSchritt({
   bestaetigt: boolean;
   zurueck: () => void;
 }) {
-  const [state, formAction, isPending] = useActionState(onboardingCompleteAction, SETUP_INITIAL);
+  const [state, formAction, isPending] = useActionState(sicheresFormular(onboardingCompleteAction), SETUP_INITIAL);
   return (
     <form action={formAction}>
       <VStack className="zugang-schritt-staffel" gap={4}>

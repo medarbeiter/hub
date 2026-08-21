@@ -5,8 +5,20 @@ import {useEffect} from 'react';
 import {Sinnbild} from '@/components/sinnbilder';
 
 /**
- * Unexpected failure inside the authenticated shell. Says what happened, what
- * is safe (recorded times are not lost), and offers the one useful action.
+ * Das Netz unter den Seiten *außerhalb* der angemeldeten Schale — Anmeldung,
+ * Einrichtung, Freigabe, Druckansicht. `app/(app)/error.tsx` fängt nur, was
+ * darin passiert; hier fiel ein Fehler bis zu Next' eigener Anzeige durch, die
+ * englisch ist und niemandem sagt, was zu tun ist.
+ *
+ * Gefangen wird hier, was `lib/aktion.ts` nicht abfangen kann: das Abmelden
+ * trägt seine Server-Aktion bewusst unumhüllt am Formular, damit es ohne
+ * JavaScript funktioniert (siehe `app-nav.tsx`) — und genau dann kann es die
+ * veraltete Aktions-ID einer lange offenen Seite treffen.
+ *
+ * „Erneut versuchen" allein hilft dagegen nicht: `reset()` rendert denselben
+ * alten Build noch einmal. Darum steht das Neuladen gleichberechtigt daneben —
+ * es holt den aktuellen Build und ist bei einer veralteten Seite das einzige,
+ * was wirkt.
  */
 export default function Error({error, reset}: {error: Error & {digest?: string}; reset: () => void}) {
   useEffect(() => {
@@ -16,7 +28,7 @@ export default function Error({error, reset}: {error: Error & {digest?: string};
   return (
     <VStack gap={5} padding={5}>
       <VStack gap={0.5}>
-        <Heading level={1}>Diese Seite konnte nicht geladen werden</Heading>
+        <Heading level={1}>Das hat nicht geklappt</Heading>
         <Text type="supporting" color="secondary">
           Deine erfassten Zeiten sind davon nicht betroffen – es ist nichts verloren gegangen.
         </Text>
@@ -30,9 +42,6 @@ export default function Error({error, reset}: {error: Error & {digest?: string};
             : 'Bitte die Seite neu laden. Falls es wieder auftritt, wende dich an die Verwaltung.'
         }
       />
-      {/* Neu laden steht vorn, weil der häufigste Anlass eine Seite ist, die
-          lange offen lag: `reset()` rendert denselben alten Build noch einmal
-          und ändert daran nichts, das Neuladen holt den aktuellen. */}
       <HStack gap={2}>
         <Button
           label="Seite neu laden"
