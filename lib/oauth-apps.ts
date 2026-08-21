@@ -14,6 +14,7 @@
 // Rückgabewert an den Endpunkt (gespeichert wird ihr SHA-256). Wer die
 // Datenbank liest, kann sich damit nirgends anmelden.
 
+import type {AvatarKey} from './avatar';
 import {getDb, type User} from './db';
 import {hatRecht, type Recht} from './rechte';
 import {wirksameRechte} from './rollen';
@@ -276,11 +277,14 @@ export function tokenPruefen(token: string): {user: User & {rechte: Recht[]}; cl
         active: number;
         created_at: string;
         urlaubstage_jahr: number;
+        avatar_key: AvatarKey;
+        avatar_datei: string | null;
       },
       [string]
     >(
       `SELECT t.client_id, t.expires_at,
-              u.id, u.email, u.name, u.role, u.weekly_minutes, u.active, u.created_at, u.urlaubstage_jahr
+              u.id, u.email, u.name, u.role, u.weekly_minutes, u.active, u.created_at, u.urlaubstage_jahr,
+              u.avatar_key, u.avatar_datei
        FROM oauth_tokens t JOIN users u ON u.id = t.user_id
        WHERE t.token_hash = ? AND u.active = 1`,
     )

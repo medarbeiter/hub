@@ -1,6 +1,25 @@
 import {AVATAR_TYPEN} from '@/lib/avatar';
 import {getSessionUser} from '@/lib/auth';
+import {oauthClientById} from '@/lib/oauth-apps';
 import {avatarDateiPfad, profilbildVon} from '@/lib/profilbild';
+
+/**
+ * Prüft, ob die Anfrage von einer verbundenen Hausanwendung kommt (dasselbe
+ * Basic-Verfahren wie am Token-Endpunkt, App-Geheimnis statt Nutzer-Token —
+ * so kann die App das Bild für ihre eigene, längst laufende Sitzung
+ * nachladen, ohne das einstündige, verbrauchte Zugriffstoken aufzuheben).
+ */
+async function alsVerbundeneAppErkannt(request: Request): Promise<boolean> {
+  const basic = request.headers.get('authorization');
+  if (!basic?.startsWith('Basic ')) return false;
+  try {
+    const [kennung = '', geheim = ''] = Buffer.from(basic.slice(6), 'base64').toString('utf8').split(/:(.*)/s);
+    const client = oauthClientById(decodeURIComponent(kennung));
+    return client ? await Bun.password.verify(decodeURIComponent(geheim), client.secret_hash) : false;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Liefert das eigene Profilbild aus. Die Datei liegt außerhalb von public/ und
@@ -12,14 +31,16 @@ import {avatarDateiPfad, profilbildVon} from '@/lib/profilbild';
  * Konto. Ein Profilbild ist genau dafür da, im Team erkannt zu werden — es in
  * der Seitenleiste zu zeigen und im Teamblatt zu verbergen wäre keine Regel,
  * sondern ein Widerspruch. Angemeldet bleibt die Grenze: für einen nicht
- * angemeldeten Abruf ist es ein Bild einer Person, das niemandem gehört.
+ * angemeldeten Abruf ist es ein Bild einer Person, das niemandem gehört —
+ * eine verbundene Hausanwendung zählt dafür wie ein eigener, angemeldeter
+ * Abruf, weil sie das Bild nur für ihre eigene, bereits geprüfte Sitzung holt.
  */
 export async function GET(
-  _request: Request,
+  request: Request,
   {params}: {params: Promise<{userId: string}>},
 ): Promise<Response> {
   const user = await getSessionUser();
-  if (!user) return new Response('Nicht berechtigt.', {status: 403});
+  if (!user && !(await alsVerbundeneAppErkannt(request))) return new Response('Nicht berechtigt.', {status: 403});
 
   const {userId} = await params;
   const person = profilbildVon(Number(userId));

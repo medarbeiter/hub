@@ -1,12 +1,13 @@
 import {NextResponse, type NextRequest} from 'next/server';
+import {avatarQuelle} from '@/lib/avatar';
 import {tokenPruefen} from '@/lib/oauth-apps';
 
 /**
  * Wer bin ich? Die App legt ihr Token vor und bekommt die Identität samt
- * Rolle und wirksamen Rechten — mehr weiß MedArbeiter über niemanden
- * preiszugeben, und mehr braucht eine Hausanwendung nicht, um ihre eigene
- * Sitzung zu führen. `sub` ist als Zeichenkette zugesagt, damit der Vertrag
- * hält, falls die Kennungen je den Typ wechseln.
+ * Rolle, wirksamen Rechten und Profilbild — mehr weiß MedArbeiter über
+ * niemanden preiszugeben, und mehr braucht eine Hausanwendung nicht, um ihre
+ * eigene Sitzung zu führen. `sub` ist als Zeichenkette zugesagt, damit der
+ * Vertrag hält, falls die Kennungen je den Typ wechseln.
  *
  * Ein deaktiviertes Konto ist hier sofort unbekannt, auch mit lebendem
  * Token — die Prüfung steckt im Join von tokenPruefen().
@@ -29,7 +30,16 @@ export async function GET(request: NextRequest): Promise<Response> {
   }
   const {user} = ergebnis;
   return NextResponse.json(
-    {sub: String(user.id), name: user.name, email: user.email, role: user.role, rechte: user.rechte},
+    {
+      sub: String(user.id),
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      rechte: user.rechte,
+      // Relative Adresse, wie überall im Haus (avatarQuelle()) — die Hausanwendung
+      // löst sie gegen den Hub auf, genau wie sie es mit Fotos aus /api/avatar tut.
+      picture: avatarQuelle(user),
+    },
     {headers: {'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff'}},
   );
 }
