@@ -284,12 +284,12 @@ export function AppNav({name, role, rechte, person, heute, zaehler}: AppNavProps
           </SideNavItem>
         </NavVerweilen>
 
+
         {/* Der Teamkalender steht in der persönlichen Reihe und nicht bei der
             Verwaltung: „wer ist nächste Woche da" ist die Frage eines
             Kollegen, nicht die einer Vorgesetzten. Was er zeigt, ist für alle
             dasselbe — nur der Grund einer Abwesenheit bleibt der Verwaltung
             und der betroffenen Person vorbehalten. */}
-        <NavVerweilen {...verweilen('kalender')}>
           <SideNavItem
             label="Teamkalender"
             href="/kalender"
@@ -303,31 +303,7 @@ export function AppNav({name, role, rechte, person, heute, zaehler}: AppNavProps
             endContent={<NavKunde wert={zaehler.heuteAbwesend} wort="abwesend" />}
             collapsible={ausklapp('kalender')}
           >
-            <NavZweig offen={istOffen('kalender')}>
-              {zaehler.heuteAbwesend > 0 ? (
-                <NavStand
-                  ton="neutral"
-                  text={`${zaehler.heuteAbwesend} heute abwesend`}
-                  zusatz={
-                    zaehler.abwesendDemnaechst > 0
-                      ? `${zaehler.abwesendDemnaechst} in den nächsten 14 Tagen`
-                      : undefined
-                  }
-                />
-              ) : (
-                <NavStand
-                  ton="neutral"
-                  text="Heute sind alle da"
-                  zusatz={
-                    zaehler.abwesendDemnaechst > 0
-                      ? `${zaehler.abwesendDemnaechst} in den nächsten 14 Tagen`
-                      : undefined
-                  }
-                />
-              )}
-            </NavZweig>
           </SideNavItem>
-        </NavVerweilen>
 
         <NavVerweilen {...verweilen('spesen')} ruft={zaehler.entwuerfe > 0}>
           <SideNavItem
