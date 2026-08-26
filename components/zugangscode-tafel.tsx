@@ -4,6 +4,7 @@ import {
   Badge,
   Banner,
   Button,
+  CheckboxInput,
   DialogHeader,
   Divider,
   HStack,
@@ -20,10 +21,12 @@ import {useActionState, useEffect, useRef, useState, useTransition} from 'react'
 import {
   zugangscodeAendernAction,
   zugangscodeAnlegenAction,
+  zugangscodeImportAction,
   zugangscodeLoeschungAnfordernAction,
   type ActionState,
 } from '@/app/actions';
 import {sicher, sicheresFormular} from '@/lib/aktion';
+import {migrationParsen, migrationSammeln} from '@/lib/otp-migration';
 import {DienstZeichen, markeFuer} from './dienst-zeichen';
 import {useMelde} from './melde';
 import {QrLeser} from './qr-leser';
@@ -118,10 +121,81 @@ function CodeRing({restMs, periode}: {restMs: number; periode: number}) {
 }
 
 /**
+ * Der Leserkreis als Feldgruppe samt versteckter Formularfelder — einmal
+ * geschrieben, zweimal gebraucht: im Zugang-Formular und im Import aus
+ * Google Authenticator (dort ein Kreis für alle gewählten Konten).
+ */
+function KreisWahl({
+  selbstId,
+  darfVerwalten,
+  personenWahl,
+  rollenWahl,
+  vorgabe,
+  rollenVorgabe,
+  personenVorgabe,
+}: KreisProps & {vorgabe: string; rollenVorgabe?: string[]; personenVorgabe?: string[]}) {
+  const [kreis, setKreis] = useState<string>(vorgabe);
+  const [rollen, setRollen] = useState<string[]>(rollenVorgabe ?? []);
+  const [personen, setPersonen] = useState<string[]>(personenVorgabe ?? []);
+  return (
+    <>
+      <RadioList label="Sichtbar für" value={kreis} onChange={setKreis}>
+        {darfVerwalten && (
+          <RadioListItem
+            value="alle"
+            label="Alle Angemeldeten"
+            description="Der gemeinsame Firmenzugang – jeder liest den Code."
+          />
+        )}
+        {darfVerwalten && (
+          <RadioListItem value="rolle" label="Rollen auswählen" description="Alle Konten der gewählten Rollen." />
+        )}
+        <RadioListItem
+          value="personen"
+          label={darfVerwalten ? 'Bestimmte Personen' : 'Mit Personen teilen'}
+          description={darfVerwalten ? undefined : 'Du bleibst immer selbst im Kreis.'}
+        />
+        <RadioListItem
+          value="selbst"
+          label="Nur für mich"
+          description="Ein privater Schlüssel – niemand sonst sieht ihn."
+        />
+      </RadioList>
+      {kreis === 'rolle' && (
+        <MultiSelector
+          label="Rollen"
+          options={rollenWahl}
+          value={rollen}
+          onChange={setRollen}
+          placeholder="Rollen wählen"
+        />
+      )}
+      {kreis === 'personen' && (
+        <MultiSelector
+          label="Personen"
+          options={personenWahl.filter((p) => p.value !== String(selbstId))}
+          value={personen}
+          onChange={setPersonen}
+          placeholder="Personen wählen"
+          hasSearch
+        />
+      )}
+      <input type="hidden" name="sichtbarkeit" value={kreis} />
+      {kreis === 'rolle' && rollen.map((r) => <input key={r} type="hidden" name="rollen" value={r} />)}
+      {kreis === 'personen' &&
+        personen.map((id) => <input key={id} type="hidden" name="personen" value={id} />)}
+    </>
+  );
+}
+
+/**
  * Ein Formular für Anlegen und Bearbeiten — dieselben Felder, dieselbe
  * Reihenfolge: erst der Schlüssel (Scan oder Handeingabe), dann der Name,
  * dann der Leserkreis. Beim Bearbeiten darf der Schlüssel leer bleiben; das
  * gespeicherte Geheimnis bleibt dann und ist ohnehin nie wieder ablesbar.
+ * Liest der Scanner statt eines einzelnen otpauth-Links den Übertragungscode
+ * aus Google Authenticator, wechselt das Anlegen in eine Import-Ansicht: die
+ * gefundenen Konten mit Abwahl, ein Leserkreis für alle.
  */
 function ZugangForm({
   zeile,
@@ -152,11 +226,6 @@ function ZugangForm({
           zeile.kreis.personen[0] === selbstId
         ? 'selbst'
         : zeile.kreis.sichtbarkeit;
-  const [kreis, setKreis] = useState<string>(kreisVorgabe);
-  const [rollen, setRollen] = useState<string[]>(zeile?.kreis?.rollen ?? []);
-  const [personen, setPersonen] = useState<string[]>(
-    (zeile?.kreis?.personen ?? []).filter((id) => id !== selbstId).map(String),
-  );
 
   const [state, formAction, isPending] = useActionState(
     sicheresFormular(zeile ? zugangscodeAendernAction : zugangscodeAnlegenAction),
@@ -170,12 +239,51 @@ function ZugangForm({
     }
   }, [state, onDone]);
 
+  // Der Import aus Google Authenticator: die rohen Übertragungslinks und die
+  // abgewählten Indizes. Die Kontenliste wird je Render aus den Links
+  // gerechnet — mit derselben Funktion, die auch die Server-Aktion ruft, damit
+  // ein Abwahl-Index auf beiden Seiten dasselbe Konto meint.
+  const [importUris, setImportUris] = useState<string[]>([]);
+  const [abwahl, setAbwahl] = useState<ReadonlySet<number>>(new Set());
+  const [importState, importFormAction, importPendet] = useActionState(
+    sicheresFormular(zugangscodeImportAction),
+    INITIAL,
+  );
+  const lastImport = useRef(importState);
+  useEffect(() => {
+    if (importState !== lastImport.current) {
+      lastImport.current = importState;
+      if (importState.error === null) onDone();
+    }
+  }, [importState, onDone]);
+
   /**
-   * Was die Kamera oder ein Bild hergibt. Nur ein otpauth-Link ist hier ein
-   * Treffer — jeder andere QR-Code (eine URL, eine Visitenkarte) wird benannt,
-   * und weitergesucht wird trotzdem.
+   * Was die Kamera oder ein Bild hergibt. Zwei Treffer: der otpauth-Link eines
+   * einzelnen Dienstes, und der Übertragungscode aus Google Authenticator
+   * („Konten übertragen"), der gleich eine ganze Liste bringt — jeder andere
+   * QR-Code (eine URL, eine Visitenkarte) wird benannt, und weitergesucht wird
+   * trotzdem.
    */
   const erkannt = (text: string) => {
+    if (text.toLowerCase().startsWith('otpauth-migration://')) {
+      if (zeile) {
+        setScanFehler('Ein Übertragungscode gehört zum Anlegen – hier wird ein einzelner Zugang bearbeitet.');
+        return;
+      }
+      const probe = migrationParsen(text);
+      if (typeof probe === 'string') {
+        setScanFehler(probe);
+        return;
+      }
+      if (probe.konten.length === 0) {
+        setScanFehler('Dieser Übertragungscode enthält keine zeitbasierten Codes.');
+        return;
+      }
+      setImportUris((alt) => (alt.includes(text) ? alt : [...alt, text]));
+      setScanFehler(null);
+      setScanne(false);
+      return;
+    }
     if (text.toLowerCase().startsWith('otpauth://')) {
       setEingabe(text);
       setGelesen(true);
@@ -192,7 +300,7 @@ function ZugangForm({
         <QrLeser onErkannt={erkannt} fehler={scanFehler} />
         <HStack gap={2} justify="end">
           <Button
-            label="Von Hand eingeben"
+            label={importUris.length > 0 ? 'Zurück zur Liste' : 'Von Hand eingeben'}
             variant="secondary"
             onClick={() => {
               setScanne(false);
@@ -201,6 +309,83 @@ function ZugangForm({
           />
         </HStack>
       </VStack>
+    );
+  }
+
+  // Die Import-Ansicht: was die Übertragungscodes hergeben, mit Abwahl je
+  // Konto. Die rohen Links gehen als versteckte Felder mit — die Server-Aktion
+  // liest sie selbst noch einmal, der Browser ist keine Grenze.
+  if (!zeile && importUris.length > 0) {
+    const sammlung = migrationSammeln(importUris);
+    const gewaehlt = sammlung.konten.filter((_, index) => !abwahl.has(index)).length;
+    return (
+      <form action={importFormAction} className="tafel-rumpf">
+        <VStack gap={4} padding={4}>
+          {importState.error && <Banner status="error" title={importState.error} />}
+          <Banner
+            status="success"
+            title={`${sammlung.konten.length} ${sammlung.konten.length === 1 ? 'Konto' : 'Konten'} aus ${
+              importUris.length === 1 ? 'einem Übertragungscode' : `${importUris.length} Übertragungscodes`
+            } gelesen.`}
+            description={
+              sammlung.uebersprungen > 0
+                ? `${sammlung.uebersprungen} ${
+                    sammlung.uebersprungen === 1 ? 'Eintrag ist' : 'Einträge sind'
+                  } nicht zeitbasiert und ${sammlung.uebersprungen === 1 ? 'wird' : 'werden'} übersprungen.`
+                : undefined
+            }
+          />
+          <VStack gap={1}>
+            {sammlung.konten.map((konto, index) => (
+              <CheckboxInput
+                key={`${konto.dienst} ${konto.konto} ${index}`}
+                label={konto.konto ? `${konto.dienst} – ${konto.konto}` : konto.dienst}
+                value={!abwahl.has(index)}
+                onChange={(an) =>
+                  setAbwahl((alt) => {
+                    const neu = new Set(alt);
+                    if (an) neu.delete(index);
+                    else neu.add(index);
+                    return neu;
+                  })
+                }
+                width="100%"
+              />
+            ))}
+          </VStack>
+          <KreisWahl
+            selbstId={selbstId}
+            darfVerwalten={darfVerwalten}
+            personenWahl={personenWahl}
+            rollenWahl={rollenWahl}
+            vorgabe={darfVerwalten ? 'alle' : 'selbst'}
+          />
+          {importUris.map((uri) => (
+            <input key={uri} type="hidden" name="uri" value={uri} />
+          ))}
+          {[...abwahl].map((index) => (
+            <input key={index} type="hidden" name="abwahl" value={index} />
+          ))}
+          <HStack gap={2} justify="end">
+            <Button
+              label="Weitere Codes scannen"
+              variant="secondary"
+              icon={<Sinnbild sinn="scannen" />}
+              onClick={() => {
+                setScanne(true);
+                setScanFehler(null);
+              }}
+            />
+            <Button label="Abbrechen" variant="secondary" onClick={() => onDone()} />
+            <Button
+              label={gewaehlt === 1 ? '1 Zugang anlegen' : `${gewaehlt} Zugänge anlegen`}
+              variant="primary"
+              type="submit"
+              isLoading={importPendet}
+            />
+          </HStack>
+        </VStack>
+      </form>
     );
   }
 
@@ -219,7 +404,7 @@ function ZugangForm({
             description={
               zeile
                 ? 'Der gespeicherte Schlüssel ist nicht wieder ablesbar. Nur ausfüllen, wenn der Dienst neu eingerichtet wurde.'
-                : 'Beim Einrichten der Bestätigung in zwei Schritten zeigt der Dienst neben dem QR-Code einen Schlüssel („setup key“) oder einen otpauth-Link – Scan oder Handeingabe, beides genügt.'
+                : 'Beim Einrichten der Bestätigung in zwei Schritten zeigt der Dienst neben dem QR-Code einen Schlüssel („setup key“) oder einen otpauth-Link – Scan oder Handeingabe, beides genügt. Auch der Export aus Google Authenticator („Konten übertragen“) wird beim Scannen erkannt, gern als mehrere Bildschirmfotos auf einmal.'
             }
             width="100%"
           />
@@ -252,51 +437,15 @@ function ZugangForm({
           placeholder="z. B. info@firma.de"
           description="Optional – hilft, wenn es beim selben Dienst mehrere Konten gibt."
         />
-        <RadioList label="Sichtbar für" value={kreis} onChange={setKreis}>
-          {darfVerwalten && (
-            <RadioListItem
-              value="alle"
-              label="Alle Angemeldeten"
-              description="Der gemeinsame Firmenzugang – jeder liest den Code."
-            />
-          )}
-          {darfVerwalten && (
-            <RadioListItem value="rolle" label="Rollen auswählen" description="Alle Konten der gewählten Rollen." />
-          )}
-          <RadioListItem
-            value="personen"
-            label={darfVerwalten ? 'Bestimmte Personen' : 'Mit Personen teilen'}
-            description={darfVerwalten ? undefined : 'Du bleibst immer selbst im Kreis.'}
-          />
-          <RadioListItem
-            value="selbst"
-            label="Nur für mich"
-            description="Ein privater Schlüssel – niemand sonst sieht ihn."
-          />
-        </RadioList>
-        {kreis === 'rolle' && (
-          <MultiSelector
-            label="Rollen"
-            options={rollenWahl}
-            value={rollen}
-            onChange={setRollen}
-            placeholder="Rollen wählen"
-          />
-        )}
-        {kreis === 'personen' && (
-          <MultiSelector
-            label="Personen"
-            options={personenWahl.filter((p) => p.value !== String(selbstId))}
-            value={personen}
-            onChange={setPersonen}
-            placeholder="Personen wählen"
-            hasSearch
-          />
-        )}
-        <input type="hidden" name="sichtbarkeit" value={kreis} />
-        {kreis === 'rolle' && rollen.map((r) => <input key={r} type="hidden" name="rollen" value={r} />)}
-        {kreis === 'personen' &&
-          personen.map((id) => <input key={id} type="hidden" name="personen" value={id} />)}
+        <KreisWahl
+          selbstId={selbstId}
+          darfVerwalten={darfVerwalten}
+          personenWahl={personenWahl}
+          rollenWahl={rollenWahl}
+          vorgabe={kreisVorgabe}
+          rollenVorgabe={zeile?.kreis?.rollen}
+          personenVorgabe={(zeile?.kreis?.personen ?? []).filter((id) => id !== selbstId).map(String)}
+        />
         {zeile && <input type="hidden" name="zugangId" value={zeile.id} />}
         <HStack gap={2} justify="end">
           <Button label="Abbrechen" variant="secondary" onClick={() => onDone()} />

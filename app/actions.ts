@@ -140,6 +140,7 @@ import {
   weiterZielGueltig,
 } from '@/lib/oauth-apps';
 import {otpauthParsen, VERFAHREN_STANDARD} from '@/lib/totp';
+import {migrationSammeln} from '@/lib/otp-migration';
 import {
   sichtbarkeitText,
   zugangskontoAendern,
@@ -1678,11 +1679,10 @@ export async function auUploadAction(_prev: ActionState, formData: FormData): Pr
  * Anlegenden — eine Form weniger. Ob der Kreis der handelnden Person
  * überhaupt zusteht, entscheidet lib/zugangscodes.ts, nicht das Formular.
  */
-function zugangEingabeAusForm(actorId: number, formData: FormData): ZugangskontoEingabe | string {
-  const eingabe = String(formData.get('eingabe') ?? '').trim();
-  let dienst = String(formData.get('dienst') ?? '').trim();
-  let konto = String(formData.get('konto') ?? '').trim();
-
+function kreisAusForm(
+  actorId: number,
+  formData: FormData,
+): Pick<ZugangskontoEingabe, 'sichtbarkeit' | 'rollen' | 'personen'> {
   const kreisRoh = String(formData.get('sichtbarkeit') ?? 'alle');
   const sichtbarkeit: ZugangskontoEingabe['sichtbarkeit'] =
     kreisRoh === 'rolle' ? 'rolle' : kreisRoh === 'personen' || kreisRoh === 'selbst' ? 'personen' : 'alle';
@@ -1691,7 +1691,14 @@ function zugangEingabeAusForm(actorId: number, formData: FormData): Zugangskonto
       ? [actorId]
       : formData.getAll('personen').map((v) => Number(v)).filter((n) => Number.isInteger(n) && n > 0);
   const rollen = formData.getAll('rollen').map(String);
-  const kreis = {sichtbarkeit, rollen, personen};
+  return {sichtbarkeit, rollen, personen};
+}
+
+function zugangEingabeAusForm(actorId: number, formData: FormData): ZugangskontoEingabe | string {
+  const eingabe = String(formData.get('eingabe') ?? '').trim();
+  let dienst = String(formData.get('dienst') ?? '').trim();
+  let konto = String(formData.get('konto') ?? '').trim();
+  const kreis = kreisAusForm(actorId, formData);
 
   // Ein otpauth-Link bringt alles mit; ein nackter Base32-Schlüssel nutzt die
   // beiden Namensfelder und das übliche Verfahren (SHA1, 6 Stellen, 30 s).
@@ -1731,6 +1738,65 @@ export async function zugangscodeAnlegenAction(_prev: ActionState, formData: For
     },
   });
   revalidatePath('/zugangscodes');
+  return OK;
+}
+
+/**
+ * Der Import aus Google Authenticator („Konten übertragen"): die rohen
+ * Übertragungslinks kommen mit, und der Server liest sie selbst noch einmal —
+ * der Browser ist keine Grenze, und weil beide Seiten `migrationSammeln()`
+ * rufen, meint ein Abwahl-Index hier und dort dasselbe Konto. Je Konto ein
+ * Zugang mit eigener Protokollzeile, ein Leserkreis für alle; was nicht
+ * anlegbar ist (meist ein schon hinterlegtes Doppel), wird benannt statt
+ * verschwiegen.
+ */
+export async function zugangscodeImportAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const actor = await requireRecht('zugangscodes.erfassen');
+  const uris = formData.getAll('uri').map(String);
+  const abwahl = new Set(formData.getAll('abwahl').map(Number));
+  const kreis = kreisAusForm(actor.id, formData);
+
+  const sammlung = migrationSammeln(uris);
+  if (sammlung.konten.length === 0) {
+    return {error: sammlung.fehler[0] ?? 'Es wurde kein Übertragungscode übergeben.'};
+  }
+  const gewaehlt = sammlung.konten.filter((_, index) => !abwahl.has(index));
+  if (gewaehlt.length === 0) return {error: 'Bitte mindestens ein Konto auswählen.'};
+
+  let angelegt = 0;
+  const nichtAngelegt: string[] = [];
+  for (const angaben of gewaehlt) {
+    const ergebnis = zugangskontoAnlegen(actor, {
+      dienst: angaben.dienst,
+      konto: angaben.konto || null,
+      secret: angaben.secret,
+      verfahren: angaben.verfahren,
+      ...kreis,
+    });
+    if (typeof ergebnis === 'string') {
+      nichtAngelegt.push(`${zugangskontoName({dienst: angaben.dienst, konto: angaben.konto || null})}: ${ergebnis}`);
+      continue;
+    }
+    angelegt++;
+    // Wie beim einzelnen Anlegen: die Tatsache ins Protokoll, das Geheimnis nie.
+    protokolliere({
+      akteur: actor,
+      aktion: 'zugangscode.anlegen',
+      gegenstand: `Zugangscode ${zugangskontoName(ergebnis)}`,
+      betroffen: null,
+      nachher: {
+        Dienst: ergebnis.dienst,
+        Konto: ergebnis.konto,
+        Verfahren: `${ergebnis.algorithmus}, ${ergebnis.stellen} Stellen, alle ${ergebnis.periode} s`,
+        'Sichtbar für': sichtbarkeitText(ergebnis) ?? 'Alle Angemeldeten',
+      },
+    });
+  }
+  revalidatePath('/zugangscodes');
+  if (nichtAngelegt.length > 0) {
+    const kopf = angelegt > 0 ? `${angelegt} von ${gewaehlt.length} Zugängen angelegt.` : 'Kein Zugang angelegt.';
+    return {error: `${kopf} ${nichtAngelegt.join(' — ')}`};
+  }
   return OK;
 }
 

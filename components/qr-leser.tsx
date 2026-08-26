@@ -10,7 +10,10 @@
 //   2. jsQR (reines JS, nachgeladen) — Kamera dort, wo der Browser keinen
 //      Detektor hat (Safari auf iOS).
 //   3. Ein Bild wählen — wo die Kamera verwehrt ist oder der QR-Code als
-//      Bildschirmfoto vorliegt (am Schreibtisch der Regelfall).
+//      Bildschirmfoto vorliegt (am Schreibtisch der Regelfall). Mehrere Bilder
+//      auf einmal sind erlaubt: der Google-Authenticator-Export kommt ab elf
+//      Konten als Serie von QR-Codes, und jede Datei wird der Reihe nach
+//      dekodiert und einzeln gemeldet.
 // Der Scan ist nie der einzige Weg: das Einfügen von Hand bleibt daneben
 // bestehen, wie überall sonst bei Gesten.
 
@@ -140,31 +143,42 @@ export function QrLeser({onErkannt, fehler}: QrLeserProps) {
     };
   }, []);
 
-  const bildLesen = async (datei: File) => {
+  const bildLesen = async (dateien: File[]) => {
     setLiestBild(true);
     setBildFehler(null);
-    try {
-      const bild = await createImageBitmap(datei);
-      const lese = await holeDekoder();
-      let text: string | null = null;
+    let ohneTreffer = 0;
+    for (const datei of dateien) {
       try {
-        text = await lese(bild, bild.width, bild.height);
+        const bild = await createImageBitmap(datei);
+        const lese = await holeDekoder();
+        let text: string | null = null;
+        try {
+          text = await lese(bild, bild.width, bild.height);
+        } catch {
+          dekoder.current = jsqrDekoder();
+          text = await (await holeDekoder())(bild, bild.width, bild.height);
+        }
+        bild.close();
+        if (text) {
+          if (text !== zuletzt.current) {
+            zuletzt.current = text;
+            erkanntRef.current(text);
+          }
+        } else {
+          ohneTreffer++;
+        }
       } catch {
-        dekoder.current = jsqrDekoder();
-        text = await (await holeDekoder())(bild, bild.width, bild.height);
+        ohneTreffer++;
       }
-      bild.close();
-      if (text) {
-        zuletzt.current = text;
-        erkanntRef.current(text);
-      } else {
-        setBildFehler('Im Bild wurde kein QR-Code gefunden.');
-      }
-    } catch {
-      setBildFehler('Das Bild konnte nicht gelesen werden.');
-    } finally {
-      setLiestBild(false);
     }
+    if (ohneTreffer > 0) {
+      setBildFehler(
+        dateien.length === 1
+          ? 'Im Bild wurde kein QR-Code gefunden.'
+          : `In ${ohneTreffer} von ${dateien.length} Bildern wurde kein QR-Code gefunden.`,
+      );
+    }
+    setLiestBild(false);
   };
 
   const meldung = fehler ?? bildFehler;
@@ -189,7 +203,7 @@ export function QrLeser({onErkannt, fehler}: QrLeserProps) {
       )}
       <HStack gap={2}>
         <Button
-          label="Bild mit QR-Code wählen"
+          label="Bilder mit QR-Code wählen"
           variant="secondary"
           size="sm"
           isLoading={liestBild}
@@ -202,11 +216,12 @@ export function QrLeser({onErkannt, fehler}: QrLeserProps) {
         ref={dateiRef}
         type="file"
         accept="image/*"
+        multiple
         hidden
         onChange={(e) => {
-          const datei = e.target.files?.[0];
+          const dateien = Array.from(e.target.files ?? []);
           e.target.value = '';
-          if (datei) void bildLesen(datei);
+          if (dateien.length > 0) void bildLesen(dateien);
         }}
       />
     </VStack>
