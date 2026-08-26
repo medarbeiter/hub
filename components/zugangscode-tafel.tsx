@@ -23,6 +23,9 @@ import {
   zugangscodeAnlegenAction,
   zugangscodeImportAction,
   zugangscodeLoeschungAnfordernAction,
+  zugangscodePinAction,
+  zugangscodeSammelLoeschungAction,
+  zugangscodePinKreisAction,
   type ActionState,
 } from '@/app/actions';
 import {sicher, sicheresFormular} from '@/lib/aktion';
@@ -50,7 +53,9 @@ export interface ZugangscodeZeile {
   sichtbar: string | null;
   /** Derselbe Kreis als Gesichter — leer, wo keine Namensliste dahintersteht. */
   kreisGesichter: PersonAngabe[];
-  gruppe: 'selbst' | 'geteilt' | 'alle';
+  gruppe: 'angepinnt' | 'selbst' | 'geteilt' | 'alle';
+  /** Der Pin-Zustand: der eigene Pin fürs Umschalten, der ganze Kreis nur für Verwaltende. */
+  pin: {selbst: boolean; breite: {alle: boolean; rollen: string[]; personen: number[]} | null};
   darfBearbeiten: boolean;
   /** Der rohe Kreis fürs Bearbeiten-Formular — nur, wenn Bearbeiten erlaubt ist. */
   kreis: {sichtbarkeit: 'alle' | 'rolle' | 'personen'; rollen: string[]; personen: number[]} | null;
@@ -203,9 +208,12 @@ function ZugangForm({
   darfVerwalten,
   personenWahl,
   rollenWahl,
+  bestehend,
   onDone,
 }: KreisProps & {
   zeile: ZugangscodeZeile | null;
+  /** Die schon hinterlegten Namen — die Import-Ansicht kündigt Nummerierung an. */
+  bestehend?: Array<{dienst: string; konto: string | null}>;
   onDone: () => void;
 }) {
   const [eingabe, setEingabe] = useState('');
@@ -318,6 +326,20 @@ function ZugangForm({
   if (!zeile && importUris.length > 0) {
     const sammlung = migrationSammeln(importUris);
     const gewaehlt = sammlung.konten.filter((_, index) => !abwahl.has(index)).length;
+    // Vergebene Namen: was schon hinterlegt ist, und was im Stapel selbst
+    // gleich heißt (gleicher Name, anderes Geheimnis — die exakt Gleichen hat
+    // migrationSammeln längst gefaltet). Der Server nummeriert solche Zeilen
+    // beim Anlegen (freieBenennung) — hier wird es vorher angekündigt.
+    const vergeben = new Set(
+      (bestehend ?? []).map((b) => `${b.dienst.toLowerCase()}\u0000${(b.konto ?? '').toLowerCase()}`),
+    );
+    const gesehen = new Set<string>();
+    const doppelt = sammlung.konten.map((konto) => {
+      const schluessel = `${konto.dienst.toLowerCase()}\u0000${konto.konto.toLowerCase()}`;
+      const kollidiert = vergeben.has(schluessel) || gesehen.has(schluessel);
+      gesehen.add(schluessel);
+      return kollidiert;
+    });
     return (
       <form action={importFormAction} className="tafel-rumpf">
         <VStack gap={4} padding={4}>
@@ -340,6 +362,11 @@ function ZugangForm({
               <CheckboxInput
                 key={`${konto.dienst} ${konto.konto} ${index}`}
                 label={konto.konto ? `${konto.dienst} – ${konto.konto}` : konto.dienst}
+                description={
+                  doppelt[index]
+                    ? 'Ein Code mit diesem Namen besteht schon – dieser wird nummeriert angelegt („… (2)“).'
+                    : undefined
+                }
                 value={!abwahl.has(index)}
                 onChange={(an) =>
                   setAbwahl((alt) => {
@@ -462,11 +489,91 @@ function ZugangForm({
 }
 
 /**
+ * Der Pin-Dialog der Verwaltenden: der ganze Kreis auf einen Blick — für mich,
+ * für alle, für Rollen, für Personen — und als Ganzes gespeichert, wie der
+ * Leserkreis in `schreibeKreis()`. Wer nur erfasst, braucht keinen Dialog:
+ * sein Knopf schaltet den eigenen Pin direkt um.
+ */
+function PinForm({
+  zeile,
+  selbstId,
+  personenWahl,
+  rollenWahl,
+  onDone,
+}: Pick<KreisProps, 'selbstId' | 'personenWahl' | 'rollenWahl'> & {
+  zeile: ZugangscodeZeile;
+  onDone: () => void;
+}) {
+  const breite = zeile.pin.breite ?? {alle: false, rollen: [], personen: []};
+  const [fuerMich, setFuerMich] = useState(breite.personen.includes(selbstId));
+  const [fuerAlle, setFuerAlle] = useState(breite.alle);
+  const [rollen, setRollen] = useState<string[]>(breite.rollen);
+  const [personen, setPersonen] = useState<string[]>(
+    breite.personen.filter((id) => id !== selbstId).map(String),
+  );
+  const [state, formAction, isPending] = useActionState(sicheresFormular(zugangscodePinKreisAction), INITIAL);
+  const lastState = useRef(state);
+  useEffect(() => {
+    if (state !== lastState.current) {
+      lastState.current = state;
+      if (state.error === null) onDone();
+    }
+  }, [state, onDone]);
+  return (
+    <form action={formAction} className="tafel-rumpf">
+      <VStack gap={4} padding={4}>
+        {state.error && <Banner status="error" title={state.error} />}
+        <Text type="supporting" color="secondary">
+          Angepinnte Zugänge stehen für die Getroffenen zuoberst unter „Angepinnt“. Der Leserkreis
+          bleibt unberührt – ein Pin zeigt niemandem etwas, das er nicht ohnehin sieht.
+        </Text>
+        <CheckboxInput label="Für mich" value={fuerMich} onChange={setFuerMich} width="100%" />
+        <CheckboxInput label="Für alle Angemeldeten" value={fuerAlle} onChange={setFuerAlle} width="100%" />
+        <MultiSelector
+          label="Für Rollen"
+          options={rollenWahl}
+          value={rollen}
+          onChange={setRollen}
+          placeholder="Rollen wählen"
+        />
+        <MultiSelector
+          label="Für Personen"
+          options={personenWahl.filter((p) => p.value !== String(selbstId))}
+          value={personen}
+          onChange={setPersonen}
+          placeholder="Personen wählen"
+          hasSearch
+        />
+        <input type="hidden" name="zugangId" value={zeile.id} />
+        {fuerAlle && <input type="hidden" name="pinAlle" value="1" />}
+        {rollen.map((r) => (
+          <input key={r} type="hidden" name="pinRollen" value={r} />
+        ))}
+        {personen.map((id) => (
+          <input key={id} type="hidden" name="pinPersonen" value={id} />
+        ))}
+        {fuerMich && <input type="hidden" name="pinPersonen" value={selbstId} />}
+        <HStack gap={2} justify="end">
+          <Button label="Abbrechen" variant="secondary" onClick={() => onDone()} />
+          <Button label="Speichern" variant="primary" type="submit" isLoading={isPending} />
+        </HStack>
+      </VStack>
+    </form>
+  );
+}
+
+/**
  * Der Anlegen-Knopf samt Dialog — er steht im Werkzeugband des Kopfes, wo
  * jede Seite ihre eine Haupthandlung trägt (Abschluss, Berichte), statt unter
  * der Liste, wo er erst nach dem Scrollen sichtbar würde.
  */
-export function ZugangAnlegen({selbstId, darfVerwalten, personenWahl, rollenWahl}: KreisProps) {
+export function ZugangAnlegen({
+  selbstId,
+  darfVerwalten,
+  personenWahl,
+  rollenWahl,
+  bestehend,
+}: KreisProps & {bestehend?: Array<{dienst: string; konto: string | null}>}) {
   const router = useRouter();
   const [offen, setOffen] = useState(false);
   return (
@@ -493,6 +600,7 @@ export function ZugangAnlegen({selbstId, darfVerwalten, personenWahl, rollenWahl
             darfVerwalten={darfVerwalten}
             personenWahl={personenWahl}
             rollenWahl={rollenWahl}
+            bestehend={bestehend}
             onDone={() => {
               setOffen(false);
               router.refresh();
@@ -505,6 +613,7 @@ export function ZugangAnlegen({selbstId, darfVerwalten, personenWahl, rollenWahl
 }
 
 const GRUPPEN: ReadonlyArray<{schluessel: ZugangscodeZeile['gruppe']; titel: string}> = [
+  {schluessel: 'angepinnt', titel: 'Angepinnt'},
   {schluessel: 'selbst', titel: 'Nur für dich'},
   {schluessel: 'geteilt', titel: 'Geteilte Zugänge'},
   {schluessel: 'alle', titel: 'Für alle Angemeldeten'},
@@ -512,8 +621,8 @@ const GRUPPEN: ReadonlyArray<{schluessel: ZugangscodeZeile['gruppe']; titel: str
 
 /**
  * Die Einmalcodes als dichte Zeilen, vom Persönlichen zum Gemeinsamen
- * gruppiert: erst die eigenen Schlüssel, dann die geteilten Kreise, dann der
- * Firmenbestand für alle. Die Überschriften erscheinen erst, wenn es mehr als
+ * gruppiert: zuoberst, was für einen angepinnt ist, dann die eigenen Schlüssel,
+ * die geteilten Kreise, der Firmenbestand für alle. Die Überschriften erscheinen erst, wenn es mehr als
  * eine Gruppe gibt — eine Liste mit nur einer Sorte braucht kein Schild.
  *
  * Die Codes selbst rechnet der Server (das Geheimnis bleibt dort); der Browser
@@ -529,9 +638,12 @@ export function ZugangscodeTafel({
   darfVerwalten,
   personenWahl,
   rollenWahl,
+  darfErfassen = false,
   gefiltert = false,
 }: KreisProps & {
   codes: ZugangscodeZeile[];
+  /** Nur wer erfasst, darf (eigene) Pins setzen — ohne das Recht gibt es keinen Pin-Knopf. */
+  darfErfassen?: boolean;
   /** Die Serveruhr beim Rendern — sie, nicht die Browseruhr, hat die Codes gerechnet. */
   serverJetztMs: number;
   /** Eine leere Liste unter aktivem Filter heißt „nichts passt", nicht „nichts da". */
@@ -542,6 +654,11 @@ export function ZugangscodeTafel({
   const [isPending, startTransition] = useTransition();
   const [bearbeiten, setBearbeiten] = useState<ZugangscodeZeile | null>(null);
   const [loeschen, setLoeschen] = useState<ZugangscodeZeile | null>(null);
+  const [anpinnen, setAnpinnen] = useState<ZugangscodeZeile | null>(null);
+  // Der Auswählen-Modus der Verwaltenden: `null` heißt aus, sonst die Menge
+  // der angekreuzten Zeilen — entfernt wird gebündelt über EINE Mail.
+  const [auswahl, setAuswahl] = useState<ReadonlySet<number> | null>(null);
+  const [sammelDialog, setSammelDialog] = useState(false);
   const [kopiertId, setKopiertId] = useState<number | null>(null);
 
   // Rückkehr vom Bestätigungslink der Löschungs-E-Mail — einmal gemeldet,
@@ -553,7 +670,9 @@ export function ZugangscodeTafel({
     if (!bestaetigt && !fehler) return;
     melde(
       bestaetigt
-        ? {ton: 'erfolg', titel: 'Zugang entfernt', text: `„${bestaetigt}" wurde gelöscht.`}
+        ? bestaetigt.endsWith('Zugänge')
+          ? {ton: 'erfolg', titel: 'Zugänge entfernt', text: `${bestaetigt} wurden gelöscht.`}
+          : {ton: 'erfolg', titel: 'Zugang entfernt', text: `„${bestaetigt}" wurde gelöscht.`}
         : {ton: 'fehler', titel: fehler!, dauerhaft: true},
     );
     const url = new URL(window.location.href);
@@ -612,6 +731,22 @@ export function ZugangscodeTafel({
       });
     });
 
+  const sammelEntfernen = (ids: number[]) =>
+    startTransition(async () => {
+      const result = await sicher(zugangscodeSammelLoeschungAction)(ids);
+      setSammelDialog(false);
+      if (result.error) {
+        melde({ton: 'fehler', titel: result.error, dauerhaft: true});
+        return;
+      }
+      setAuswahl(null);
+      melde({
+        ton: 'hinweis',
+        titel: 'Bestätigungsmail verschickt',
+        text: 'Die Zugänge werden erst entfernt, wenn du den Link darin öffnest.',
+      });
+    });
+
   const gruppen = GRUPPEN.map((g) => ({...g, zeilen: codes.filter((c) => c.gruppe === g.schluessel)})).filter(
     (g) => g.zeilen.length > 0,
   );
@@ -624,7 +759,28 @@ export function ZugangscodeTafel({
           label={zeile.dienst}
           description={zeile.konto ?? undefined}
           density="spacious"
-          startContent={<DienstZeichen dienst={zeile.dienst} />}
+          startContent={
+            auswahl === null ? (
+              <DienstZeichen dienst={zeile.dienst} />
+            ) : (
+              <HStack gap={2} vAlign="center" wrap="nowrap">
+                <CheckboxInput
+                  label={`${zeile.konto ? `${zeile.dienst} (${zeile.konto})` : zeile.dienst} auswählen`}
+                  isLabelHidden
+                  value={auswahl.has(zeile.id)}
+                  onChange={(an) =>
+                    setAuswahl((alt) => {
+                      const neu = new Set(alt ?? []);
+                      if (an) neu.add(zeile.id);
+                      else neu.delete(zeile.id);
+                      return neu;
+                    })
+                  }
+                />
+                <DienstZeichen dienst={zeile.dienst} />
+              </HStack>
+            )
+          }
           endContent={
             <HStack gap={3} vAlign="center" wrap="nowrap">
               {/* Mit wem ein Zugang geteilt ist, liest sich als Reihe von
@@ -674,6 +830,42 @@ export function ZugangscodeTafel({
                   onClick={() => void kopieren(zeile)}
                 />
               )}
+              {darfErfassen && (
+                <Button
+                  label={zeile.gruppe === 'angepinnt' ? 'Pin lösen' : 'Anpinnen'}
+                  tooltip={
+                    darfVerwalten
+                      ? 'Anpinnen – für dich, für Rollen oder für alle'
+                      : zeile.gruppe === 'angepinnt' && !zeile.pin.selbst
+                        ? 'Für dich angepinnt – der Pin gilt einem ganzen Kreis'
+                        : zeile.gruppe === 'angepinnt'
+                          ? 'Pin lösen'
+                          : 'Für mich anpinnen'
+                  }
+                  variant="ghost"
+                  size="sm"
+                  isIconOnly
+                  icon={<Sinnbild sinn="anpinnen" form={zeile.gruppe === 'angepinnt' ? 'voll' : 'umriss'} />}
+                  onClick={() => {
+                    if (darfVerwalten) {
+                      setAnpinnen(zeile);
+                      return;
+                    }
+                    if (zeile.gruppe === 'angepinnt' && !zeile.pin.selbst) {
+                      melde({
+                        ton: 'hinweis',
+                        titel: 'Von der Verwaltung angepinnt',
+                        text: 'Dieser Pin gilt für einen ganzen Kreis und kann nur dort gelöst werden.',
+                      });
+                      return;
+                    }
+                    startTransition(async () => {
+                      const result = await sicher(zugangscodePinAction)(zeile.id, !zeile.pin.selbst);
+                      if (result.error) melde({ton: 'fehler', titel: result.error, dauerhaft: true});
+                    });
+                  }}
+                />
+              )}
               {/* Pflege gebündelt hinter dem Kopieren: erst die Handlung, die
                   jeden Besuch trägt, dann die seltenen — nur als Zeichen, damit
                   die Zeile dem Code das Gewicht lässt. */}
@@ -709,6 +901,33 @@ export function ZugangscodeTafel({
 
   return (
     <VStack gap={4}>
+      {darfVerwalten &&
+        codes.length > 0 &&
+        (auswahl === null ? (
+          <HStack gap={2} justify="end">
+            <Button label="Auswählen" variant="ghost" size="sm" onClick={() => setAuswahl(new Set())} />
+          </HStack>
+        ) : (
+          <HStack gap={2} justify="end" vAlign="center">
+            <Text type="supporting" color="secondary">
+              {auswahl.size === 1 ? '1 Zugang ausgewählt' : `${auswahl.size} Zugänge ausgewählt`}
+            </Text>
+            <Button label="Abbrechen" variant="secondary" size="sm" onClick={() => setAuswahl(null)} />
+            <Button
+              label="Ausgewählte entfernen"
+              variant="destructive"
+              size="sm"
+              icon={<Sinnbild sinn="entfernen" />}
+              onClick={() => {
+                if (auswahl.size === 0) {
+                  melde({ton: 'hinweis', titel: 'Nichts ausgewählt', text: 'Bitte zuerst Zugänge ankreuzen.'});
+                  return;
+                }
+                setSammelDialog(true);
+              }}
+            />
+          </HStack>
+        ))}
       {codes.length === 0 ? (
         <HStack paddingBlock={4} paddingInline={1} gap={3} vAlign="start" wrap="nowrap">
           <Sinnbild sinn="zugangscode" groesse="leer" ton="sekundaer" />
@@ -766,6 +985,29 @@ export function ZugangscodeTafel({
       </TafelDialog>
 
       <TafelDialog
+        isOpen={anpinnen !== null}
+        onOpenChange={(open) => {
+          if (!open) setAnpinnen(null);
+        }}
+        purpose="form"
+        width={440}
+      >
+        <DialogHeader
+          title="Zugang anpinnen"
+          subtitle={anpinnen ? (anpinnen.konto ? `${anpinnen.dienst} (${anpinnen.konto})` : anpinnen.dienst) : ''}
+        />
+        {anpinnen && (
+          <PinForm
+            zeile={anpinnen}
+            selbstId={selbstId}
+            personenWahl={personenWahl}
+            rollenWahl={rollenWahl}
+            onDone={() => setAnpinnen(null)}
+          />
+        )}
+      </TafelDialog>
+
+      <TafelDialog
         isOpen={loeschen !== null}
         onOpenChange={(open) => {
           if (!open) setLoeschen(null);
@@ -792,6 +1034,37 @@ export function ZugangscodeTafel({
               isLoading={isPending}
               icon={<Sinnbild sinn="email" />}
               onClick={() => loeschen && entfernen(loeschen)}
+            />
+          </HStack>
+        </VStack>
+      </TafelDialog>
+
+      <TafelDialog
+        isOpen={sammelDialog}
+        onOpenChange={(open) => {
+          if (!open) setSammelDialog(false);
+        }}
+        purpose="form"
+        width={440}
+      >
+        <DialogHeader
+          title="Ausgewählte Zugänge entfernen"
+          subtitle={auswahl ? `${auswahl.size} ${auswahl.size === 1 ? 'Zugang' : 'Zugänge'}` : ''}
+        />
+        <VStack gap={4} padding={4}>
+          <Text type="body" as="p">
+            Wie beim einzelnen Entfernen wird nichts direkt gelöscht: du bekommst eine
+            Bestätigungsmail an deine eigene Adresse, und erst der eine Link darin entfernt alle
+            ausgewählten Zugänge auf einmal – für ihren ganzen Leserkreis.
+          </Text>
+          <HStack gap={2} justify="end">
+            <Button label="Abbrechen" variant="secondary" onClick={() => setSammelDialog(false)} />
+            <Button
+              label="Bestätigungsmail senden"
+              variant="destructive"
+              isLoading={isPending}
+              icon={<Sinnbild sinn="email" />}
+              onClick={() => auswahl && sammelEntfernen([...auswahl])}
             />
           </HStack>
         </VStack>

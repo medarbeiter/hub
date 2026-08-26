@@ -149,6 +149,12 @@ import {
   zugangskontoLoeschungAnfordern,
   zugangskontoName,
   type ZugangskontoEingabe,
+  eigenenPinSetzen,
+  freieBenennung,
+  zugangskontoSammelLoeschungAnfordern,
+  pinKreisVon,
+  pinText,
+  pinneZuschneiden,
 } from '@/lib/zugangscodes';
 import {loescheAlleGoogleEreignisse, syncGoogleAbwesenheiten} from '@/lib/google-kalender';
 // Der E-Mail-Versand steht neben dem Kalenderabgleich und trägt dieselbe
@@ -1766,9 +1772,13 @@ export async function zugangscodeImportAction(_prev: ActionState, formData: Form
   let angelegt = 0;
   const nichtAngelegt: string[] = [];
   for (const angaben of gewaehlt) {
+    // Ein vergebener Name wird nummeriert statt abgewiesen: ein neu
+    // eingerichteter Dienst bringt denselben Namen mit einem neuen Geheimnis
+    // mit, und die Abweisung würde gerade das lebende Geheimnis verwerfen.
+    const benannt = freieBenennung(angaben.dienst, angaben.konto || null);
     const ergebnis = zugangskontoAnlegen(actor, {
-      dienst: angaben.dienst,
-      konto: angaben.konto || null,
+      dienst: benannt.dienst,
+      konto: benannt.konto,
       secret: angaben.secret,
       verfahren: angaben.verfahren,
       ...kreis,
@@ -1846,6 +1856,80 @@ export async function zugangscodeLoeschungAnfordernAction(id: number): Promise<A
     gegenstand: `Zugangscode ${name}`,
     betroffen: null,
   });
+  return OK;
+}
+
+/**
+ * Sammel-Löschung: eine Bestätigungsmail, ein Link, alle gewählten Zugänge —
+ * dieselbe Zwei-Schritt-Form wie beim einzelnen Entfernen, nur gebündelt.
+ */
+export async function zugangscodeSammelLoeschungAction(ids: number[]): Promise<ActionState> {
+  const actor = await requireRecht('zugangscodes.verwalten');
+  const angefordert = zugangskontoSammelLoeschungAnfordern(actor, ids);
+  if (typeof angefordert === 'string') return {error: angefordert};
+  const namen = angefordert.konten.map(zugangskontoName);
+  await meldeZugangscodeLoeschenBestaetigen(
+    actor,
+    `${angefordert.konten.length} Zugänge: ${namen.join(', ')}`,
+    angefordert.token,
+  );
+  for (const konto of angefordert.konten) {
+    protokolliere({
+      akteur: actor,
+      aktion: 'zugangscode.loeschen-angefordert',
+      gegenstand: `Zugangscode ${zugangskontoName(konto)}`,
+      betroffen: null,
+    });
+  }
+  return OK;
+}
+
+/** Der eigene Pin — ein Umschalter, direkt gerufen (`sicher()` am Aufrufort). */
+export async function zugangscodePinAction(id: number, an: boolean): Promise<ActionState> {
+  const actor = await requireRecht('zugangscodes.erfassen');
+  const fehler = eigenenPinSetzen(actor, id, an);
+  if (fehler) return {error: fehler};
+  const konto = zugangskontoById(id);
+  protokolliere({
+    akteur: actor,
+    aktion: an ? 'zugangscode.anpinnen' : 'zugangscode.abpinnen',
+    gegenstand: `Zugangscode ${konto ? zugangskontoName(konto) : `#${id}`}`,
+    betroffen: null,
+    nachher: {Pin: an ? 'Für mich gesetzt' : 'Für mich gelöst'},
+  });
+  revalidatePath('/zugangscodes');
+  return OK;
+}
+
+/**
+ * Der Pin-Kreis aus dem Dialog der Verwaltenden — als Ganzes ersetzt, mit
+ * Vorher/Nachher im Protokoll. Löst der Zuschnitt den letzten Pin, heißt die
+ * Zeile „Pin gelöst" statt „angepinnt" — das Protokoll sagt, was geschah.
+ */
+export async function zugangscodePinKreisAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const actor = await requireRecht('zugangscodes.verwalten');
+  const id = Number(formData.get('zugangId') ?? 0);
+  const konto = zugangskontoById(id);
+  if (!konto) return {error: 'Diesen Zugang gibt es nicht mehr.'};
+  const vorher = pinText(pinKreisVon(id));
+  const ziel = {
+    alle: formData.get('pinAlle') === '1',
+    rollen: formData.getAll('pinRollen').map(String),
+    personen: formData.getAll('pinPersonen').map(Number).filter((n) => Number.isInteger(n) && n > 0),
+  };
+  const fehler = pinneZuschneiden(actor, id, ziel);
+  if (fehler) return {error: fehler};
+  const nachher = pinKreisVon(id);
+  const leer = !nachher.alle && nachher.rollen.length === 0 && nachher.personen.length === 0;
+  protokolliere({
+    akteur: actor,
+    aktion: leer ? 'zugangscode.abpinnen' : 'zugangscode.anpinnen',
+    gegenstand: `Zugangscode ${zugangskontoName(konto)}`,
+    betroffen: null,
+    vorher: {'Angepinnt für': vorher},
+    nachher: {'Angepinnt für': pinText(nachher)},
+  });
+  revalidatePath('/zugangscodes');
   return OK;
 }
 

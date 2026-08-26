@@ -10,6 +10,11 @@ import {
   zugangskontoLoeschungAnfordern,
   zugangskontoLoeschungBestaetigen,
   zugangskontoName,
+  eigenenPinSetzen,
+  freieBenennung,
+  zugangskontoSammelLoeschungAnfordern,
+  pinKreisVon,
+  pinneZuschneiden,
 } from '../lib/zugangscodes';
 
 const ascii = (text: string) => new TextEncoder().encode(text);
@@ -141,7 +146,8 @@ describe('zugangscodes (Datensatz)', () => {
     const geloescht = zugangskontoLoeschungBestaetigen(ADMIN, angefordert.token);
     expect(typeof geloescht).not.toBe('string');
     if (typeof geloescht === 'string') return;
-    expect(geloescht.dienst).toBe('Google');
+    expect(geloescht).toHaveLength(1);
+    expect(geloescht[0]!.dienst).toBe('Google');
     expect(alleZugangskonten()).toHaveLength(0);
     // Derselbe Link löscht kein zweites Mal.
     expect(typeof zugangskontoLoeschungBestaetigen(ADMIN, angefordert.token)).toBe('string');
@@ -261,5 +267,105 @@ describe('zugangscodes (Datensatz)', () => {
     expect(aktuelleZugangscodes(ADMIN, 59_000)[0]!.code).not.toBe('287082');
     // Ein unlesbarer neuer Schlüssel wird abgewiesen, der alte bleibt.
     expect(typeof zugangskontoAendern(ADMIN, konto.id, {dienst: 'Google Ads', konto: null, secret: '0011', verfahren: VERFAHREN, ...ALLE})).toBe('string');
+  });
+
+  test('Anpinnen: eigener Pin, breite Pins, und die Gruppe „Angepinnt"', () => {
+    frisch();
+    const db = getDb();
+    db.query("INSERT INTO users (email, password_hash, name, role) VALUES ('v@f.de', 'x', 'Vera Vertrieb', 'vertrieb')").run();
+    db.query("INSERT INTO users (email, password_hash, name, role) VALUES ('m@f.de', 'x', 'Mia Mit', 'mitarbeiter')").run();
+    const vera = {id: 2, role: 'vertrieb', rechte: [...BASIS]};
+    const mia = {id: 3, role: 'mitarbeiter', rechte: [...BASIS]};
+
+    const offen = zugangskontoAnlegen(ADMIN, {dienst: 'Offen', konto: null, secret: SECRET, verfahren: VERFAHREN, ...ALLE});
+    const geheim = zugangskontoAnlegen(ADMIN, {
+      dienst: 'Geheim',
+      konto: null,
+      secret: SECRET,
+      verfahren: VERFAHREN,
+      sichtbarkeit: 'personen',
+      personen: [2],
+    });
+    if (typeof offen === 'string' || typeof geheim === 'string') throw new Error('Anlegen fehlgeschlagen');
+
+    // Der eigene Pin hebt die Zeile in die Gruppe „Angepinnt" — nur für Mia.
+    expect(eigenenPinSetzen(mia, offen.id, true)).toBeNull();
+    const fuerMia = aktuelleZugangscodes(mia, 0).find((c) => c.id === offen.id)!;
+    expect(fuerMia.gruppe).toBe('angepinnt');
+    expect(fuerMia.pin.selbst).toBe(true);
+    // Der ganze Pin-Kreis erreicht den Browser nur bei Verwaltenden.
+    expect(fuerMia.pin.breite).toBeNull();
+    expect(aktuelleZugangscodes(vera, 0).find((c) => c.id === offen.id)!.gruppe).toBe('alle');
+    expect(aktuelleZugangscodes(ADMIN, 0).find((c) => c.id === offen.id)!.pin.breite).toEqual({
+      alle: false,
+      rollen: [],
+      personen: [3],
+    });
+    // Und wieder gelöst.
+    expect(eigenenPinSetzen(mia, offen.id, false)).toBeNull();
+    expect(aktuelleZugangscodes(mia, 0).find((c) => c.id === offen.id)!.gruppe).toBe('alle');
+
+    // Ein unsichtbarer Zugang ist nicht anpinnbar — dieselbe Auskunft wie „gibt es nicht".
+    expect(typeof eigenenPinSetzen(mia, geheim.id, true)).toBe('string');
+    // Breit anpinnen kann nur, wer verwaltet, und nur auf bestehende Rollen.
+    expect(typeof pinneZuschneiden(mia, offen.id, {alle: false, rollen: ['mitarbeiter'], personen: []})).toBe('string');
+    expect(typeof pinneZuschneiden(ADMIN, offen.id, {alle: false, rollen: ['gibtsnicht'], personen: []})).toBe('string');
+
+    // Ein Rollen-Pin trifft die Rolle — und nur sie.
+    expect(pinneZuschneiden(ADMIN, offen.id, {alle: false, rollen: ['vertrieb'], personen: []})).toBeNull();
+    expect(pinKreisVon(offen.id)).toEqual({alle: false, rollen: ['vertrieb'], personen: []});
+    const fuerVera = aktuelleZugangscodes(vera, 0).find((c) => c.id === offen.id)!;
+    expect(fuerVera.gruppe).toBe('angepinnt');
+    expect(fuerVera.pin.selbst).toBe(false);
+    expect(aktuelleZugangscodes(mia, 0).find((c) => c.id === offen.id)!.gruppe).toBe('alle');
+
+    // Der Pin wird NACH dem Sichtbarkeitszuschnitt gerechnet: ein „für alle"
+    // angepinnter, aber unsichtbarer Zugang taucht für Mia trotzdem nicht auf.
+    expect(pinneZuschneiden(ADMIN, geheim.id, {alle: true, rollen: [], personen: []})).toBeNull();
+    expect(aktuelleZugangscodes(mia, 0).some((c) => c.id === geheim.id)).toBe(false);
+    expect(aktuelleZugangscodes(vera, 0).find((c) => c.id === geheim.id)!.gruppe).toBe('angepinnt');
+
+    // Der Zuschnitt ersetzt als Ganzes — ein leerer Kreis löst jeden Pin.
+    expect(pinneZuschneiden(ADMIN, offen.id, {alle: false, rollen: [], personen: []})).toBeNull();
+    expect(pinKreisVon(offen.id)).toEqual({alle: false, rollen: [], personen: []});
+  });
+
+  test('freie Benennung nummeriert statt abzuweisen', () => {
+    frisch();
+    zugangskontoAnlegen(ADMIN, {dienst: 'Google', konto: 'info@firma.de', secret: SECRET, verfahren: VERFAHREN, ...ALLE});
+    zugangskontoAnlegen(ADMIN, {dienst: 'Slack', konto: null, secret: SECRET, verfahren: VERFAHREN, ...ALLE});
+    expect(freieBenennung('Neu', null)).toEqual({dienst: 'Neu', konto: null});
+    expect(freieBenennung('Google', 'info@firma.de')).toEqual({dienst: 'Google', konto: 'info@firma.de (2)'});
+    expect(freieBenennung('Slack', null)).toEqual({dienst: 'Slack (2)', konto: null});
+    // Und die Nummer rückt weiter, wenn „(2)" auch schon steht.
+    zugangskontoAnlegen(ADMIN, {dienst: 'Google', konto: 'info@firma.de (2)', secret: SECRET, verfahren: VERFAHREN, ...ALLE});
+    expect(freieBenennung('Google', 'info@firma.de')).toEqual({dienst: 'Google', konto: 'info@firma.de (3)'});
+  });
+
+  test('Sammel-Löschung: ein Link für mehrere Zugänge, nur für Verwaltende', () => {
+    frisch();
+    const db = getDb();
+    db.query("INSERT INTO users (email, password_hash, name, role) VALUES ('m@f.de', 'x', 'Mia Mit', 'mitarbeiter')").run();
+    const mia = {id: 2, role: 'mitarbeiter', rechte: [...BASIS]};
+    const a = zugangskontoAnlegen(ADMIN, {dienst: 'A', konto: null, secret: SECRET, verfahren: VERFAHREN, ...ALLE});
+    const b = zugangskontoAnlegen(ADMIN, {dienst: 'B', konto: null, secret: SECRET, verfahren: VERFAHREN, ...ALLE});
+    if (typeof a === 'string' || typeof b === 'string') throw new Error('Anlegen fehlgeschlagen');
+
+    // Nur Verwaltende bündeln — und doppelte ids falten sich.
+    expect(typeof zugangskontoSammelLoeschungAnfordern(mia, [a.id, b.id])).toBe('string');
+    const angefordert = zugangskontoSammelLoeschungAnfordern(ADMIN, [a.id, b.id, a.id]);
+    expect(typeof angefordert).not.toBe('string');
+    if (typeof angefordert === 'string') return;
+    expect(angefordert.konten).toHaveLength(2);
+    // Nichts ist gelöscht, bis der Link geklickt wird.
+    expect(alleZugangskonten()).toHaveLength(2);
+
+    const geloescht = zugangskontoLoeschungBestaetigen(ADMIN, angefordert.token);
+    expect(typeof geloescht).not.toBe('string');
+    if (typeof geloescht === 'string') return;
+    expect(geloescht.map((k) => k.dienst).sort()).toEqual(['A', 'B']);
+    expect(alleZugangskonten()).toHaveLength(0);
+    // Derselbe Link löst kein zweites Mal ein.
+    expect(typeof zugangskontoLoeschungBestaetigen(ADMIN, angefordert.token)).toBe('string');
   });
 });

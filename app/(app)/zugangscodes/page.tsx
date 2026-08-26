@@ -76,7 +76,13 @@ export default async function ZugangscodesPage({searchParams}: PageProps) {
       figurMeta={dienst !== '' ? <Badge variant="neutral" label={dienst} /> : null}
       werkzeuge={
         darfErfassen ? (
-          <ZugangAnlegen selbstId={user.id} darfVerwalten={darfVerwalten} personenWahl={personenWahl} rollenWahl={rollenWahl} />
+          <ZugangAnlegen
+            selbstId={user.id}
+            darfVerwalten={darfVerwalten}
+            personenWahl={personenWahl}
+            rollenWahl={rollenWahl}
+            bestehend={alle.map((c) => ({dienst: c.dienst, konto: c.konto}))}
+          />
         ) : null
       }
       belege={
@@ -87,6 +93,7 @@ export default async function ZugangscodesPage({searchParams}: PageProps) {
           {(alle.length > 0 || gefiltert) && <ZugangscodeFilter dienste={dienste} />}
           <ZugangscodeTafel
             codes={codes}
+            darfErfassen={darfErfassen}
             serverJetztMs={jetztMs}
             selbstId={user.id}
             darfVerwalten={darfVerwalten}

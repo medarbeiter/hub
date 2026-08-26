@@ -121,6 +121,9 @@ export const AKTIONEN = {
   'zugangscode.aendern': {bereich: 'zugang', label: 'Zugangscode geändert', eingriff: true},
   'zugangscode.loeschen-angefordert': {bereich: 'zugang', label: 'Löschung angefordert', eingriff: true},
   'zugangscode.loeschen': {bereich: 'zugang', label: 'Zugangscode entfernt', eingriff: true},
+  // Ein Pin ordnet die Anzeige, nicht den Datensatz — darum Routine, kein Eingriff.
+  'zugangscode.anpinnen': {bereich: 'zugang', label: 'Zugangscode angepinnt', eingriff: false},
+  'zugangscode.abpinnen': {bereich: 'zugang', label: 'Pin gelöst', eingriff: false},
   abmelden: {bereich: 'zugang', label: 'Abgemeldet', eingriff: false},
 
   // ── Arbeitszeit ──────────────────────────────────────────────────────────

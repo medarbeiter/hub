@@ -48,6 +48,8 @@ const MIGRATIONS: Migration[] = [
   migration27RollenTabelle,
   migration28Vollzugriff,
   migration29AppAnmeldungen,
+  migration30ZugangscodePins,
+  migration31SammelLoeschung,
 ];
 
 /** The `PRAGMA user_version` a fully migrated database carries. */
@@ -813,6 +815,56 @@ function migration29AppAnmeldungen(db: Database) {
   `);
 }
 
+function migration30ZugangscodePins(db: Database) {
+  // Angepinnte Zugangscodes: additive Zielzeilen statt eines einwertigen
+  // Kreises wie bei der Sichtbarkeit — zwei Menschen, die sich denselben Code
+  // anpinnen, duerfen sich nicht um einen Wert streiten, und ein Rollen-Pin
+  // der Verwaltung muss neben einem persoenlichen bestehen koennen. Ein Code
+  // ist fuer eine Person "angepinnt", wenn irgendeine Zeile sie trifft: alle,
+  // ihre Rolle, sie selbst. Ob sie ihn ueberhaupt sieht, entscheidet weiter
+  // der Leserkreis — der Pin ordnet nur die Anzeige (lib/zugangscodes.ts).
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS totp_pins (
+      totp_id INTEGER NOT NULL REFERENCES totp_konten(id) ON DELETE CASCADE,
+      art TEXT NOT NULL CHECK (art IN ('alle', 'rolle', 'person')),
+      rolle TEXT,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      CHECK ((art = 'alle' AND rolle IS NULL AND user_id IS NULL)
+          OR (art = 'rolle' AND rolle IS NOT NULL AND user_id IS NULL)
+          OR (art = 'person' AND rolle IS NULL AND user_id IS NOT NULL))
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS totp_pins_ziel
+      ON totp_pins (totp_id, art, coalesce(rolle, ''), coalesce(user_id, 0));
+  `);
+}
+
+function migration31SammelLoeschung(db: Database) {
+  // Die Sammel-Löschung trägt EIN Token über mehrere Zugänge — N Zeilen mit
+  // demselben token_hash, ein Link löst alle ein. Das alte UNIQUE auf
+  // token_hash stammt aus der Zeit, als ein Token genau eine Zeile war;
+  // SQLite kann eine Spaltenbedingung nicht lösen, also wird die Tabelle neu
+  // aufgebaut. Die Zeilen sind ohnehin 30 Minuten kurzlebig — kopiert werden
+  // sie trotzdem, damit ein offener Bestätigungslink die Migration überlebt.
+  db.exec(`
+    CREATE TABLE zugangscode_loeschungen_neu (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      totp_id INTEGER NOT NULL REFERENCES totp_konten(id) ON DELETE CASCADE,
+      angefordert_von INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token_hash TEXT NOT NULL,
+      erstellt_am INTEGER NOT NULL,
+      ablauf_am INTEGER NOT NULL,
+      eingeloest_am INTEGER,
+      UNIQUE (token_hash, totp_id)
+    );
+    INSERT INTO zugangscode_loeschungen_neu (id, totp_id, angefordert_von, token_hash, erstellt_am, ablauf_am, eingeloest_am)
+      SELECT id, totp_id, angefordert_von, token_hash, erstellt_am, ablauf_am, eingeloest_am
+        FROM zugangscode_loeschungen;
+    DROP TABLE zugangscode_loeschungen;
+    ALTER TABLE zugangscode_loeschungen_neu RENAME TO zugangscode_loeschungen;
+    CREATE INDEX IF NOT EXISTS idx_zugangscode_loeschungen_totp ON zugangscode_loeschungen(totp_id);
+  `);
+}
+
 /**
  * Bestehende Tagesarten in Spannen überführen. Aufeinanderfolgende Tage
  * derselben Art werden zu einer Abwesenheit zusammengezogen; ein Wochenende
@@ -1162,6 +1214,14 @@ export interface TotpKonto {
   created_at: string;
   /** Leserkreis: alle Angemeldeten, die Rollen in `totp_konto_rollen` oder die Personen in `totp_konto_personen`. */
   sichtbarkeit: 'alle' | 'rolle' | 'personen';
+}
+
+/** Ein Pin-Ziel eines Zugangscodes — additive Zeilen, siehe Migration 30. */
+export interface TotpPin {
+  totp_id: number;
+  art: 'alle' | 'rolle' | 'person';
+  rolle: string | null;
+  user_id: number | null;
 }
 
 /** Eine angeforderte Löschung eines Zugangscodes — wirksam erst mit dem Bestätigungslink. */

@@ -27,12 +27,19 @@ export async function GET(request: NextRequest): Promise<Response> {
     return NextResponse.redirect(ziel, {status: 303, headers: {'Cache-Control': 'no-store'}});
   }
 
-  protokolliere({
-    akteur: user,
-    aktion: 'zugangscode.loeschen',
-    gegenstand: `Zugangscode ${zugangskontoName(geloescht)}`,
-    betroffen: null,
-  });
-  ziel.searchParams.set('zugangscode_bestaetigt', zugangskontoName(geloescht));
+  // Ein Token kann mehrere Zugänge tragen (Sammel-Löschung) — je Zeile ein
+  // eigener Protokolleintrag, denn jede Spur gehört an ihren Datensatz.
+  for (const konto of geloescht) {
+    protokolliere({
+      akteur: user,
+      aktion: 'zugangscode.loeschen',
+      gegenstand: `Zugangscode ${zugangskontoName(konto)}`,
+      betroffen: null,
+    });
+  }
+  ziel.searchParams.set(
+    'zugangscode_bestaetigt',
+    geloescht.length === 1 ? zugangskontoName(geloescht[0]!) : `${geloescht.length} Zugänge`,
+  );
   return NextResponse.redirect(ziel, {status: 303, headers: {'Cache-Control': 'no-store'}});
 }

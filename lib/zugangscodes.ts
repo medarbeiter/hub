@@ -19,7 +19,7 @@
 // auch für alle oder für Rollen freigeben.
 
 import {personAngabe, type AvatarKey, type PersonAngabe} from './avatar';
-import {getDb, type TotpKonto, type User, type ZugangscodeLoeschung} from './db';
+import {getDb, type TotpKonto, type TotpPin, type User, type ZugangscodeLoeschung} from './db';
 import {hatRecht} from './rechte';
 import {istRolle, rolleLabel} from './rollen';
 import {base32Dekodieren, periodeEnde, totpCode, type TotpVerfahren} from './totp';
@@ -146,6 +146,21 @@ function doppeltVorhanden(dienst: string, konto: string | null, ausserId?: numbe
 }
 
 /**
+ * Ein freier Name für einen neuen Zugang: ist „Dienst (Konto)" schon
+ * vergeben, wird nummeriert — „info@firma.de (2)" bzw. ohne Konto
+ * „Google (2)". Für den Import: ein neu eingerichteter Dienst bringt
+ * denselben Namen mit einem **neuen** Geheimnis mit, und eine Abweisung
+ * verwürfe dort gerade das lebende.
+ */
+export function freieBenennung(dienst: string, konto: string | null): {dienst: string; konto: string | null} {
+  if (!doppeltVorhanden(dienst, konto)) return {dienst, konto};
+  for (let n = 2; ; n++) {
+    const kandidat = konto ? {dienst, konto: `${konto} (${n})`} : {dienst: `${dienst} (${n})`, konto};
+    if (!doppeltVorhanden(kandidat.dienst, kandidat.konto)) return kandidat;
+  }
+}
+
+/**
  * Einen Zugang anlegen. Gibt bei jedem Mangel einen deutschen Satz zurück —
  * derselbe Vertrag wie überall: der Satz ist die Fehlermeldung des Formulars.
  */
@@ -266,30 +281,71 @@ export function zugangskontoLoeschungAnfordern(
 }
 
 /**
+ * Sammel-Löschung: ein Token für mehrere Zugänge, eine Bestätigungsmail, ein
+ * Link — der löst dann alle Zeilen zugleich ein. Nur für Verwaltende: die
+ * Auswahl über fremde Leserkreise hinweg ist genau ihr Blick auf die Liste.
+ */
+export function zugangskontoSammelLoeschungAnfordern(
+  actor: Leser,
+  ids: number[],
+): {konten: TotpKonto[]; token: string} | string {
+  if (!hatRecht(actor, 'zugangscodes.verwalten')) {
+    return 'Mehrere Zugänge auf einmal entfernen kann nur, wer Zugangscodes verwaltet.';
+  }
+  const eindeutig = [...new Set(ids)].filter((n) => Number.isInteger(n) && n > 0);
+  if (eindeutig.length === 0) return 'Bitte mindestens einen Zugang auswählen.';
+  const konten: TotpKonto[] = [];
+  for (const id of eindeutig) {
+    const bestehend = zugangskontoById(id);
+    if (!bestehend) return 'Einen der gewählten Zugänge gibt es nicht mehr.';
+    konten.push(bestehend);
+  }
+  const token = opakerWert();
+  const jetzt = Date.now();
+  const db = getDb();
+  db.transaction(() => {
+    db.query('DELETE FROM zugangscode_loeschungen WHERE ablauf_am < ?').run(jetzt);
+    for (const konto of konten) {
+      db.query('DELETE FROM zugangscode_loeschungen WHERE totp_id = ? AND eingeloest_am IS NULL').run(konto.id);
+      db.query(
+        'INSERT INTO zugangscode_loeschungen (totp_id, angefordert_von, token_hash, erstellt_am, ablauf_am) VALUES (?, ?, ?, ?, ?)',
+      ).run(konto.id, actor.id, sha256Hex(token), jetzt, jetzt + LOESCHUNG_TTL_MS);
+    }
+  })();
+  return {konten, token};
+}
+
+/**
  * Löst den Bestätigungslink ein und löscht — nur wer die Anfrage selbst
  * gestellt hat und die Berechtigung noch trägt, darf so bestätigen; das
- * Recht kann sich zwischen Anfrage und Klick geändert haben. Gibt die
- * gelöschte Zeile zurück (fürs Protokoll) oder einen deutschen Satz.
+ * Recht kann sich zwischen Anfrage und Klick geändert haben. Ein Token kann
+ * mehrere Zeilen tragen (Sammel-Löschung) — zurück kommen die gelöschten
+ * Zeilen als Liste (fürs Protokoll) oder ein deutscher Satz.
  */
-export function zugangskontoLoeschungBestaetigen(actor: Leser, token: string): TotpKonto | string {
+export function zugangskontoLoeschungBestaetigen(actor: Leser, token: string): TotpKonto[] | string {
   const db = getDb();
-  const anfrage = db
+  const jetzt = Date.now();
+  const anfragen = db
     .query<ZugangscodeLoeschung, [string]>('SELECT * FROM zugangscode_loeschungen WHERE token_hash = ?')
-    .get(sha256Hex(token));
-  if (!anfrage || anfrage.eingeloest_am !== null || anfrage.ablauf_am < Date.now()) {
-    return 'Dieser Bestätigungslink ist ungültig oder abgelaufen.';
-  }
-  if (anfrage.angefordert_von !== actor.id) return 'Keine Berechtigung.';
-  const bestehend = zugangskontoById(anfrage.totp_id);
-  if (!bestehend) return 'Diesen Zugang gibt es nicht mehr.';
-  if (!darfZugangBearbeiten(actor, bestehend)) return 'Keine Berechtigung.';
+    .all(sha256Hex(token));
+  const offene = anfragen.filter((a) => a.eingeloest_am === null && a.ablauf_am >= jetzt);
+  if (offene.length === 0) return 'Dieser Bestätigungslink ist ungültig oder abgelaufen.';
+  if (offene.some((a) => a.angefordert_von !== actor.id)) return 'Keine Berechtigung.';
+  const konten = offene.map((a) => zugangskontoById(a.totp_id)).filter((k): k is TotpKonto => k !== null);
+  if (konten.length === 0) return 'Diesen Zugang gibt es nicht mehr.';
+  if (konten.some((k) => !darfZugangBearbeiten(actor, k))) return 'Keine Berechtigung.';
 
-  return (
-    db.transaction(() => {
-      db.query('UPDATE zugangscode_loeschungen SET eingeloest_am = ? WHERE id = ?').run(Date.now(), anfrage.id);
-      return db.query<TotpKonto, [number]>('DELETE FROM totp_konten WHERE id = ? RETURNING *').get(anfrage.totp_id);
-    })() ?? 'Diesen Zugang gibt es nicht mehr.'
-  );
+  return db.transaction(() => {
+    const geloescht: TotpKonto[] = [];
+    for (const anfrage of offene) {
+      db.query('UPDATE zugangscode_loeschungen SET eingeloest_am = ? WHERE id = ?').run(jetzt, anfrage.id);
+      const zeile = db
+        .query<TotpKonto, [number]>('DELETE FROM totp_konten WHERE id = ? RETURNING *')
+        .get(anfrage.totp_id);
+      if (zeile) geloescht.push(zeile);
+    }
+    return geloescht;
+  })();
 }
 
 /**
@@ -348,19 +404,25 @@ export interface Zugangscode {
    * könnte, und das Schild sagt es kürzer.
    */
   kreisGesichter: PersonAngabe[];
-  /** Wonach die Seite gruppiert: eigene, geteilte, für alle. */
-  gruppe: 'selbst' | 'geteilt' | 'alle';
+  /** Wonach die Seite gruppiert: angepinnt zuoberst, dann eigene, geteilte, für alle. */
+  gruppe: 'angepinnt' | 'selbst' | 'geteilt' | 'alle';
+  /** Der Pin-Zustand: der eigene Pin fürs Umschalten, der ganze Kreis nur für Verwaltende. */
+  pin: {selbst: boolean; breite: PinKreis | null};
   darfBearbeiten: boolean;
   /** Der rohe Kreis fürs Bearbeiten-Formular — nur, wenn Bearbeiten erlaubt ist. */
   kreis: {sichtbarkeit: ZugangSichtbarkeit; rollen: string[]; personen: number[]} | null;
 }
 
 export function aktuelleZugangscodes(fuer: Leser, beiMs: number = Date.now()): Zugangscode[] {
+  const pins = pinKreise();
+  const verwaltet = hatRecht(fuer, 'zugangscodes.verwalten');
   return sichtbareZugangskonten(fuer).map((k) => {
     const geheimnis = base32Dekodieren(k.secret);
     const personen = k.sichtbarkeit === 'personen' ? kreisPersonen(k.id) : [];
     const nurIch = personen.length === 1 && personen[0]!.id === fuer.id;
     const darf = darfZugangBearbeiten(fuer, k);
+    const pin = pins.get(k.id) ?? LEERER_PIN;
+    const angepinnt = pin.alle || pin.rollen.includes(fuer.role) || pin.personen.includes(fuer.id);
     return {
       id: k.id,
       dienst: k.dienst,
@@ -373,11 +435,106 @@ export function aktuelleZugangscodes(fuer: Leser, beiMs: number = Date.now()): Z
       periode: k.periode,
       sichtbar: sichtbarkeitText(k, fuer),
       kreisGesichter: personen.map(personAngabe),
-      gruppe: k.sichtbarkeit === 'alle' ? 'alle' : nurIch ? 'selbst' : 'geteilt',
+      gruppe: angepinnt ? 'angepinnt' : k.sichtbarkeit === 'alle' ? 'alle' : nurIch ? 'selbst' : 'geteilt',
+      pin: {selbst: pin.personen.includes(fuer.id), breite: verwaltet ? pin : null},
       darfBearbeiten: darf,
       kreis: darf
         ? {sichtbarkeit: k.sichtbarkeit, rollen: kreisRollen(k.id), personen: personen.map((p) => p.id)}
         : null,
     };
   });
+}
+
+// ── Angepinnte Zugänge ──────────────────────────────────────────────────────
+// Ein Pin hebt einen Zugang in die Gruppe „Angepinnt" — für alle, für Rollen
+// oder für einzelne Personen, als additive Zeilen (totp_pins, Migration 30).
+// Er ändert nichts am Leserkreis: gerechnet wird er NACH dem Sichtbarkeits-
+// zuschnitt, ein Pin auf einen unsichtbaren Zugang taucht also nie auf.
+
+export interface PinKreis {
+  alle: boolean;
+  rollen: string[];
+  personen: number[];
+}
+
+const LEERER_PIN: PinKreis = {alle: false, rollen: [], personen: []};
+
+function pinsFalten(zeilen: TotpPin[]): Map<number, PinKreis> {
+  const map = new Map<number, PinKreis>();
+  for (const zeile of zeilen) {
+    const kreis = map.get(zeile.totp_id) ?? {alle: false, rollen: [], personen: []};
+    if (zeile.art === 'alle') kreis.alle = true;
+    else if (zeile.art === 'rolle' && zeile.rolle !== null) kreis.rollen.push(zeile.rolle);
+    else if (zeile.art === 'person' && zeile.user_id !== null) kreis.personen.push(zeile.user_id);
+    map.set(zeile.totp_id, kreis);
+  }
+  return map;
+}
+
+/** Alle Pin-Kreise auf einmal — die Liste ist klein, eine Abfrage genügt. */
+function pinKreise(): Map<number, PinKreis> {
+  return pinsFalten(getDb().query<TotpPin, []>('SELECT * FROM totp_pins').all());
+}
+
+export function pinKreisVon(totpId: number): PinKreis {
+  const zeilen = getDb().query<TotpPin, [number]>('SELECT * FROM totp_pins WHERE totp_id = ?').all(totpId);
+  return pinsFalten(zeilen).get(totpId) ?? {alle: false, rollen: [], personen: []};
+}
+
+/**
+ * Den eigenen Pin setzen oder lösen. Wer erfasst, pinnt für sich — und nur
+ * Zugänge, die er sieht; die Abweisung nennt einen unsichtbaren Zugang nicht
+ * (dieselbe Auskunft wie bei einem, den es nicht gibt).
+ */
+export function eigenenPinSetzen(actor: Leser, totpId: number, an: boolean): string | null {
+  if (!hatRecht(actor, 'zugangscodes.erfassen')) return 'Keine Berechtigung.';
+  if (!sichtbareZugangskonten(actor).some((k) => k.id === totpId)) return 'Diesen Zugang gibt es nicht mehr.';
+  const db = getDb();
+  if (an) {
+    db.query(`INSERT OR IGNORE INTO totp_pins (totp_id, art, user_id) VALUES (?, 'person', ?)`).run(totpId, actor.id);
+  } else {
+    db.query(`DELETE FROM totp_pins WHERE totp_id = ? AND art = 'person' AND user_id = ?`).run(totpId, actor.id);
+  }
+  return null;
+}
+
+/**
+ * Den ganzen Pin-Kreis eines Zugangs zuschneiden — nur für Verwaltende, und
+ * als Ganzes ersetzt wie `schreibeKreis()`: der Dialog zeigt den vollen Kreis
+ * und schreibt den vollen Kreis, es gibt keinen halben Zustand.
+ */
+export function pinneZuschneiden(actor: Leser, totpId: number, ziel: PinKreis): string | null {
+  if (!hatRecht(actor, 'zugangscodes.verwalten')) {
+    return 'Für alle oder für Rollen anpinnen kann nur, wer Zugangscodes verwaltet.';
+  }
+  if (zugangskontoById(totpId) === null) return 'Diesen Zugang gibt es nicht mehr.';
+  const rollen = [...new Set(ziel.rollen)];
+  if (rollen.some((r) => !istRolle(r))) return 'Bitte nur bestehende Rollen anpinnen.';
+  const personen = [...new Set(ziel.personen)].filter((n) => Number.isInteger(n) && n > 0);
+  const db = getDb();
+  db.transaction(() => {
+    db.query('DELETE FROM totp_pins WHERE totp_id = ?').run(totpId);
+    if (ziel.alle) db.query(`INSERT INTO totp_pins (totp_id, art) VALUES (?, 'alle')`).run(totpId);
+    for (const rolle of rollen) {
+      db.query(`INSERT INTO totp_pins (totp_id, art, rolle) VALUES (?, 'rolle', ?)`).run(totpId, rolle);
+    }
+    for (const userId of personen) {
+      db.query(`INSERT INTO totp_pins (totp_id, art, user_id) VALUES (?, 'person', ?)`).run(totpId, userId);
+    }
+  })();
+  return null;
+}
+
+/** Der Pin-Kreis als deutscher Satzteil fürs Protokoll — „niemand", wenn leer. */
+export function pinText(kreis: PinKreis): string {
+  const teile: string[] = [];
+  if (kreis.alle) teile.push('alle Angemeldeten');
+  if (kreis.rollen.length > 0) teile.push(kreis.rollen.map(rolleLabel).join(', '));
+  if (kreis.personen.length > 0) {
+    const namen = kreis.personen.map(
+      (id) => getDb().query<{name: string}, [number]>('SELECT name FROM users WHERE id = ?').get(id)?.name ?? `#${id}`,
+    );
+    teile.push(namen.sort((a, b) => a.localeCompare(b, 'de')).join(', '));
+  }
+  return teile.length > 0 ? teile.join(' · ') : 'niemand';
 }

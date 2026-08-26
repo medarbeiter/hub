@@ -105,6 +105,7 @@ import {
   PrinterIcon,
   ProhibitIcon,
   PushPinIcon,
+  PushPinSimpleIcon,
   PuzzlePieceIcon,
   ReceiptIcon,
   SealCheckIcon,
@@ -296,6 +297,9 @@ export const SINNBILD = {
   suchen: MagnifyingGlassIcon,
   /** Einen QR-Code mit der Kamera lesen — nicht `suchen`: gesucht wird in Daten, gescannt in der Welt. */
   scannen: CameraIcon,
+  /* Einen Zugang in die Gruppe „Angepinnt" heben. Die einfache Nadel —
+     die volle trägt bereits `jetzt`: zwei Bedeutungen, zwei Zeichen. */
+  anpinnen: PushPinSimpleIcon,
   /* Die App auf das Gerät holen. Der Pfeil nach unten ins Gerät ist das
      Zeichen, das jeder App-Laden benutzt — hier für den Hinweis, dass
      MedArbeiter sich installieren lässt. */
