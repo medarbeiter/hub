@@ -140,6 +140,7 @@ import {
   weiterZielGueltig,
 } from '@/lib/oauth-apps';
 import {otpauthParsen, VERFAHREN_STANDARD} from '@/lib/totp';
+import type {VersandErgebnis} from '@/lib/mail-buch';
 import {migrationSammeln} from '@/lib/otp-migration';
 import {
   sichtbarkeitText,
@@ -1844,18 +1845,37 @@ export async function zugangscodeAendernAction(_prev: ActionState, formData: For
   return OK;
 }
 
+/**
+ * Die Löschbestätigung ist keine Benachrichtigung, sondern der zweite Schritt
+ * der Handlung selbst — geht die Mail nicht hinaus, darf die Aktion nicht so
+ * tun, als warte nur noch das Postfach. Deshalb wird das Versandergebnis hier
+ * geprüft (die eine Ausnahme von „eine Mail scheitert leise"); die
+ * angeforderten Zeilen verfallen von selbst nach 30 Minuten.
+ */
+function versandProblem(ergebnis: VersandErgebnis): string | null {
+  if (ergebnis === 'fehler') {
+    return 'Die Bestätigungsmail konnte nicht versendet werden – es wurde nichts entfernt. Details stehen im Mail-Protokoll der Einstellungen.';
+  }
+  if (ergebnis === 'uebersprungen') {
+    return 'Der E-Mail-Versand ist nicht eingerichtet – ohne Bestätigungsmail kann kein Zugang entfernt werden.';
+  }
+  return null;
+}
+
 export async function zugangscodeLoeschungAnfordernAction(id: number): Promise<ActionState> {
   const actor = await requireRecht('zugangscodes.erfassen');
   const angefordert = zugangskontoLoeschungAnfordern(actor, id);
   if (typeof angefordert === 'string') return {error: angefordert};
   const name = zugangskontoName(angefordert.konto);
-  await meldeZugangscodeLoeschenBestaetigen(actor, name, angefordert.token);
   protokolliere({
     akteur: actor,
     aktion: 'zugangscode.loeschen-angefordert',
     gegenstand: `Zugangscode ${name}`,
     betroffen: null,
   });
+  const versand = await meldeZugangscodeLoeschenBestaetigen(actor, name, angefordert.token);
+  const problem = versandProblem(versand);
+  if (problem) return {error: problem};
   return OK;
 }
 
@@ -1867,12 +1887,6 @@ export async function zugangscodeSammelLoeschungAction(ids: number[]): Promise<A
   const actor = await requireRecht('zugangscodes.verwalten');
   const angefordert = zugangskontoSammelLoeschungAnfordern(actor, ids);
   if (typeof angefordert === 'string') return {error: angefordert};
-  const namen = angefordert.konten.map(zugangskontoName);
-  await meldeZugangscodeLoeschenBestaetigen(
-    actor,
-    `${angefordert.konten.length} Zugänge: ${namen.join(', ')}`,
-    angefordert.token,
-  );
   for (const konto of angefordert.konten) {
     protokolliere({
       akteur: actor,
@@ -1881,6 +1895,14 @@ export async function zugangscodeSammelLoeschungAction(ids: number[]): Promise<A
       betroffen: null,
     });
   }
+  const namen = angefordert.konten.map(zugangskontoName);
+  const versand = await meldeZugangscodeLoeschenBestaetigen(
+    actor,
+    `${angefordert.konten.length} Zugänge: ${namen.join(', ')}`,
+    angefordert.token,
+  );
+  const problem = versandProblem(versand);
+  if (problem) return {error: problem};
   return OK;
 }
 

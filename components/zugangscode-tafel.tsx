@@ -731,6 +731,27 @@ export function ZugangscodeTafel({
       });
     });
 
+  // Strg/Cmd+A im Auswählen-Modus kreuzt alle sichtbaren Zeilen an — nur
+  // dann, denn außerhalb gehört die Geste dem Browser (Text markieren), und
+  // in Text-Eingaben bleibt sie es auch.
+  const auswahlAktiv = auswahl !== null;
+  useEffect(() => {
+    if (!auswahlAktiv) return;
+    const taste = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() !== 'a' || !(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return;
+      const ziel = e.target as HTMLElement | null;
+      const textFeld =
+        ziel instanceof HTMLInputElement
+          ? !['checkbox', 'radio', 'button'].includes(ziel.type)
+          : ziel?.tagName === 'TEXTAREA' || Boolean(ziel?.isContentEditable);
+      if (textFeld) return;
+      e.preventDefault();
+      setAuswahl(new Set(codes.map((c) => c.id)));
+    };
+    window.addEventListener('keydown', taste);
+    return () => window.removeEventListener('keydown', taste);
+  }, [auswahlAktiv, codes]);
+
   const sammelEntfernen = (ids: number[]) =>
     startTransition(async () => {
       const result = await sicher(zugangscodeSammelLoeschungAction)(ids);
@@ -910,7 +931,8 @@ export function ZugangscodeTafel({
         ) : (
           <HStack gap={2} justify="end" vAlign="center">
             <Text type="supporting" color="secondary">
-              {auswahl.size === 1 ? '1 Zugang ausgewählt' : `${auswahl.size} Zugänge ausgewählt`}
+              {auswahl.size === 1 ? '1 Zugang ausgewählt' : `${auswahl.size} Zugänge ausgewählt`} · Strg/Cmd+A
+              wählt alle
             </Text>
             <Button label="Abbrechen" variant="secondary" size="sm" onClick={() => setAuswahl(null)} />
             <Button
