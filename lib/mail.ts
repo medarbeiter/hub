@@ -43,6 +43,19 @@ export interface MailAuftrag {
   inhalt: MailInhalt;
 }
 
+/**
+ * Resend lehnt Betreffzeilen ab 2000 Zeichen mit einem 422 ab — und ein frei
+ * getippter Reisezweck wandert wörtlich in den Betreff (inhaltReiseErinnerung,
+ * inhaltReiseEntschieden). Gekürzt wird deshalb hier, am Versand, wo jede
+ * Nachricht durchmuss — nicht in jedem einzelnen Bauer. 200 Zeichen sind mehr,
+ * als irgendein Postfach anzeigt; der volle Wortlaut steht weiter im
+ * Nachrichtenkörper und im Versandbuch.
+ */
+export function kuerzeBetreff(betreff: string): string {
+  const b = betreff.trim();
+  return b.length <= 200 ? b : `${b.slice(0, 199).trimEnd()}…`;
+}
+
 let client: Resend | null = null;
 
 function resend(): Resend | null {
@@ -104,7 +117,7 @@ export async function sendeMail(auftrag: MailAuftrag): Promise<VersandErgebnis> 
     const {error} = await dienst.emails.send({
       from: absenderAdresse(),
       to: auftrag.an,
-      subject: auftrag.inhalt.betreff,
+      subject: kuerzeBetreff(auftrag.inhalt.betreff),
       html,
       text,
     });

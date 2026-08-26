@@ -23,6 +23,7 @@ import {
   mailArtLabel,
 } from '../lib/mail-arten';
 import {absenderAdresse, mailAktiv, setSetting} from '../lib/settings';
+import {kuerzeBetreff} from '../lib/mail';
 import {alsText} from '../emails/text';
 
 let db: Database;
@@ -311,6 +312,27 @@ describe('die übrigen Nutzlasten', () => {
     expect(inhalt.ton).toBe('warnung');
     expect(wert(inhalt, 'Zurückgesetzt von')).toBe('Jessica Peneva');
     expect(inhalt.betreff).not.toContain('abcd');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Die Betreffzeile am Versand
+// ---------------------------------------------------------------------------
+
+describe('die Betreffzeile am Versand', () => {
+  test('ein üblicher Betreff bleibt unangetastet', () => {
+    expect(kuerzeBetreff('Genehmigt: Messe Altenpflege – 229,50 €')).toBe(
+      'Genehmigt: Messe Altenpflege – 229,50 €',
+    );
+  });
+
+  test('ein ausufernder Reisezweck reißt nicht mehr Resends 2000-Zeichen-Grenze', () => {
+    // Der echte Fall: validation_error 422, „subject must be less than 2000
+    // characters" — ein frei getippter Zweck wanderte wörtlich in den Betreff.
+    const lang = kuerzeBetreff(`Seit 5 Tagen offen: ${'sehr '.repeat(500)}lange Reise – Anna`);
+    expect(lang.length).toBeLessThanOrEqual(200);
+    expect(lang.endsWith('…')).toBe(true);
+    expect(lang).toStartWith('Seit 5 Tagen offen:');
   });
 });
 
