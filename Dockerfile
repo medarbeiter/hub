@@ -1,4 +1,4 @@
-FROM oven/bun:1.3.14 AS dependencies
+FROM oven/bun:1.4.0 AS dependencies
 WORKDIR /app
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
@@ -10,13 +10,13 @@ COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 RUN node node_modules/next/dist/bin/next build
 
-FROM oven/bun:1.3.14 AS bootstrap
+FROM oven/bun:1.4.0 AS bootstrap
 WORKDIR /app
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 RUN bun build scripts/bootstrap-admin.ts --target=bun --outfile=dist/bootstrap-admin.js
 
-FROM oven/bun:1.3.14 AS runtime
+FROM oven/bun:1.4.0 AS runtime
 WORKDIR /app
 # TZ ist hier nur noch Kosmetik für Logzeilen: die Zeiterfassung selbst rechnet
 # über HAUS_ZEITZONE in lib/format.ts und hängt nicht mehr daran, wie der
