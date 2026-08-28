@@ -180,11 +180,11 @@ export function SettingsForm(props: SettingsFormProps) {
             <VStack gap={1}>
               <Kartentitel sinn="email">E-Mail-Benachrichtigungen</Kartentitel>
               <Text type="supporting" color="secondary">
-                Entscheidungen, Monatsabschlüsse und Zugangsdaten gehen zusätzlich per E-Mail hinaus. Dass ein Antrag
-                oder eine Abrechnung eingereicht wurde, verschickt niemand – das steht in der Prüfliste. Post gibt es
+                Entscheidungen, Monatsabschlüsse und Zugangsdaten werden zusätzlich per E-Mail verschickt. Dass ein Antrag
+                oder eine Abrechnung eingereicht wurde, verschickt niemand – das steht in der Prüfliste. Eine E-Mail gibt es
                 erst, wenn ein Vorgang drei Tage lang unentschieden liegen bleibt. Jede und jeder kann die meisten
                 Nachrichten im eigenen Profil abbestellen; Zugangsdaten kommen immer an. Ist der Versand aus, läuft
-                alles Übrige unverändert weiter – es geht nur keine Post hinaus.
+                alles Übrige unverändert weiter, nur ohne E-Mails.
               </Text>
             </VStack>
 
@@ -200,7 +200,7 @@ export function SettingsForm(props: SettingsFormProps) {
 
             <Switch
               label="E-Mail-Versand"
-              description="Aus heißt: keine Nachricht verlässt das Haus."
+              description="Aus heißt: keine E-Mail geht raus."
               value={mailAn}
               onChange={edit(setMailAn)}
               labelPosition="start"
@@ -215,7 +215,7 @@ export function SettingsForm(props: SettingsFormProps) {
               onChange={edit(setAbsender)}
               htmlName="mailAbsender"
               placeholder="MedArbeiter Hub <zeit@hub.med-arbeiter.de>"
-              description="Die Domain muss bei Resend verifiziert sein – sonst wird jede Nachricht abgewiesen. Vorgabe ist hub.med-arbeiter.de."
+              description="Die Domain muss bei Resend verifiziert sein, sonst wird jede Nachricht abgewiesen. Vorgabe ist hub.med-arbeiter.de."
               width="100%"
             />
 

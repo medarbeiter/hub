@@ -318,7 +318,7 @@ function AbwesenheitTafel({
               ? `Bescheinigung liegt vor: ${a.auDateiName}`
               : a.auFehlt
                 ? 'Arbeitsunfähigkeitsbescheinigung fehlt (§ 5 EFZG).'
-                : 'Ohne Bescheinigung – bei bis zu zwei Tagen genügt das.'}
+                : 'Ohne Bescheinigung; bei bis zu zwei Tagen genügt das.'}
           </Text>
         </HStack>
       )}

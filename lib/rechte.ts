@@ -42,7 +42,7 @@ export type RechtStufe = 'grundlegend' | 'weitreichend' | 'kritisch';
 export const STUFEN: Record<RechtStufe, {label: string; beschreibung: string}> = {
   grundlegend: {label: 'Grundlegende Rechte', beschreibung: 'Betreffen nur das eigene Konto.'},
   weitreichend: {label: 'Weitreichende Rechte', beschreibung: 'Einblick und Eingriff in die Daten anderer.'},
-  kritisch: {label: 'Kritische Rechte', beschreibung: 'Verändern, wer was darf — Konten, Rollen, Einstellungen.'},
+  kritisch: {label: 'Kritische Rechte', beschreibung: 'Verändern, wer was darf: Konten, Rollen, Einstellungen.'},
 };
 
 export const STUFEN_REIHENFOLGE: RechtStufe[] = ['grundlegend', 'weitreichend', 'kritisch'];
@@ -58,7 +58,7 @@ export const RECHTE: Record<Recht, RechtBedeutung> = {
   '*': {
     label: 'Alle Rechte',
     beschreibung:
-      'Vollzugriff: schließt jedes Recht ein — auch künftig hinzukommende — und übersteuert alle einzelnen Haken.',
+      'Vollzugriff: schließt jedes Recht ein, auch künftig hinzukommende, und übersteuert alle einzelnen Haken.',
     stufe: 'kritisch',
   },
   'zeit.erfassen': {
@@ -113,7 +113,7 @@ export const RECHTE: Record<Recht, RechtBedeutung> = {
   },
   'kalender.sehen': {
     label: 'Teamkalender sehen',
-    beschreibung: 'Sehen, wer im Team abwesend ist — ohne den Grund.',
+    beschreibung: 'Sehen, wer im Team abwesend ist, ohne den Grund.',
     stufe: 'grundlegend',
   },
   'kalender.gruende': {
@@ -123,7 +123,7 @@ export const RECHTE: Record<Recht, RechtBedeutung> = {
   },
   'protokoll.alle': {
     label: 'Gesamtes Protokoll',
-    beschreibung: 'Den vollständigen Nachweis aller Konten lesen — nicht nur die eigene Spur.',
+    beschreibung: 'Den vollständigen Nachweis aller Konten lesen, nicht nur die eigene Spur.',
     stufe: 'weitreichend',
   },
   'zugangscodes.sehen': {
@@ -133,7 +133,7 @@ export const RECHTE: Record<Recht, RechtBedeutung> = {
   },
   'zugangscodes.erfassen': {
     label: 'Zugangscodes hinterlegen',
-    beschreibung: 'Eigene Zugänge anlegen und pflegen — nur für sich oder mit ausgewählten Personen geteilt.',
+    beschreibung: 'Eigene Zugänge anlegen und pflegen: nur für sich oder mit ausgewählten Personen geteilt.',
     stufe: 'grundlegend',
   },
   'zugangscodes.verwalten': {
@@ -148,7 +148,7 @@ export const RECHTE: Record<Recht, RechtBedeutung> = {
   },
   'rollen.verwalten': {
     label: 'Rollen verwalten',
-    beschreibung: 'Rollen anlegen, umbenennen, löschen und ihre Rechtebündel ändern — vergeben lässt sich nur, was man selbst trägt.',
+    beschreibung: 'Rollen anlegen, umbenennen, löschen und ihre Rechtebündel ändern; vergeben lässt sich nur, was man selbst trägt.',
     stufe: 'kritisch',
   },
   'einstellungen.verwalten': {
@@ -158,7 +158,7 @@ export const RECHTE: Record<Recht, RechtBedeutung> = {
   },
   'apps.verwalten': {
     label: 'Verbundene Apps',
-    beschreibung: 'Andere Anwendungen registrieren, die sich über MedArbeiter anmelden — Zugangsdaten anlegen, ändern, sperren.',
+    beschreibung: 'Andere Anwendungen registrieren, die sich über MedArbeiter anmelden: Zugangsdaten anlegen, ändern, sperren.',
     stufe: 'kritisch',
   },
 };

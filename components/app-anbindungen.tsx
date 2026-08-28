@@ -94,7 +94,7 @@ function AppForm({zeile, onDone}: {zeile: AppZeile | null; onDone: (geheimnis: E
           onChange={setUris}
           htmlName="redirectUris"
           placeholder={'https://dienstplan.firma.de/anmeldung/rueckkehr'}
-          description="Eine je Zeile. Zurückgeleitet wird nur auf exakt diese Adressen – https, unverschlüsselt nur auf localhost."
+          description="Eine je Zeile. Zurückgeleitet wird nur auf exakt diese Adressen; https, unverschlüsselt nur auf localhost."
           width="100%"
         />
         <HStack gap={2} justify="end">
@@ -173,7 +173,7 @@ export function AppAnlegen() {
       <TafelDialog isOpen={offen} onOpenChange={setOffen} purpose="form" width={480}>
         <DialogHeader
           title="App anbinden"
-          subtitle="Client-ID und Geheimnis entstehen beim Anlegen – das Geheimnis wird einmalig angezeigt."
+          subtitle="Client-ID und Geheimnis entstehen beim Anlegen; das Geheimnis wird einmalig angezeigt."
         />
         {offen && (
           <AppForm
@@ -270,7 +270,7 @@ export function AppAnbindungenTafel({zeilen}: {zeilen: AppZeile[]}) {
                   />
                   <Button
                     label="Geheimnis erneuern"
-                    tooltip="Neues Geheimnis ausstellen – das alte wird ungültig"
+                    tooltip="Neues Geheimnis ausstellen; das alte wird ungültig"
                     variant="ghost"
                     size="sm"
                     isIconOnly

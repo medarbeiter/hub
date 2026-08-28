@@ -161,7 +161,7 @@ export function inhaltAbwesenheitErinnerung(d: SpanneMitPerson & {tage: number})
     angaben: [...spanneAngabenListe(d), {label: 'Wartet seit', wert: fmtTage(d.tage)}],
     ziel: {label: 'Antrag prüfen', pfad: '/abwesenheit/pruefen'},
     nachsatz:
-      'Diese Erinnerung kommt erst, wenn ein Antrag liegen bleibt – der Eingang selbst steht in der Anwendung.',
+      'Diese Erinnerung kommt erst, wenn ein Antrag liegen bleibt; der Eingang selbst steht in der Anwendung.',
   };
 }
 
@@ -256,7 +256,7 @@ export function inhaltReiseErinnerung(d: ReiseMitPerson & {tage: number}): MailI
     angaben: [...reiseAngabenListe(d), {label: 'Wartet seit', wert: fmtTage(d.tage)}],
     ziel: {label: 'Abrechnung prüfen', pfad: '/spesen/pruefen'},
     nachsatz:
-      'Diese Erinnerung kommt erst, wenn eine Abrechnung liegen bleibt – der Eingang selbst steht in der Anwendung.',
+      'Diese Erinnerung kommt erst, wenn eine Abrechnung liegen bleibt; der Eingang selbst steht in der Anwendung.',
   };
 }
 
@@ -294,7 +294,7 @@ export function inhaltMonatAbgeschlossen(d: AbschlussAngaben): MailInhalt {
   return {
     betreff: `${fmtMonth(d.monat)} ist abgeschlossen`,
     titel: `${fmtMonth(d.monat)} ist abgeschlossen`,
-    vorspann: `Dein ${fmtMonth(d.monat)} ist geprüft und abgeschlossen. Der Monat ist damit schreibgeschützt – wenn etwas fehlt, meldest du dich bitte bei der Verwaltung, die ihn wieder öffnen kann.`,
+    vorspann: `Dein ${fmtMonth(d.monat)} ist geprüft und schreibgeschützt. Wenn etwas fehlt, melde dich bei der Verwaltung; sie kann den Monat wieder öffnen.`,
     ton: 'hinweis',
     angaben: [
       {label: 'Ist', wert: fmtDuration(d.istMin)},
@@ -319,7 +319,7 @@ export function inhaltWillkommen(d: ZugangAngaben): MailInhalt {
     betreff: 'Dein Zugang zum MedArbeiter Hub',
     titel: 'Willkommen im MedArbeiter Hub',
     vorspann:
-      'Für dich ist ein Konto in der Zeiterfassung des Hauses angelegt. Melde dich mit den Zugangsdaten unten an – beim ersten Anmelden wirst du gebeten, ein eigenes Passwort zu setzen, und der Assistent führt dich durch die restliche Einrichtung.',
+      'Für dich ist ein Konto in unserer Zeiterfassung angelegt. Melde dich mit den Zugangsdaten unten an. Beim ersten Anmelden setzt du ein eigenes Passwort, der Assistent führt dich durch den Rest der Einrichtung.',
     ton: 'hinweis',
     angaben: [
       {label: 'Anmeldename', wert: d.email},
@@ -329,7 +329,7 @@ export function inhaltWillkommen(d: ZugangAngaben): MailInhalt {
     hinweis: {titel: 'Startpasswort', text: d.passwort},
     ziel: {label: 'Jetzt anmelden', pfad: '/login'},
     nachsatz:
-      'Das Startpasswort gilt nur für die erste Anmeldung. Bewahre diese Nachricht nicht auf – nach dem Wechsel ist sie wertlos.',
+      'Das Startpasswort gilt nur für die erste Anmeldung; danach ist es nutzlos, du musst diese Nachricht nicht aufheben.',
   };
 }
 
@@ -337,7 +337,7 @@ export function inhaltZugangscodeLoeschenBestaetigen(d: {name: string; pfad: str
   return {
     betreff: `Löschung bestätigen: ${d.name}`,
     titel: 'Zugangscode löschen?',
-    vorspann: `Du hast das Entfernen von „${d.name}" angestoßen. Der Code verschwindet erst, wenn du den Link unten öffnest – ohne Klick bleibt er bestehen.`,
+    vorspann: `Du hast das Entfernen von „${d.name}" angestoßen. Der Code verschwindet erst, wenn du den Link unten öffnest.`,
     ton: 'warnung',
     angaben: [{label: 'Zugang', wert: d.name}],
     ziel: {label: 'Löschung bestätigen', pfad: d.pfad},

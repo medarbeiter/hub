@@ -150,7 +150,7 @@ function KreisWahl({
           <RadioListItem
             value="alle"
             label="Alle Angemeldeten"
-            description="Der gemeinsame Firmenzugang – jeder liest den Code."
+            description="Der gemeinsame Firmenzugang: jeder liest den Code."
           />
         )}
         {darfVerwalten && (
@@ -164,7 +164,7 @@ function KreisWahl({
         <RadioListItem
           value="selbst"
           label="Nur für mich"
-          description="Ein privater Schlüssel – niemand sonst sieht ihn."
+          description="Ein privater Schlüssel, niemand sonst sieht ihn."
         />
       </RadioList>
       {kreis === 'rolle' && (
@@ -296,7 +296,7 @@ function ZugangForm({
   const erkannt = (text: string) => {
     if (text.toLowerCase().startsWith('otpauth-migration://')) {
       if (zeile) {
-        setScanFehler('Ein Übertragungscode gehört zum Anlegen – hier wird ein einzelner Zugang bearbeitet.');
+        setScanFehler('Ein Übertragungscode gehört zum Anlegen; hier wird ein einzelner Zugang bearbeitet.');
         return;
       }
       const probe = migrationParsen(text);
@@ -397,7 +397,7 @@ function ZugangForm({
                 label={konto.konto ? `${konto.dienst} – ${konto.konto}` : konto.dienst}
                 description={
                   doppelt[index]
-                    ? 'Ein Code mit diesem Namen besteht schon – dieser wird nummeriert angelegt („… (2)“).'
+                    ? 'Ein Code mit diesem Namen besteht schon; dieser wird nummeriert angelegt („… (2)“).'
                     : undefined
                 }
                 value={!abwahl.has(index)}
@@ -453,7 +453,7 @@ function ZugangForm({
     <form action={formAction} className="tafel-rumpf">
       <VStack gap={4} padding={4}>
         {state.error && <Banner status="error" title={state.error} />}
-        {gelesen && <Banner status="success" title="QR-Code gelesen – unten nur noch prüfen und bestätigen." />}
+        {gelesen && <Banner status="success" title="QR-Code gelesen. Unten nur noch prüfen und bestätigen." />}
         <HStack gap={2} vAlign="start" wrap="nowrap">
           <TextInput
             label={zeile ? 'Neuer Schlüssel (optional)' : 'Schlüssel oder otpauth-Link'}
@@ -464,7 +464,7 @@ function ZugangForm({
             description={
               zeile
                 ? 'Der gespeicherte Schlüssel ist nicht wieder ablesbar. Nur ausfüllen, wenn der Dienst neu eingerichtet wurde.'
-                : 'Beim Einrichten der Bestätigung in zwei Schritten zeigt der Dienst neben dem QR-Code einen Schlüssel („setup key“) oder einen otpauth-Link – Scan oder Handeingabe, beides genügt. Auch der Export aus Google Authenticator („Konten übertragen“) wird beim Scannen erkannt, gern als mehrere Bildschirmfotos auf einmal.'
+                : 'Der Dienst zeigt beim Einrichten neben dem QR-Code einen Schlüssel („setup key“) oder einen otpauth-Link; Scannen oder Einfügen, beides genügt. Auch der Export aus Google Authenticator („Konten übertragen“) wird erkannt, gern als mehrere Bildschirmfotos auf einmal.'
             }
             width="100%"
           />
@@ -889,9 +889,9 @@ export function ZugangscodeTafel({
                   label={zeile.gruppe === 'angepinnt' ? 'Pin lösen' : 'Anpinnen'}
                   tooltip={
                     darfVerwalten
-                      ? 'Anpinnen – für dich, für Rollen oder für alle'
+                      ? 'Anpinnen: für dich, für Rollen oder für alle'
                       : zeile.gruppe === 'angepinnt' && !zeile.pin.selbst
-                        ? 'Für dich angepinnt – der Pin gilt einem ganzen Kreis'
+                        ? 'Für dich angepinnt; der Pin gilt einem ganzen Kreis'
                         : zeile.gruppe === 'angepinnt'
                           ? 'Pin lösen'
                           : 'Für mich anpinnen'
@@ -989,7 +989,7 @@ export function ZugangscodeTafel({
           <Text type="body" color="secondary">
             {gefiltert
               ? 'Kein Zugang passt zu Suche oder Filter.'
-              : 'Noch kein Zugang hinterlegt. Beim Einrichten der Bestätigung in zwei Schritten zeigt jeder Dienst einen Schlüssel – hinterlege ihn hier, nur für dich oder geteilt.'}
+              : 'Noch kein Zugang hinterlegt. Jeder Dienst zeigt beim Einrichten der Bestätigung in zwei Schritten einen Schlüssel; hinterlege ihn hier, nur für dich oder geteilt.'}
           </Text>
         </HStack>
       ) : (

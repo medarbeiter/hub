@@ -117,7 +117,7 @@ export function ReiseEditor(props: ReiseEditorProps) {
     <TafelDialog isOpen={props.isOpen} onOpenChange={props.onOpenChange} purpose="form" width={560}>
       <DialogHeader
         title={props.reise ? 'Reise bearbeiten' : 'Reise erfassen'}
-        subtitle="Abfahrt und Rückkehr genügen – die Pauschale rechnet sich daraus."
+        subtitle="Abfahrt und Rückkehr genügen, die Pauschale rechnet sich daraus."
       />
       {/* Wächst um eine Zeile je Reisetag; die Klasse gehört an das Element,
           das im Dialog neben dem Kopf steht — siehe .tafel-rumpf in globals.css. */}

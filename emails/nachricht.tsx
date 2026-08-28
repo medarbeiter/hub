@@ -233,7 +233,7 @@ export function Nachricht({
 
           <Hr style={{borderColor: F.kante, margin: '20px 0 12px'}} />
           <Text style={{margin: 0, fontSize: '12px', lineHeight: '18px', color: F.stein}}>
-            Diese Nachricht kommt automatisch aus dem MedArbeiter Hub, der Zeiterfassung des Hauses.
+            Diese Nachricht kommt automatisch aus dem MedArbeiter Hub, unserer Zeiterfassung.
             {url ? ' Antworten auf diese Adresse liest niemand – der Weg zurück führt über den Knopf oben.' : ''}
           </Text>
           {abwaehlbar && (

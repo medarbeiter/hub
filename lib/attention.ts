@@ -75,14 +75,14 @@ export function dayIssues(day: DayInput): Issue[] {
       add(
         'fehlt',
         teilweiseAbgedeckt
-          ? `Nur ${fmtDuration(day.dayTypeMinuten!)} Std. Freizeitausgleich – die übrige Arbeitszeit fehlt.`
+          ? `Nur ${fmtDuration(day.dayTypeMinuten!)} Std. Freizeitausgleich, die übrige Arbeitszeit fehlt.`
           : 'Kein Eintrag an einem Arbeitstag.',
       );
     }
     return issues;
   }
-  if (hasOpen) add('offen', 'Ausstempeln wurde vergessen – der Tag hat kein Ende.');
-  if (hasUnconfirmed) add('unbestaetigt', 'Automatisch beendet – bitte prüfen und bestätigen.');
+  if (hasOpen) add('offen', 'Ausstempeln wurde vergessen: der Tag hat kein Ende.');
+  if (hasUnconfirmed) add('unbestaetigt', 'Automatisch beendet, bitte prüfen und bestätigen.');
 
   // An open day has no meaningful totals; the checks below would be noise.
   if (hasOpen) return issues;

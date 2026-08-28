@@ -71,7 +71,7 @@ export default async function ZugangscodesPage({searchParams}: PageProps) {
       stand={
         gefiltert
           ? `${alle.length} ${alle.length === 1 ? 'Zugang' : 'Zugänge'} insgesamt · Filter aktiv`
-          : 'Einmalcodes für hinterlegte Konten – sie erneuern sich von selbst.'
+          : 'Einmalcodes für hinterlegte Konten, sie erneuern sich von selbst.'
       }
       figurMeta={dienst !== '' ? <Badge variant="neutral" label={dienst} /> : null}
       werkzeuge={

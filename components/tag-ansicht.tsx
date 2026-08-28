@@ -95,7 +95,7 @@ export function TagAnsicht(props: TagAnsichtProps) {
       spaetSchliessen.current = melde({
         ton: 'warnung',
         titel: 'Es ist nach 19:00 Uhr und du bist noch eingestempelt.',
-        text: 'Falls du den Feierabend vergessen hast: einfach ausstempeln – oder die Zeit später korrigieren.',
+        text: 'Falls du den Feierabend vergessen hast: einfach ausstempeln, oder die Zeit später korrigieren.',
         dauerhaft: true,
         uniqueID: 'tag-spaet',
       });

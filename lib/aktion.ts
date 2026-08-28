@@ -29,7 +29,7 @@
 
 /** Was die Aufrufstelle als `error` bekommt, wenn die Aktion nicht ankam. */
 export const AKTION_FEHLGESCHLAGEN =
-  'Die Handlung konnte nicht abgeschlossen werden. Die Seite ist möglicherweise veraltet – bitte neu laden und nachsehen, ob sie angekommen ist.';
+  'Die Handlung konnte nicht abgeschlossen werden. Die Seite ist möglicherweise veraltet; bitte neu laden und nachsehen, ob sie angekommen ist.';
 
 function notieren(fehler: unknown): void {
   console.error('[MedArbeiter] Server-Aktion nicht abgeschlossen', fehler);

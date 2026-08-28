@@ -92,8 +92,8 @@ export function FreigabeFormulare({
         )}
         {/* Immer im Baum, damit die Live-Region vor ihrem Inhalt existiert. */}
         <Text type="supporting" color="secondary" role="status">
-          {laden === 'anmelden' && `Anmeldung freigegeben – du wirst zu ${appName} weitergeleitet …`}
-          {laden === 'abbrechen' && `Abgebrochen – du wirst zu ${appName} zurückgeleitet …`}
+          {laden === 'anmelden' && `Anmeldung freigegeben, du wirst zu ${appName} weitergeleitet …`}
+          {laden === 'abbrechen' && `Abgebrochen, du wirst zu ${appName} zurückgeleitet …`}
         </Text>
       </VStack>
     </>

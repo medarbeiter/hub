@@ -159,7 +159,7 @@ export function AbwesenheitEditor(props: AbwesenheitEditorProps) {
     <TafelDialog isOpen={props.isOpen} onOpenChange={props.onOpenChange} purpose="form" width={560}>
       <DialogHeader
         title={istBearbeitung ? 'Abwesenheit bearbeiten' : 'Abwesenheit erfassen'}
-        subtitle="Vom ersten bis zum letzten Tag – Wochenenden und Feiertage dazwischen zählen nicht mit."
+        subtitle="Vom ersten bis zum letzten Tag; Wochenenden und Feiertage dazwischen zählen nicht mit."
       />
       <VStack gap={4} padding={4} className="tafel-rumpf">
         {fehler && <Banner status="error" title={fehler} />}
@@ -396,10 +396,10 @@ export function AbwesenheitEditor(props: AbwesenheitEditorProps) {
  * vorn: Bitte oder Mitteilung.
  */
 const ART_BESCHREIBUNG: Record<AbwesenheitArt, string> = {
-  urlaub: 'Antrag – die Verwaltung genehmigt ihn, und er kostet Urlaubstage.',
-  freizeitausgleich: 'Antrag – die Verwaltung genehmigt ihn, und er wird vom Zeitkonto abgezogen.',
-  krank: 'Meldung – gilt sofort, kostet keinen Urlaub und keine Zeit.',
-  fortbildung: 'Meldung – gilt sofort und zählt als gearbeitete Zeit.',
+  urlaub: 'Antrag: die Verwaltung genehmigt ihn, und er kostet Urlaubstage.',
+  freizeitausgleich: 'Antrag: die Verwaltung genehmigt ihn, und er wird vom Zeitkonto abgezogen.',
+  krank: 'Meldung: gilt sofort, kostet keinen Urlaub und keine Zeit.',
+  fortbildung: 'Meldung: gilt sofort und zählt als gearbeitete Zeit.',
 };
 
 function Folge(props: {

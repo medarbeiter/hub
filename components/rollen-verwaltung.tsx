@@ -236,7 +236,7 @@ export function RollenVerwaltung({rollen, eigeneRechte}: RollenVerwaltungProps) 
               ? editing.konten === 1
                 ? `${editing.label} · gilt für 1 Konto`
                 : `${editing.label} · gilt für ${editing.konten} Konten`
-              : 'Ein neues Rechtebündel — Konten erhalten es in der Mitarbeiterverwaltung.'
+              : 'Ein neues Rechtebündel; Konten erhalten es in der Mitarbeiterverwaltung.'
           }
         />
         {isFormOpen && (

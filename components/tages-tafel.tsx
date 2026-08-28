@@ -243,7 +243,7 @@ export function TagesTafel(props: TagesTafelProps) {
         leerText={
           props.canEdit
             ? props.isToday
-              ? 'Noch keine Zeiten heute. „Einstempeln“ in der Stempelleiste startet den Tag – oder ziehe die Zeit direkt auf der Zeitleiste auf.'
+              ? 'Noch keine Zeiten heute. „Einstempeln“ in der Stempelleiste startet den Tag, oder ziehe die Zeit direkt auf der Zeitleiste auf.'
               : 'Keine Zeiten an diesem Tag. Ziehe die Zeit auf der Zeitleiste auf oder nutze „Eintrag hinzufügen“.'
             : 'Keine Zeiten an diesem Tag.'
         }

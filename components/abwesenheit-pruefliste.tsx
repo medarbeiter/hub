@@ -72,7 +72,7 @@ export function AbwesenheitPruefListe({
       ]}
       leerSinn="pruefen"
       leerTitel="Nichts in dieser Auswahl."
-      leerText="Sobald jemand Urlaub oder Freizeitausgleich beantragt, erscheint der Antrag hier – mit dem Restanspruch daneben, den er übrig ließe."
+      leerText="Sobald jemand Urlaub oder Freizeitausgleich beantragt, erscheint der Antrag hier, mit dem Restanspruch, der danach übrig bleibt."
       eintraege={zeilen.map((z) => ({
         id: z.id,
         person: z.userName,
@@ -196,8 +196,8 @@ function Entscheidung({zeile: z}: {zeile: PruefZeile}) {
           <Sinnbild sinn={z.status === 'eingereicht' ? 'warnung' : 'hinweis'} groesse="zeile" ton={z.status === 'eingereicht' ? 'warnung' : 'sekundaer'} />
           <Text type="supporting" size="sm" color="secondary">
             {z.status === 'eingereicht'
-              ? 'Das ist dein eigener Antrag. Du darfst ihn genehmigen – es gibt keine zweite Instanz –, und die Selbstgenehmigung wird beim Vorgang vermerkt.'
-              : 'Dein eigener Antrag, von dir selbst entschieden – es gibt keine zweite Instanz.'}
+              ? 'Das ist dein eigener Antrag. Es gibt keine zweite Instanz, du darfst ihn selbst entscheiden; die Selbstgenehmigung wird beim Vorgang vermerkt.'
+              : 'Dein eigener Antrag, von dir selbst entschieden. Eine zweite Instanz gibt es nicht.'}
           </Text>
         </HStack>
       )}
@@ -210,7 +210,7 @@ function Entscheidung({zeile: z}: {zeile: PruefZeile}) {
               value={grund}
               onChange={setGrund}
               placeholder="z. B. In dieser Woche sind schon zwei Kollegen abwesend."
-              description="Der Grund steht danach beim Antrag – er ist die ganze Rückmeldung, die jemand bekommt."
+              description="Der Grund steht danach beim Antrag und ist die ganze Rückmeldung, die jemand bekommt."
             />
             <HStack gap={2}>
               <Button

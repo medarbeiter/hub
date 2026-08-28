@@ -190,7 +190,7 @@ export function QrLeser({onErkannt, fehler}: QrLeserProps) {
         <Banner
           status="info"
           title="Keine Kamera verfügbar."
-          description="Wähle stattdessen ein Bild mit dem QR-Code – oder füge den Schlüssel von Hand ein."
+          description="Wähle stattdessen ein Bild mit dem QR-Code, oder füge den Schlüssel von Hand ein."
         />
       ) : (
         <>

@@ -28,7 +28,7 @@ export function PruefListe({reisen}: {reisen: ReiseAnsicht[]}) {
       ]}
       leerSinn="pruefen"
       leerTitel="Keine Reise wartet auf Prüfung."
-      leerText="Sobald jemand eine Abrechnung einreicht, erscheint sie hier – mit den gestempelten Tagen daneben, auf die sie sich beruft."
+      leerText="Sobald jemand eine Abrechnung einreicht, erscheint sie hier, mit den gestempelten Tagen daneben, auf die sie sich beruft."
       eintraege={reisen.map((reise) => ({
         id: reise.id,
         person: reise.userName ?? '—',

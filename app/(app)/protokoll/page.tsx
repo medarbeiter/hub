@@ -313,8 +313,8 @@ export default async function ProtokollPage({searchParams}: PageProps) {
               </Text>
               <Text type="supporting" size="sm" color="secondary">
                 {istVerwaltung
-                  ? 'Die Vorauswahl zeigt die Eingriffe. Das laufende Stempeln steht ebenfalls im Protokoll und lässt sich dazuschalten – es wäre sonst die Mehrheit aller Zeilen.'
-                  : 'Du siehst alles, was deinen eigenen Datensatz berührt hat – auch deine eigenen Stempelungen. Wer eine deiner Zeiten korrigiert hat, steht hier mit Namen.'}
+                  ? 'Die Vorauswahl zeigt die Eingriffe. Das laufende Stempeln steht ebenfalls im Protokoll und lässt sich dazuschalten, sonst wäre es die Mehrheit aller Zeilen.'
+                  : 'Du siehst alles, was deinen eigenen Datensatz berührt hat, auch deine eigenen Stempelungen. Wer eine deiner Zeiten korrigiert hat, steht hier mit Namen.'}
               </Text>
               <Text type="supporting" size="sm" color="secondary">
                 Das Protokoll lässt sich nicht ändern und nicht löschen: die Datenbank weist beides ab.

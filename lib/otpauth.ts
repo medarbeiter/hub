@@ -68,7 +68,7 @@ export function otpauthParsen(uri: string): OtpauthAngaben | string {
   }
   if (url.protocol !== 'otpauth:') return 'Das ist kein otpauth-Link.';
   if (url.host !== 'totp') {
-    return 'Nur zeitbasierte Codes (totp) werden unterstützt — dieser Link beschreibt etwas anderes.';
+    return 'Nur zeitbasierte Codes (totp) werden unterstützt; dieser Link beschreibt etwas anderes.';
   }
 
   const secret = url.searchParams.get('secret')?.trim() ?? '';

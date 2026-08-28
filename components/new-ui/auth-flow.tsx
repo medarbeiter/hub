@@ -616,7 +616,7 @@ function ArbeitsplatzSchritt({
   return (
     <form action={absenden} className="flex flex-col gap-7">
       <Bühnenkopf
-        satz="Beides kannst du später jederzeit unter „Mein Profil“ ändern."
+        satz="Beides lässt sich jederzeit unter „Mein Profil“ ändern."
         titel="So möchtest du starten"
       />
       {state.error && <Banner status="error" title={state.error} />}

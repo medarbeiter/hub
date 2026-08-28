@@ -172,7 +172,7 @@ function UserForm({
           value={urlaubstage}
           onChange={setUrlaubstage}
           htmlName="urlaubstage"
-          description="Der Jahresanspruch. Ein Übertrag aus dem Vorjahr wird eigens je Jahr eingetragen."
+          description="Der Jahresanspruch. Resturlaub aus dem Vorjahr wird pro Jahr separat eingetragen."
         />
         <Selector
           label="Bundesland (Feiertage)"
@@ -446,7 +446,7 @@ export function UserManager({users, selfId, rollen, darfVollzugriff}: UserManage
           {oneTimePassword?.versandt === 'uebersprungen' && (
             <Banner
               status="warning"
-              title="Es ging keine E-Mail hinaus."
+              title="Es wurde keine E-Mail verschickt."
               description="Der Versand ist abgeschaltet oder nicht eingerichtet. Bitte gib das Passwort persönlich weiter."
             />
           )}

@@ -100,7 +100,7 @@ export const ERFASSUNG_LABEL: Record<Erfassungsart, string> = {
 /** Der ganze Satz — für das aufgeklappte Fach, wo Platz für einen Grund ist. */
 export const ERFASSUNG_ERKLAERUNG: Record<Erfassungsart, string> = {
   gestempelt: 'Zum Zeitpunkt des Ereignisses an der Stempeluhr ausgelöst.',
-  nachgetragen: 'Nachträglich von Hand erfasst — eine Angabe über einen vergangenen Zeitpunkt.',
+  nachgetragen: 'Nachträglich von Hand erfasst: eine Angabe über einen vergangenen Zeitpunkt.',
   automatisch: 'Von der Anwendung gesetzt, nicht von einer Person ausgelöst.',
 };
 

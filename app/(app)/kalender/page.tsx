@@ -352,7 +352,7 @@ export default async function KalenderPage({searchParams}: PageProps) {
               <Divider />
               <Text type="supporting" size="sm" color="secondary">
                 {darfArtSehen
-                  ? 'Im Gitter steht, wer weg ist. Den Grund zeigt die Sprechblase, wenn du auf ein Bild zeigst – und ein Klick führt zum Vorgang. Für alle anderen steht dort nur, dass jemand weg ist: der Grund ist eine Gesundheitsangabe und geht Kollegen nichts an.'
+                  ? 'Im Gitter steht, wer weg ist. Den Grund zeigt die Sprechblase, wenn du auf ein Bild zeigst; ein Klick führt zum Vorgang. Für alle anderen steht dort nur, dass jemand weg ist: der Grund ist eine Gesundheitsangabe und geht Kollegen nichts an.'
                   : 'Im Gitter steht, wer weg ist. Warum, steht dort bewusst nicht: das wäre eine Gesundheitsangabe. Bei deinen eigenen Tagen zeigt die Sprechblase dir die Art, weil es deine Daten sind.'}
               </Text>
               <Text type="supporting" size="sm" color="secondary">
