@@ -91,15 +91,35 @@ describe('migrationParsen', () => {
     expect(ergebnis.konten[0]).toMatchObject({dienst: 'nur-ein-konto@firma.de', konto: ''});
   });
 
-  test('zählerbasierte (HOTP) und namenlose Einträge werden gezählt, nicht verweigert', () => {
+  test('zählerbasierte (HOTP) Einträge werden gezählt, nicht verweigert', () => {
     const uri = payloadUri([
       {secret: GEHEIM, name: 'Alt:hotp@firma.de', type: 1},
-      {secret: GEHEIM, type: 2},
       {secret: GEHEIM, name: 'Gut:totp@firma.de', type: 2},
     ]);
     const ergebnis = migrationParsen(uri);
     if (typeof ergebnis === 'string') throw new Error(ergebnis);
-    expect(ergebnis.uebersprungen).toBe(2);
+    expect(ergebnis.uebersprungen).toBe(1);
+    expect(ergebnis.konten).toHaveLength(1);
+    expect(ergebnis.konten[0]!.dienst).toBe('Gut');
+  });
+
+  test('ein namenloser Eintrag wird „Unbenannt" statt verworfen', () => {
+    const ergebnis = migrationParsen(payloadUri([{secret: GEHEIM, type: 2}]));
+    if (typeof ergebnis === 'string') throw new Error(ergebnis);
+    expect(ergebnis.uebersprungen).toBe(0);
+    expect(ergebnis.konten[0]).toMatchObject({dienst: 'Unbenannt', konto: ''});
+  });
+
+  test('ein unlesbarer Einzeleintrag reißt den Export nicht mit', () => {
+    // Feld 1 mit kaputtem Inhalt (ein Fortsetzungsbit ohne Fortsetzung) neben
+    // einem gesunden Eintrag: der gesunde kommt durch, der kaputte wird gezählt.
+    const bytes = [
+      ...feldBytes(1, [0xff]),
+      ...feldBytes(1, Uint8Array.from(eintrag({secret: GEHEIM, name: 'Gut:totp@firma.de', type: 2}))),
+    ];
+    const ergebnis = migrationParsen(`otpauth-migration://offline?data=${encodeURIComponent(btoa(String.fromCharCode(...bytes)))}`);
+    if (typeof ergebnis === 'string') throw new Error(ergebnis);
+    expect(ergebnis.uebersprungen).toBe(1);
     expect(ergebnis.konten).toHaveLength(1);
     expect(ergebnis.konten[0]!.dienst).toBe('Gut');
   });
@@ -142,6 +162,24 @@ describe('migrationSammeln', () => {
     ]);
     const sammlung = migrationSammeln([a, b, a, 'https://example.com']);
     expect(sammlung.konten.map((k) => k.dienst)).toEqual(['Acme', 'Post', 'Bank']);
+    expect(sammlung.fehler).toHaveLength(1);
+  });
+
+  test('liest einzelne otpauth-Links neben Übertragungscodes — kein Code bleibt liegen', () => {
+    const secret = base32Kodieren(GEHEIM);
+    const sammlung = migrationSammeln([
+      payloadUri([{secret: GEHEIM, name: 'Acme:kasse@firma.de', type: 2}]),
+      // Dasselbe Konto noch einmal als Einzellink — wird gefaltet, nicht verdoppelt.
+      `otpauth://totp/Acme:kasse@firma.de?secret=${secret}&issuer=Acme`,
+      `otpauth://totp/Post:buero@firma.de?secret=${secret}&issuer=Post`,
+      // Ohne Aussteller wird das Konto zum Dienst, ganz ohne Namen „Unbenannt".
+      `otpauth://totp/nur-konto@firma.de?secret=${secret}`,
+      `otpauth://totp/?secret=${secret}`,
+      // Ein untauglicher Link wird benannt, die übrigen zählen trotzdem.
+      'otpauth://totp/Kaputt:x@firma.de',
+    ]);
+    expect(sammlung.konten.map((k) => k.dienst)).toEqual(['Acme', 'Post', 'nur-konto@firma.de', 'Unbenannt']);
+    expect(sammlung.konten[2]).toMatchObject({konto: '', secret});
     expect(sammlung.fehler).toHaveLength(1);
   });
 });

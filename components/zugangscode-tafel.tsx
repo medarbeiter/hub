@@ -30,6 +30,7 @@ import {
 } from '@/app/actions';
 import {sicher, sicheresFormular} from '@/lib/aktion';
 import {migrationParsen, migrationSammeln} from '@/lib/otp-migration';
+import {otpauthParsen} from '@/lib/otpauth';
 import {DienstZeichen, markeFuer} from './dienst-zeichen';
 import {useMelde} from './melde';
 import {QrLeser} from './qr-leser';
@@ -272,6 +273,26 @@ function ZugangForm({
    * QR-Code (eine URL, eine Visitenkarte) wird benannt, und weitergesucht wird
    * trotzdem.
    */
+  /**
+   * Ein Link in die Importliste — samt dem, was vorher schon einzeln ins
+   * Formular gescannt wurde: sobald die Liste besteht, verdeckt sie das
+   * Formular, und der Link darin ginge sonst stillschweigend verloren.
+   */
+  const inImportListe = (text: string) => {
+    const vorige = gelesen && eingabe.toLowerCase().startsWith('otpauth://') ? [eingabe] : [];
+    setImportUris((alt) => {
+      const neu = [...alt];
+      for (const uri of [...vorige, text]) if (!neu.includes(uri)) neu.push(uri);
+      return neu;
+    });
+    if (gelesen) {
+      setEingabe('');
+      setGelesen(false);
+    }
+    setScanFehler(null);
+    setScanne(false);
+  };
+
   const erkannt = (text: string) => {
     if (text.toLowerCase().startsWith('otpauth-migration://')) {
       if (zeile) {
@@ -287,12 +308,24 @@ function ZugangForm({
         setScanFehler('Dieser Übertragungscode enthält keine zeitbasierten Codes.');
         return;
       }
-      setImportUris((alt) => (alt.includes(text) ? alt : [...alt, text]));
-      setScanFehler(null);
-      setScanne(false);
+      inImportListe(text);
       return;
     }
     if (text.toLowerCase().startsWith('otpauth://')) {
+      // Der erste Code füllt wie gehabt das Formular (Name noch anpassbar).
+      // Jeder weitere derselben Sitzung überschrieb früher dasselbe Feld —
+      // mehrere Bildschirmfotos auf einmal ließen so alle bis auf den letzten
+      // liegen. Ab dem zweiten sammelt darum die Importliste, geprüft wie der
+      // Übertragungscode.
+      if (!zeile && (importUris.length > 0 || gelesen)) {
+        const probe = otpauthParsen(text);
+        if (typeof probe === 'string') {
+          setScanFehler(probe);
+          return;
+        }
+        inImportListe(text);
+        return;
+      }
       setEingabe(text);
       setGelesen(true);
       setScanFehler(null);
@@ -347,7 +380,7 @@ function ZugangForm({
           <Banner
             status="success"
             title={`${sammlung.konten.length} ${sammlung.konten.length === 1 ? 'Konto' : 'Konten'} aus ${
-              importUris.length === 1 ? 'einem Übertragungscode' : `${importUris.length} Übertragungscodes`
+              importUris.length === 1 ? 'einem QR-Code' : `${importUris.length} QR-Codes`
             } gelesen.`}
             description={
               sammlung.uebersprungen > 0
