@@ -28,6 +28,7 @@ import {
   Heading,
   Hr,
   Html,
+  Img,
   Link,
   Preview,
   Row,
@@ -92,9 +93,21 @@ export function Nachricht({
               padding: '16px 24px',
             }}
           >
-            <Text style={{margin: 0, fontSize: '13px', letterSpacing: '0.08em', textTransform: 'uppercase', color: F.bronze, fontWeight: 600}}>
-              MedArbeiter Hub
-            </Text>
+            {/* Das Logo braucht eine absolute Adresse — ein Posteingang kennt
+                kein `/logo.png`. Ohne basisUrl bleibt der Schriftzug als Text. */}
+            {basisUrl ? (
+              <Img
+                src={`${basisUrl}/logo.png`}
+                alt="MedArbeiter Hub"
+                width="154"
+                height="28"
+                style={{display: 'block'}}
+              />
+            ) : (
+              <Text style={{margin: 0, fontSize: '13px', letterSpacing: '0.08em', textTransform: 'uppercase', color: F.bronze, fontWeight: 600}}>
+                MedArbeiter Hub
+              </Text>
+            )}
           </Section>
 
           <Section
@@ -197,8 +210,8 @@ export function Nachricht({
                     style={{
                       backgroundColor: F.gold,
                       border: `1px solid ${F.bronze}`,
-                      borderRadius: '6px',
-                      padding: '11px 20px',
+                      borderRadius: '999px',
+                      padding: '11px 24px',
                       textAlign: 'center',
                     }}
                   >
