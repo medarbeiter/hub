@@ -22,11 +22,11 @@
  *    Import), zählen nur die Zusatzrechte: kein Bündel, kein Recht.
  */
 import {getDb, type User} from './db';
+import {eigeneSchluessel, istBekanntesRecht} from './eigene-rechte';
 import {
   RECHTE,
   STANDARD_ROLLEN_LABEL,
   hatRecht,
-  istRecht,
   mischeRechte,
   vereinigeRechte,
   type Recht,
@@ -34,7 +34,9 @@ import {
 } from './rechte';
 
 function rechteAus(roh: string): Recht[] {
-  return roh.split(',').map((s) => s.trim()).filter(istRecht);
+  // Eingebaute wie eigene Schlüssel zählen; ein toter (gelöschtes eigenes
+  // Recht) fällt hier heraus, ohne dass jemand das Bündel anfassen muss.
+  return roh.split(',').map((s) => s.trim()).filter(istBekanntesRecht) as Recht[];
 }
 
 interface RollenZeile {
@@ -71,9 +73,9 @@ export function rolleLabel(schluessel: string): string {
   return rolleByKey(schluessel)?.label ?? STANDARD_ROLLEN_LABEL[schluessel] ?? schluessel;
 }
 
-/** Rollenbündel ∪ Zusatzrechte — was `getSessionUser()` an die Sitzung hängt. */
+/** Rollenbündel ∪ Zusatzrechte — was `getSessionUser()` an die Sitzung hängt. „*" entfaltet sich auch über die eigenen Rechte. */
 export function wirksameRechte(role: string, extra: readonly string[] = []): Recht[] {
-  return vereinigeRechte(rechteDerRolle(role), extra);
+  return vereinigeRechte(rechteDerRolle(role), extra, eigeneSchluessel());
 }
 
 /** Wie viele Konten (auch stillgelegte) die Rolle tragen — die Löschsperre zählt alle. */
@@ -127,7 +129,7 @@ export function rolleAnlegen(actor: User, eingabe: RollenEingabe): {error: strin
   const schluessel = rollenSchluessel(eingabe.label);
   if (!schluessel) return {error: 'Der Name braucht mindestens einen Buchstaben oder eine Zahl.'};
   if (istRolle(schluessel)) return {error: 'Eine Rolle mit diesem Namen gibt es bereits.'};
-  const rechte = mischeRechte([], eingabe.rechte, actor.rechte ?? []);
+  const rechte = mischeRechte([], eingabe.rechte, actor.rechte ?? [], eigeneSchluessel());
   getDb()
     .query('INSERT INTO rollen (schluessel, label, rechte) VALUES (?, ?, ?)')
     .run(schluessel, eingabe.label.trim(), rechte.join(','));
@@ -140,13 +142,14 @@ export function rolleAendern(actor: User, schluessel: string, eingabe: RollenEin
   if (!alt) return 'Diese Rolle gibt es nicht.';
   const invalid = pruefeLabel(eingabe.label, schluessel);
   if (invalid) return invalid;
-  const neu = mischeRechte(alt.rechte, eingabe.rechte, actor.rechte ?? []);
+  const eigene = eigeneSchluessel();
+  const neu = mischeRechte(alt.rechte, eingabe.rechte, actor.rechte ?? [], eigene);
   // Keine Selbstaussperrung: wer die eigene Rolle beschneidet, darf sich
   // dabei weder die Rollen- noch die Benutzerverwaltung nehmen (Regel 2 oben).
   if (actor.role === schluessel) {
     const extra = extraRechteVon(actor.id);
-    const vorher = new Set(vereinigeRechte(alt.rechte, extra));
-    const nachher = new Set(vereinigeRechte(neu, extra));
+    const vorher = new Set(vereinigeRechte(alt.rechte, extra, eigene));
+    const nachher = new Set(vereinigeRechte(neu, extra, eigene));
     for (const recht of ['rollen.verwalten', 'mitarbeiter.verwalten'] as const) {
       if (vorher.has(recht) && !nachher.has(recht)) {
         return `Du kannst dir nicht selbst das Recht „${RECHTE[recht].label}" entziehen.`;

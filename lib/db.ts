@@ -50,6 +50,7 @@ const MIGRATIONS: Migration[] = [
   migration29AppAnmeldungen,
   migration30ZugangscodePins,
   migration31SammelLoeschung,
+  migration32EigeneRechte,
 ];
 
 /** The `PRAGMA user_version` a fully migrated database carries. */
@@ -863,6 +864,31 @@ function migration31SammelLoeschung(db: Database) {
     ALTER TABLE zugangscode_loeschungen_neu RENAME TO zugangscode_loeschungen;
     CREATE INDEX IF NOT EXISTS idx_zugangscode_loeschungen_totp ON zugangscode_loeschungen(totp_id);
   `);
+}
+
+function migration32EigeneRechte(db: Database) {
+  // Eigene Rechte: das Vokabular wird um Datensätze erweiterbar (lib/
+  // eigene-rechte.ts, Recht `rechte.verwalten`), damit eine neue angebundene
+  // App ihre Rechte ohne Deployment bekommt. Die drei medarbeiterAI-Rechte
+  // ziehen aus dem Code hierher um — sie waren nie Rechte des Hubs, nur die
+  // ersten einer App; Bündel und Zusatzrechte tragen dieselben Schlüssel
+  // weiter. Die Werte stehen eingefroren hier, nicht im lebenden Vokabular.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS eigene_rechte (
+      schluessel TEXT PRIMARY KEY,
+      label TEXT NOT NULL,
+      beschreibung TEXT NOT NULL DEFAULT '',
+      bereich TEXT NOT NULL,
+      stufe TEXT NOT NULL DEFAULT 'weitreichend'
+        CHECK (stufe IN ('grundlegend', 'weitreichend', 'kritisch'))
+    );
+  `);
+  const ein = db.query(
+    'INSERT OR IGNORE INTO eigene_rechte (schluessel, label, beschreibung, bereich, stufe) VALUES (?, ?, ?, ?, ?)',
+  );
+  ein.run('ai.subaccounts.read', 'Unterkonten sehen', 'In medarbeiterAI die Unterkonten und deren Nutzer einsehen.', 'medarbeiterAI', 'weitreichend');
+  ein.run('ai.subaccounts.manage', 'Unterkonten verwalten', 'In medarbeiterAI Unterkonten anlegen und ändern sowie Kundennutzer verwalten.', 'medarbeiterAI', 'weitreichend');
+  ein.run('ai.settings.manage', 'Einstellungen', 'Die globalen Einstellungen von medarbeiterAI ändern.', 'medarbeiterAI', 'kritisch');
 }
 
 /**

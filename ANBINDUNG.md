@@ -130,11 +130,15 @@ Success `200`:
 ```
 
 Both arrays are plain strings: every defined role and every registered
-concrete recht. `*` is never included (see above). Failure
+concrete recht — the hub's built-in rechte plus the app-specific ones
+(e.g. `ai.*` for medarbeiterAI). `*` is never included (see above). Failure
 `401 {"error":"invalid_client"}` — wrong/unknown credentials, also written to
 MedArbeiter's audit log. Cache the response in-process; roles and rechte
-change rarely (a new recht ships with a hub deployment, a new role is created
-in the Rollenverwaltung).
+change rarely, and neither needs a hub deployment: roles are managed in the
+Rollenverwaltung, app rechte under „Rechte angebundener Apps" on
+`/mitarbeiter`. If your app introduces a new permission, ask the Verwaltung
+to register its key there — it appears in this catalog and becomes
+assignable immediately.
 
 ## How to use what you got
 

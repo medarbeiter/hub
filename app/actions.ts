@@ -11,7 +11,8 @@ import {
   requireUser,
   verifyLogin,
 } from '@/lib/auth';
-import {RECHTE, istRecht, type Recht} from '@/lib/rechte';
+import {type Recht} from '@/lib/rechte';
+import {eigeneRechte, istBekanntesRecht, rechtAendern, rechtAnlegen, rechtLabel, rechtLoeschen, type EigenesRechtEingabe} from '@/lib/eigene-rechte';
 import {rolleAendern, rolleAnlegen, rolleByKey, rolleLabel, rolleLoeschen} from '@/lib/rollen';
 import {
   activeUsers,
@@ -867,7 +868,7 @@ function userInputFromForm(formData: FormData): UserInput {
     role: (String(formData.get('role') ?? 'mitarbeiter') as UserInput['role']),
     weeklyMinutes: Math.round(Number(formData.get('weeklyHours') ?? 0) * 60),
     bundesland: String(formData.get('bundesland') ?? '').trim(),
-    extraRechte: formData.getAll('extraRechte').map(String).filter(istRecht),
+    extraRechte: formData.getAll('extraRechte').map(String).filter(istBekanntesRecht) as Recht[],
     // 30 als Vorgabe: der gesetzliche Mindesturlaub liegt bei 20 Werktagen
     // (§ 3 BUrlG), üblich sind 30 — die Zahl steht im Formular und ist änderbar.
     urlaubstageJahr: Math.round(Number(formData.get('urlaubstage') ?? 30)),
@@ -884,7 +885,7 @@ function userWerte(input: UserInput) {
     Name: input.name,
     'E-Mail': input.email,
     Rolle: rolleLabel(input.role),
-    Zusatzrechte: input.extraRechte.map((r) => RECHTE[r].label).join(', ') || null,
+    Zusatzrechte: input.extraRechte.map(rechtLabel).join(', ') || null,
     'Wochenstunden': (input.weeklyMinutes / 60).toFixed(2).replace('.', ','),
     Bundesland: input.bundesland || null,
     Urlaubstage: input.urlaubstageJahr,
@@ -941,7 +942,7 @@ export async function userUpdateAction(_prev: UserActionState, formData: FormDat
           Name: vorher.name,
           'E-Mail': vorher.email,
           Rolle: rolleLabel(vorher.role),
-          Zusatzrechte: rechteVorher.map((r) => RECHTE[r].label).join(', ') || null,
+          Zusatzrechte: rechteVorher.map(rechtLabel).join(', ') || null,
           'Wochenstunden': (vorher.weekly_minutes / 60).toFixed(2).replace('.', ','),
           Bundesland: vorher.bundesland ?? null,
           Urlaubstage: vorher.urlaubstage_jahr,
@@ -1038,7 +1039,7 @@ export async function userSetActiveAction(userId: number, active: boolean): Prom
 function rolleWerte(rolle: {label: string; rechte: readonly Recht[]}) {
   return {
     Name: rolle.label,
-    Rechte: rolle.rechte.map((r) => RECHTE[r].label).join(', ') || '—',
+    Rechte: rolle.rechte.map(rechtLabel).join(', ') || '—',
   };
 }
 
@@ -1047,7 +1048,7 @@ export async function rolleSpeichernAction(_prev: ActionState, formData: FormDat
   const actor = await requireRecht('rollen.verwalten');
   const schluessel = String(formData.get('schluessel') ?? '').trim();
   const label = String(formData.get('label') ?? '').trim();
-  const rechte = formData.getAll('rechte').map(String).filter(istRecht);
+  const rechte = formData.getAll('rechte').map(String).filter(istBekanntesRecht) as Recht[];
 
   const vorher = schluessel ? rolleByKey(schluessel) : null;
   let error: string | null;
@@ -1083,6 +1084,61 @@ export async function rolleLoeschenAction(schluessel: string): Promise<ActionSta
     aktion: 'rolle.loeschen',
     gegenstand: `Rolle ${vorher?.label ?? schluessel}`,
     vorher: vorher ? rolleWerte(vorher) : null,
+    fehler: error,
+  });
+  revalidatePath('/', 'layout');
+  return {error};
+}
+
+// ---------------------------------------------------------------------------
+// Eigene Rechte (rechte.verwalten)
+// ---------------------------------------------------------------------------
+
+/** Ein eigenes Recht als Wertepaare fürs Protokoll. */
+function rechtWerte(recht: {schluessel: string; label: string; beschreibung: string; bereich: string; stufe: string}) {
+  return {
+    'Schlüssel': recht.schluessel,
+    Name: recht.label,
+    Bereich: recht.bereich,
+    Stufe: recht.stufe,
+    Beschreibung: recht.beschreibung || null,
+  };
+}
+
+/** Anlegen und Ändern in einer Aktion — `vorhanden` sagt, ob der Schlüssel schon ein Datensatz ist (er selbst ist unveränderlich). */
+export async function rechtSpeichernAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const actor = await requireRecht('rechte.verwalten');
+  const schluessel = String(formData.get('schluessel') ?? '').trim();
+  const vorhanden = formData.get('vorhanden') === '1';
+  const eingabe: EigenesRechtEingabe = {
+    label: String(formData.get('label') ?? ''),
+    beschreibung: String(formData.get('beschreibung') ?? ''),
+    bereich: String(formData.get('bereich') ?? ''),
+    stufe: String(formData.get('stufe') ?? 'weitreichend'),
+  };
+  const vorher = eigeneRechte().find((r) => r.schluessel === schluessel);
+  const error = vorhanden ? rechtAendern(actor, schluessel, eingabe) : rechtAnlegen(actor, schluessel, eingabe);
+  protokolliere({
+    akteur: actor,
+    aktion: vorhanden ? 'recht.aendern' : 'recht.anlegen',
+    gegenstand: `Recht ${schluessel}`,
+    vorher: vorher ? rechtWerte(vorher) : null,
+    nachher: rechtWerte({schluessel, ...eingabe}),
+    fehler: error,
+  });
+  revalidatePath('/', 'layout');
+  return {error};
+}
+
+export async function rechtLoeschenAction(schluessel: string): Promise<ActionState> {
+  const actor = await requireRecht('rechte.verwalten');
+  const vorher = eigeneRechte().find((r) => r.schluessel === schluessel);
+  const error = rechtLoeschen(actor, schluessel);
+  protokolliere({
+    akteur: actor,
+    aktion: 'recht.loeschen',
+    gegenstand: `Recht ${schluessel}`,
+    vorher: vorher ? rechtWerte(vorher) : null,
     fehler: error,
   });
   revalidatePath('/', 'layout');

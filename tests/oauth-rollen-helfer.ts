@@ -4,4 +4,4 @@
  */
 export {GET as rollenKatalog} from '../app/api/oauth/roles/route';
 export {GET as userinfo} from '../app/api/oauth/userinfo/route';
-export {KONKRETE_RECHTE} from '../lib/rechte';
+export {alleKonkretenSchluessel} from '../lib/eigene-rechte';

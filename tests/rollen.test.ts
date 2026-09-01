@@ -1,6 +1,7 @@
 import {afterEach, beforeEach, expect, test, describe} from 'bun:test';
 import type {Database} from 'bun:sqlite';
 import {createDb, setDbForTesting, type User} from '../lib/db';
+import {eigeneSchluessel} from '../lib/eigene-rechte';
 import {ALLE_RECHTE} from '../lib/rechte';
 import {
   alleRollen,
@@ -43,10 +44,12 @@ describe('Migration 27', () => {
       'fulfillment', 'geschaeftsfuehrung', 'mitarbeiter', 'vertrieb', 'verwaltung',
     ]);
     // Verwaltung trägt den Vollzugriff „*" (Migration 28) — wirksam ist damit
-    // jedes Recht, auch nach der Migration hinzugekommene, ohne Neuvergabe.
+    // jedes Recht, auch nach der Migration hinzugekommene, eingebaut oder
+    // eigen (Migration 32 sät die medarbeiterAI-Rechte), ohne Neuvergabe.
+    const alles: string[] = [...ALLE_RECHTE, ...eigeneSchluessel()].sort();
     expect(rechteDerRolle('verwaltung')).toContain('*');
-    expect([...wirksameRechte('verwaltung')].sort()).toEqual([...ALLE_RECHTE].sort());
-    expect([...wirksameRechte('geschaeftsfuehrung')].sort()).toEqual([...ALLE_RECHTE].sort());
+    expect(([...wirksameRechte('verwaltung')] as string[]).sort()).toEqual(alles);
+    expect(([...wirksameRechte('geschaeftsfuehrung')] as string[]).sort()).toEqual(alles);
     expect(rechteDerRolle('mitarbeiter')).toContain('zeit.erfassen');
     expect(rechteDerRolle('mitarbeiter')).not.toContain('mitarbeiter.verwalten');
     expect(rechteDerRolle('mitarbeiter')).not.toContain('*'); // „*" nur an Rollen, die alles trugen

@@ -1,7 +1,8 @@
 import {personAngabe, type AvatarKey, type PersonAngabe} from './avatar';
 import {getDb, type Role, type User} from './db';
 import {isBundesland} from './feiertage';
-import {hatRecht, istRecht, vereinigeRechte, type Recht} from './rechte';
+import {istBekanntesRecht} from './eigene-rechte';
+import {hatRecht, vereinigeRechte, type Recht} from './rechte';
 import {istRolle, rechteDerRolle, rolleLabel} from './rollen';
 import {ABWAEHLBARE_ARTEN, istMailArt, type MailArt} from './mail-arten';
 
@@ -31,7 +32,7 @@ export function zusatzRechte(userId: number): Recht[] {
     .query<{recht: string}, [number]>('SELECT recht FROM benutzer_rechte WHERE user_id = ? ORDER BY recht')
     .all(userId)
     .map((r) => r.recht)
-    .filter(istRecht);
+    .filter(istBekanntesRecht) as Recht[];
 }
 
 function schreibeZusatzRechte(userId: number, role: Role, rechte: Recht[]): void {
@@ -113,7 +114,7 @@ function validateUserInput(actor: User, input: UserInput, excludeId?: number): s
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) return 'Bitte eine gültige E-Mail-Adresse angeben.';
   if (!istRolle(input.role)) return 'Ungültige Rolle.';
-  if (input.extraRechte.some((r) => !istRecht(r))) return 'Unbekanntes Recht.';
+  if (input.extraRechte.some((r) => !istBekanntesRecht(r))) return 'Unbekanntes Recht.';
   if (input.weeklyMinutes < 60 || input.weeklyMinutes > 60 * 60) return 'Die Wochenstunden müssen zwischen 1 und 60 liegen.';
   if (input.bundesland && !isBundesland(input.bundesland)) return 'Unbekanntes Bundesland.';
   if (!Number.isInteger(input.urlaubstageJahr) || input.urlaubstageJahr < 0 || input.urlaubstageJahr > 365) {

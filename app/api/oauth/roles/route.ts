@@ -1,6 +1,6 @@
 import {NextResponse, type NextRequest} from 'next/server';
+import {alleKonkretenSchluessel} from '@/lib/eigene-rechte';
 import {oauthClientById} from '@/lib/oauth-apps';
-import {KONKRETE_RECHTE} from '@/lib/rechte';
 import {alleRollen} from '@/lib/rollen';
 import {protokolliere} from '@/lib/protokoll';
 
@@ -9,8 +9,9 @@ import {protokolliere} from '@/lib/protokoll';
  * und welche konkreten Rechte in `rechte[]` einer userinfo-Antwort stehen
  * können. Die App weist sich mit ihren eigenen Zugangsdaten aus — per HTTP
  * Basic wie am Token-Endpunkt, ohne Nutzertoken: der Katalog gehört zur
- * Anbindung, nicht zu einer Person. Das wörtliche „*" steht nie darin
- * (KONKRETE_RECHTE) — es ist eine Vergabe-Abkürzung, kein Recht im Vertrag.
+ * Anbindung, nicht zu einer Person. Die Liste umfasst eingebaute wie eigene
+ * Rechte (alleKonkretenSchluessel); das wörtliche „*" steht nie darin — es
+ * ist eine Vergabe-Abkürzung, kein Recht im Vertrag.
  */
 export async function GET(request: NextRequest): Promise<Response> {
   let clientId = '';
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest): Promise<Response> {
   }
 
   return NextResponse.json(
-    {roles: alleRollen().map((rolle) => rolle.schluessel), rechte: KONKRETE_RECHTE},
+    {roles: alleRollen().map((rolle) => rolle.schluessel), rechte: alleKonkretenSchluessel()},
     {headers: {'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff'}},
   );
 }

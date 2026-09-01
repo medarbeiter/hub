@@ -14,8 +14,6 @@ import {
   Badge,
   Banner,
   Button,
-  CheckboxList,
-  CheckboxListItem,
   DialogHeader,
   HStack,
   Text,
@@ -26,8 +24,9 @@ import {useRouter} from 'next/navigation';
 import {useActionState, useEffect, useRef, useState, useTransition} from 'react';
 import {rolleLoeschenAction, rolleSpeichernAction, type ActionState} from '@/app/actions';
 import {sicher, sicheresFormular} from '@/lib/aktion';
-import {ALLE_RECHTE, RECHTE, STUFEN, STUFEN_REIHENFOLGE, hatRecht, istRecht, type Recht, type RollenEintrag} from '@/lib/rechte';
+import {hatRecht, type RechtEintrag, type RollenEintrag} from '@/lib/rechte';
 import {useMelde} from './melde';
+import {RechteAuswahl} from './rechte-auswahl';
 import {Sinnbild} from './sinnbilder';
 import {TafelDialog} from './tafel-dialog';
 
@@ -38,27 +37,31 @@ export interface VerwalteteRolle extends RollenEintrag {
 
 interface RollenVerwaltungProps {
   rollen: VerwalteteRolle[];
+  /** Eingebaute und eigene Rechte in einer Liste — der Server baut sie (gesamtVokabular). */
+  vokabular: RechtEintrag[];
   /** Die wirksamen Rechte der angemeldeten Person — nur die sind hier verhandelbar. */
-  eigeneRechte: Recht[];
+  eigeneRechte: readonly string[];
 }
 
 const INITIAL: ActionState = {error: null};
 
 function RollenForm({
   rolle,
+  vokabular,
   eigeneRechte,
   onDone,
 }: {
   rolle: VerwalteteRolle | null;
-  eigeneRechte: Recht[];
+  vokabular: RechtEintrag[];
+  eigeneRechte: readonly string[];
   onDone: () => void;
 }) {
   const [label, setLabel] = useState(rolle?.label ?? '');
   // Fremde Rechte stehen nicht zur Wahl — der Server ließe sie ohnehin
   // unangetastet, aber ein Haken, der beim Speichern nichts täte, wäre gelogen.
-  const waehlbar = ALLE_RECHTE.filter((recht) => eigeneRechte.includes(recht));
+  const waehlbar = vokabular.filter((eintrag) => eigeneRechte.includes(eintrag.schluessel));
   const fest = (rolle?.rechte ?? []).filter((recht) => !eigeneRechte.includes(recht));
-  const [rechte, setRechte] = useState<Recht[]>(
+  const [rechte, setRechte] = useState<string[]>(
     (rolle?.rechte ?? []).filter((recht) => eigeneRechte.includes(recht)),
   );
   const [state, formAction, isPending] = useActionState(sicheresFormular(rolleSpeichernAction), INITIAL);
@@ -87,40 +90,14 @@ function RollenForm({
               : 'Aus dem Namen entsteht der feste Schlüssel der Rolle.'
           }
         />
-        {STUFEN_REIHENFOLGE.map((stufe) => {
-          const gruppe = waehlbar.filter((recht) => RECHTE[recht].stufe === stufe);
-          if (gruppe.length === 0) return null;
-          return (
-            <CheckboxList
-              key={stufe}
-              label={STUFEN[stufe].label}
-              description={STUFEN[stufe].beschreibung}
-              value={rechte.filter((recht) => RECHTE[recht].stufe === stufe)}
-              onChange={(values) =>
-                setRechte((alt) => [
-                  ...alt.filter((recht) => RECHTE[recht].stufe !== stufe),
-                  ...values.filter(istRecht),
-                ])
-              }
-              density="compact"
-              hasDividers
-            >
-              {gruppe.map((recht) => (
-                <CheckboxListItem
-                  key={recht}
-                  value={recht}
-                  label={RECHTE[recht].label}
-                  description={RECHTE[recht].beschreibung}
-                />
-              ))}
-            </CheckboxList>
-          );
-        })}
+        <RechteAuswahl eintraege={waehlbar} value={rechte} onChange={setRechte} />
         {fest.length > 0 && (
           <Banner
             status="info"
             title="Rechte, die du selbst nicht trägst, bleiben unverändert."
-            description={fest.map((recht) => RECHTE[recht].label).join(', ')}
+            description={fest
+              .map((recht) => vokabular.find((e) => e.schluessel === recht)?.label ?? recht)
+              .join(', ')}
           />
         )}
         {rolle && <input type="hidden" name="schluessel" value={rolle.schluessel} />}
@@ -141,7 +118,7 @@ function RollenForm({
   );
 }
 
-export function RollenVerwaltung({rollen, eigeneRechte}: RollenVerwaltungProps) {
+export function RollenVerwaltung({rollen, vokabular, eigeneRechte}: RollenVerwaltungProps) {
   const [editing, setEditing] = useState<VerwalteteRolle | null>(null);
   const [isFormOpen, setFormOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<VerwalteteRolle | null>(null);
@@ -242,6 +219,7 @@ export function RollenVerwaltung({rollen, eigeneRechte}: RollenVerwaltungProps) 
         {isFormOpen && (
           <RollenForm
             rolle={editing}
+            vokabular={vokabular}
             eigeneRechte={eigeneRechte}
             onDone={() => {
               setFormOpen(false);

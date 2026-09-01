@@ -1,9 +1,11 @@
 import {Badge, VStack} from '@astryxdesign/core';
 import {requireRecht} from '@/lib/auth';
 import {personAngabe} from '@/lib/avatar';
+import {eigeneRechte, gesamtVokabular} from '@/lib/eigene-rechte';
 import {hatRecht} from '@/lib/rechte';
 import {alleRollen, kontenMitRolle, wirksameRechte} from '@/lib/rollen';
 import {allUsers} from '@/lib/users';
+import {RechteVerwaltung} from '@/components/rechte-verwaltung';
 import {RollenVerwaltung} from '@/components/rollen-verwaltung';
 import {UserManager} from '@/components/user-manager';
 import {Sinnbild} from '@/components/sinnbilder';
@@ -15,6 +17,7 @@ export default async function MitarbeiterPage() {
   const actor = await requireRecht('mitarbeiter.verwalten');
   const users = allUsers();
   const rollen = alleRollen();
+  const vokabular = gesamtVokabular();
   const aktive = users.filter((u) => u.active === 1);
   const stillgelegt = users.length - aktive.length;
   const verwalter = aktive.filter(
@@ -55,13 +58,16 @@ export default async function MitarbeiterPage() {
             }))}
             selfId={actor.id}
             rollen={rollen}
+            vokabular={vokabular}
           />
           {hatRecht(actor, 'rollen.verwalten') && (
             <RollenVerwaltung
               rollen={rollen.map((r) => ({...r, konten: kontenMitRolle(r.schluessel)}))}
+              vokabular={vokabular}
               eigeneRechte={actor.rechte ?? []}
             />
           )}
+          {hatRecht(actor, 'rechte.verwalten') && <RechteVerwaltung rechte={eigeneRechte()} />}
         </VStack>
       }
     />

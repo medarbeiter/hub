@@ -35,9 +35,7 @@ export type Recht =
   | 'rollen.verwalten'
   | 'einstellungen.verwalten'
   | 'apps.verwalten'
-  | 'ai.subaccounts.read'
-  | 'ai.subaccounts.manage'
-  | 'ai.settings.manage';
+  | 'rechte.verwalten';
 
 /** Wie einschneidend ein Recht ist — die Gruppierung jeder Rechteliste. */
 export type RechtStufe = 'grundlegend' | 'weitreichend' | 'kritisch';
@@ -55,6 +53,13 @@ export interface RechtBedeutung {
   /** Was das Recht konkret erlaubt — steht in der Mitarbeiterverwaltung neben dem Haken. */
   beschreibung: string;
   stufe: RechtStufe;
+  /** Der fachliche Bereich — die Gruppierung jeder Rechteliste; die Stufe steht seither als Marke an der Zeile. */
+  bereich: string;
+}
+
+/** Ein Recht, wie Server und Formulare es austauschen — eingebaute und eigene in einer Form. */
+export interface RechtEintrag extends RechtBedeutung {
+  schluessel: string;
 }
 
 export const RECHTE: Record<Recht, RechtBedeutung> = {
@@ -63,121 +68,134 @@ export const RECHTE: Record<Recht, RechtBedeutung> = {
     beschreibung:
       'Vollzugriff: schließt jedes Recht ein, auch künftig hinzukommende, und übersteuert alle einzelnen Haken.',
     stufe: 'kritisch',
+    bereich: 'Verwaltung',
   },
   'zeit.erfassen': {
     label: 'Zeit erfassen',
     beschreibung: 'Stempeln und eigene Einträge anlegen, ändern und bestätigen.',
     stufe: 'grundlegend',
+    bereich: 'Zeiterfassung',
   },
   'zeit.team': {
     label: 'Team-Zeiten sehen',
     beschreibung: 'Die Zeiten und Konten aller Mitarbeitenden einsehen und drucken.',
     stufe: 'weitreichend',
+    bereich: 'Zeiterfassung',
   },
   'zeit.korrigieren': {
     label: 'Fremde Zeiten korrigieren',
     beschreibung: 'Einträge und Tagesarten anderer Mitarbeitender ändern.',
     stufe: 'weitreichend',
+    bereich: 'Zeiterfassung',
   },
   'abschluss.verwalten': {
     label: 'Monatsabschluss',
     beschreibung: 'Monate abschließen und wieder öffnen.',
     stufe: 'weitreichend',
+    bereich: 'Zeiterfassung',
   },
   'berichte.sehen': {
     label: 'Berichte',
     beschreibung: 'Auswertungen über alle Mitarbeitenden sehen und als CSV exportieren.',
     stufe: 'weitreichend',
+    bereich: 'Zeiterfassung',
   },
   'abwesenheit.beantragen': {
     label: 'Abwesenheit beantragen',
     beschreibung: 'Eigene Abwesenheiten beantragen und melden.',
     stufe: 'grundlegend',
+    bereich: 'Abwesenheit',
   },
   'abwesenheit.pruefen': {
     label: 'Abwesenheit prüfen',
     beschreibung: 'Anträge genehmigen oder zurückweisen, Bescheinigungen und Urlaubsübertrag pflegen.',
     stufe: 'weitreichend',
+    bereich: 'Abwesenheit',
   },
   'spesen.erfassen': {
     label: 'Reisen erfassen',
     beschreibung: 'Eigene Reisen anlegen und zur Prüfung einreichen.',
     stufe: 'grundlegend',
+    bereich: 'Reisen & Spesen',
   },
   'spesen.pruefen': {
     label: 'Spesen prüfen',
     beschreibung: 'Eingereichte Reisen aller Mitarbeitenden prüfen und entscheiden.',
     stufe: 'weitreichend',
+    bereich: 'Reisen & Spesen',
   },
   'profil.kommentieren': {
     label: 'Profile kommentieren',
     beschreibung: 'Auf der Personenkarte einer Kollegin oder eines Kollegen einen Kommentar hinterlassen.',
     stufe: 'grundlegend',
+    bereich: 'Team & Kalender',
   },
   'kalender.sehen': {
     label: 'Teamkalender sehen',
     beschreibung: 'Sehen, wer im Team abwesend ist, ohne den Grund.',
     stufe: 'grundlegend',
+    bereich: 'Team & Kalender',
   },
   'kalender.gruende': {
     label: 'Abwesenheitsgründe sehen',
     beschreibung: 'Im Teamkalender auch die Art fremder Abwesenheiten sehen.',
     stufe: 'weitreichend',
+    bereich: 'Team & Kalender',
   },
   'protokoll.alle': {
     label: 'Gesamtes Protokoll',
     beschreibung: 'Den vollständigen Nachweis aller Konten lesen, nicht nur die eigene Spur.',
     stufe: 'weitreichend',
+    bereich: 'Verwaltung',
   },
   'zugangscodes.sehen': {
     label: 'Zugangscodes sehen',
     beschreibung: 'Die Einmalcodes des eigenen Leserkreises ablesen.',
     stufe: 'grundlegend',
+    bereich: 'Zugangscodes',
   },
   'zugangscodes.erfassen': {
     label: 'Zugangscodes hinterlegen',
     beschreibung: 'Eigene Zugänge anlegen und pflegen: nur für sich oder mit ausgewählten Personen geteilt.',
     stufe: 'grundlegend',
+    bereich: 'Zugangscodes',
   },
   'zugangscodes.verwalten': {
     label: 'Zugangscodes verwalten',
     beschreibung: 'Jeden Zugang sehen, ändern und entfernen; Freigaben für alle oder für Rollen.',
     stufe: 'weitreichend',
+    bereich: 'Zugangscodes',
   },
   'mitarbeiter.verwalten': {
     label: 'Mitarbeiter verwalten',
     beschreibung: 'Konten anlegen, ändern, deaktivieren, Passwörter zurücksetzen.',
     stufe: 'kritisch',
+    bereich: 'Verwaltung',
   },
   'rollen.verwalten': {
     label: 'Rollen verwalten',
     beschreibung: 'Rollen anlegen, umbenennen, löschen und ihre Rechtebündel ändern; vergeben lässt sich nur, was man selbst trägt.',
     stufe: 'kritisch',
+    bereich: 'Verwaltung',
   },
   'einstellungen.verwalten': {
     label: 'Einstellungen',
     beschreibung: 'Unternehmensweite Einstellungen ändern.',
     stufe: 'kritisch',
+    bereich: 'Verwaltung',
   },
   'apps.verwalten': {
     label: 'Verbundene Apps',
     beschreibung: 'Andere Anwendungen registrieren, die sich über MedArbeiter anmelden: Zugangsdaten anlegen, ändern, sperren.',
     stufe: 'kritisch',
+    bereich: 'Verwaltung',
   },
-  'ai.subaccounts.read': {
-    label: 'medarbeiterAI: Unterkonten sehen',
-    beschreibung: 'In medarbeiterAI die Unterkonten und deren Nutzer einsehen.',
-    stufe: 'weitreichend',
-  },
-  'ai.subaccounts.manage': {
-    label: 'medarbeiterAI: Unterkonten verwalten',
-    beschreibung: 'In medarbeiterAI Unterkonten anlegen und ändern sowie Kundennutzer verwalten.',
-    stufe: 'weitreichend',
-  },
-  'ai.settings.manage': {
-    label: 'medarbeiterAI: Einstellungen',
-    beschreibung: 'Die globalen Einstellungen von medarbeiterAI ändern.',
+  'rechte.verwalten': {
+    label: 'Rechte verwalten',
+    beschreibung:
+      'Eigene Rechte für angebundene Anwendungen anlegen, ändern und entfernen — das Vokabular selbst, nicht seine Vergabe.',
     stufe: 'kritisch',
+    bereich: 'Verwaltung',
   },
 };
 
@@ -189,6 +207,11 @@ export const ALLE_RECHTE = Object.keys(RECHTE) as Recht[];
  * `rechte.includes('…')`, und ein wörtliches „*" träfe dort nichts.
  */
 export const KONKRETE_RECHTE = ALLE_RECHTE.filter((recht) => recht !== '*');
+
+/** Die eingebauten Rechte in Austauschform — der Server hängt die eigenen (lib/eigene-rechte.ts) dahinter. */
+export function rechtEintraege(): RechtEintrag[] {
+  return ALLE_RECHTE.map((schluessel) => ({schluessel, ...RECHTE[schluessel]}));
+}
 
 export function istRecht(x: string): x is Recht {
   return Object.hasOwn(RECHTE, x);
@@ -225,14 +248,24 @@ export const STANDARD_ROLLEN_LABEL: Record<string, string> = {
   geschaeftsfuehrung: 'Geschäftsführung',
 };
 
-/** Bündel ∪ Zusatzrechte, dedupliziert und in Vokabular-Reihenfolge. */
-export function vereinigeRechte(buendel: readonly string[], extra: readonly string[] = []): Recht[] {
+/**
+ * Bündel ∪ Zusatzrechte, dedupliziert und in Vokabular-Reihenfolge.
+ * `zusatz` sind die Schlüssel der eigenen Rechte (Datenbank) — die reine
+ * Funktion kennt sie nicht selbst, DB-gebundene Aufrufer reichen sie mit
+ * (`wirksameRechte()` in lib/rollen.ts tut das für jede Sitzung).
+ */
+export function vereinigeRechte(
+  buendel: readonly string[],
+  extra: readonly string[] = [],
+  zusatz: readonly string[] = [],
+): Recht[] {
   const menge = new Set<string>([...buendel, ...extra]);
+  const vokabular = [...ALLE_RECHTE, ...zusatz] as Recht[];
   // „*" entfaltet sich hier, an der einen Stelle, die jede wirksame
   // Rechtemenge baut: so schließt es auch Rechte ein, die es bei der Vergabe
-  // noch gar nicht gab.
-  if (menge.has('*')) return [...ALLE_RECHTE];
-  return ALLE_RECHTE.filter((recht) => menge.has(recht));
+  // noch gar nicht gab — eingebaute wie eigene.
+  if (menge.has('*')) return vokabular;
+  return vokabular.filter((recht) => menge.has(recht));
 }
 
 /**
@@ -246,11 +279,15 @@ export function mischeRechte(
   alt: readonly string[],
   gewuenscht: readonly string[],
   verfuegbar: readonly string[],
+  zusatz: readonly string[] = [],
 ): Recht[] {
   const darf = new Set(verfuegbar);
   const neu = new Set<string>(alt.filter((recht) => !darf.has(recht)));
   for (const recht of gewuenscht) if (darf.has(recht)) neu.add(recht);
-  return ALLE_RECHTE.filter((recht) => neu.has(recht));
+  // Der Schlussfilter räumt nebenbei auf: der Schlüssel eines gelöschten
+  // eigenen Rechts steht nicht mehr im Vokabular und fällt beim nächsten
+  // Speichern aus dem Bündel.
+  return ([...ALLE_RECHTE, ...zusatz] as Recht[]).filter((recht) => neu.has(recht));
 }
 
 /**

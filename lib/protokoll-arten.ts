@@ -194,6 +194,9 @@ export const AKTIONEN = {
   'rolle.anlegen': {bereich: 'stammdaten', label: 'Rolle angelegt', eingriff: true},
   'rolle.aendern': {bereich: 'stammdaten', label: 'Rolle geändert', eingriff: true},
   'rolle.loeschen': {bereich: 'stammdaten', label: 'Rolle gelöscht', eingriff: true},
+  'recht.anlegen': {bereich: 'stammdaten', label: 'Recht angelegt', eingriff: true},
+  'recht.aendern': {bereich: 'stammdaten', label: 'Recht geändert', eingriff: true},
+  'recht.loeschen': {bereich: 'stammdaten', label: 'Recht gelöscht', eingriff: true},
   /* Nur die Tatsache. Das Kennwort selbst steht nirgends im Protokoll — ein
      Nachweis, in dem Zugangsdaten stehen, ist ein Leck mit Zeitstempel. */
   'mitarbeiter.passwort': {bereich: 'stammdaten', label: 'Passwort zurückgesetzt', eingriff: true},

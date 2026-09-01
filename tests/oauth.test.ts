@@ -258,8 +258,8 @@ describe('GET /api/oauth/roles — der Katalog', () => {
   });
 });
 
-test('userinfo entfaltet „*" in alle konkreten Rechte', async () => {
-  const {userinfo, KONKRETE_RECHTE} = await import('./oauth-rollen-helfer');
+test('userinfo entfaltet „*" in alle konkreten Rechte — eingebaute wie eigene', async () => {
+  const {userinfo, alleKonkretenSchluessel} = await import('./oauth-rollen-helfer');
   const {client} = await neueAnbindung();
   const nutzerId = neuerBenutzer('verwaltung'); // trägt „*" seit Migration 28
   const {token} = tokenAusstellen(client, nutzerId);
@@ -268,5 +268,6 @@ test('userinfo entfaltet „*" in alle konkreten Rechte', async () => {
   );
   expect(antwort.status).toBe(200);
   const body = await antwort.json();
-  expect(body.rechte).toEqual(KONKRETE_RECHTE);
+  expect([...body.rechte].sort()).toEqual([...alleKonkretenSchluessel()].sort());
+  expect(body.rechte).not.toContain('*');
 });
