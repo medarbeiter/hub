@@ -47,6 +47,18 @@ Adresse.
 
 Diese SQLite-Bereitstellung muss bei **einer Replica** bleiben.
 
+### Dokploy mit Dockerfile
+
+Beim Build-Typ **Dockerfile** liest Dokploy die `docker-compose.yml` nicht —
+und damit auch nicht deren Volume. Ohne Volume liegt `/app/data` (SQLite,
+Belege, AU, Profilbilder) in der Containerschicht und **jedes Redeploy setzt
+die Anwendung zurück**. Deshalb zwingend unter *Advanced → Volumes* ein
+**Volume Mount** anlegen: Name `medarbeiter-data`, Mount Path `/app/data`.
+Ein benanntes Volume, kein Bind/File Mount: der Container läuft als Nutzer
+`bun`, und ein Host-Verzeichnis käme root-eigen herein. Alternativ den
+Build-Typ **Docker Compose** wählen — dann gilt die Compose-Datei samt Volume.
+Auch hier: **eine Replica**, und das Volume ist das Backup-Ziel.
+
 ### Google-Anbindung
 
 Die Anmeldung funktioniert auch über Google (Knopf und One-Tap-Hinweis auf der
