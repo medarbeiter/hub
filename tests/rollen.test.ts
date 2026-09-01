@@ -42,9 +42,11 @@ describe('Migration 27', () => {
     expect(alleRollen().map((r) => r.schluessel).sort()).toEqual([
       'fulfillment', 'geschaeftsfuehrung', 'mitarbeiter', 'vertrieb', 'verwaltung',
     ]);
-    // Verwaltung trägt jedes Recht — seit Migration 28 auch den Vollzugriff „*".
-    expect([...rechteDerRolle('verwaltung')].sort()).toEqual([...ALLE_RECHTE].sort());
-    expect([...rechteDerRolle('geschaeftsfuehrung')].sort()).toEqual([...ALLE_RECHTE].sort());
+    // Verwaltung trägt den Vollzugriff „*" (Migration 28) — wirksam ist damit
+    // jedes Recht, auch nach der Migration hinzugekommene, ohne Neuvergabe.
+    expect(rechteDerRolle('verwaltung')).toContain('*');
+    expect([...wirksameRechte('verwaltung')].sort()).toEqual([...ALLE_RECHTE].sort());
+    expect([...wirksameRechte('geschaeftsfuehrung')].sort()).toEqual([...ALLE_RECHTE].sort());
     expect(rechteDerRolle('mitarbeiter')).toContain('zeit.erfassen');
     expect(rechteDerRolle('mitarbeiter')).not.toContain('mitarbeiter.verwalten');
     expect(rechteDerRolle('mitarbeiter')).not.toContain('*'); // „*" nur an Rollen, die alles trugen

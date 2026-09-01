@@ -103,6 +103,39 @@ Success `200`:
 Failure `401 {"error":"invalid_token"}` — token expired, revoked, or the account
 was deactivated in MedArbeiter. Restart the flow from step 1.
 
+`rechte[]` is always the **fully expanded** concrete list. An account can hold
+the all-rights shorthand `*` inside MedArbeiter, but that placeholder never
+appears in the payload — it is expanded server-side into every registered
+recht at response time, so a plain `rechte.includes("some.right")` check is
+always correct and always complete.
+
+## Optional: the roles/rechte catalog
+
+```
+GET {MEDARBEITER_URL}/api/oauth/roles
+Authorization: Basic base64(urlencode(CLIENT_ID) + ":" + urlencode(CLIENT_SECRET))
+```
+
+Same credential pair and validation as the token endpoint — no user token
+needed. Use it to learn which roles and rechte exist (e.g. to render
+permission-dependent UI or validate config) instead of hardcoding the lists.
+
+Success `200`:
+
+```json
+{
+  "roles": ["mitarbeiter", "fulfillment", "vertrieb", "verwaltung", "geschaeftsfuehrung"],
+  "rechte": ["zeit.erfassen", "…", "ai.subaccounts.read", "ai.subaccounts.manage", "ai.settings.manage"]
+}
+```
+
+Both arrays are plain strings: every defined role and every registered
+concrete recht. `*` is never included (see above). Failure
+`401 {"error":"invalid_client"}` — wrong/unknown credentials, also written to
+MedArbeiter's audit log. Cache the response in-process; roles and rechte
+change rarely (a new recht ships with a hub deployment, a new role is created
+in the Rollenverwaltung).
+
 ## How to use what you got
 
 - **`sub` is the identity key.** A stable string ID — store your users keyed on
@@ -115,8 +148,10 @@ was deactivated in MedArbeiter. Restart the flow from step 1.
   cookie lives, a fresh authorize round-trip skips the login and costs exactly
   one click on the confirm screen — so size your app's session lifetime for
   convenience, not for avoiding re-auth.
-- **`role` and `rechte` are a snapshot at login.** `role` ∈ `mitarbeiter` |
-  `fulfillment` | `vertrieb` | `verwaltung` | `geschaeftsfuehrung`. Treat
+- **`role` and `rechte` are a snapshot at login.** Roles are editable records
+  in MedArbeiter (the five shipped ones are `mitarbeiter` | `fulfillment` |
+  `vertrieb` | `verwaltung` | `geschaeftsfuehrung`; the catalog endpoint below
+  returns the current list). Treat
   `rechte[]` as the authoritative permission set (accounts can carry extra
   rights beyond their role bundle — never derive permissions from `role`
   yourself). They refresh on the next login; a deactivated account cannot log

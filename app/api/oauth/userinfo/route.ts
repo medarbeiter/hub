@@ -35,7 +35,9 @@ export async function GET(request: NextRequest): Promise<Response> {
       name: user.name,
       email: user.email,
       role: user.role,
-      rechte: user.rechte,
+      // Immer voll entfaltet und ohne das wörtliche „*": die App prüft
+      // `rechte.includes('…')`, und der Platzhalter träfe dort nichts.
+      rechte: user.rechte.filter((recht) => recht !== '*'),
       // Relative Adresse, wie überall im Haus (avatarQuelle()) — die Hausanwendung
       // löst sie gegen den Hub auf, genau wie sie es mit Fotos aus /api/avatar tut.
       picture: avatarQuelle(user),

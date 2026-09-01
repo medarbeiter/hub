@@ -34,7 +34,10 @@ export type Recht =
   | 'mitarbeiter.verwalten'
   | 'rollen.verwalten'
   | 'einstellungen.verwalten'
-  | 'apps.verwalten';
+  | 'apps.verwalten'
+  | 'ai.subaccounts.read'
+  | 'ai.subaccounts.manage'
+  | 'ai.settings.manage';
 
 /** Wie einschneidend ein Recht ist — die Gruppierung jeder Rechteliste. */
 export type RechtStufe = 'grundlegend' | 'weitreichend' | 'kritisch';
@@ -161,9 +164,31 @@ export const RECHTE: Record<Recht, RechtBedeutung> = {
     beschreibung: 'Andere Anwendungen registrieren, die sich über MedArbeiter anmelden: Zugangsdaten anlegen, ändern, sperren.',
     stufe: 'kritisch',
   },
+  'ai.subaccounts.read': {
+    label: 'medarbeiterAI: Unterkonten sehen',
+    beschreibung: 'In medarbeiterAI die Unterkonten und deren Nutzer einsehen.',
+    stufe: 'weitreichend',
+  },
+  'ai.subaccounts.manage': {
+    label: 'medarbeiterAI: Unterkonten verwalten',
+    beschreibung: 'In medarbeiterAI Unterkonten anlegen und ändern sowie Kundennutzer verwalten.',
+    stufe: 'weitreichend',
+  },
+  'ai.settings.manage': {
+    label: 'medarbeiterAI: Einstellungen',
+    beschreibung: 'Die globalen Einstellungen von medarbeiterAI ändern.',
+    stufe: 'kritisch',
+  },
 };
 
 export const ALLE_RECHTE = Object.keys(RECHTE) as Recht[];
+
+/**
+ * Das Vokabular ohne den Platzhalter „*" — was eine Rechteliste enthält, die
+ * das Haus verlässt (userinfo, Rollen-Katalog): Client-Apps prüfen
+ * `rechte.includes('…')`, und ein wörtliches „*" träfe dort nichts.
+ */
+export const KONKRETE_RECHTE = ALLE_RECHTE.filter((recht) => recht !== '*');
 
 export function istRecht(x: string): x is Recht {
   return Object.hasOwn(RECHTE, x);

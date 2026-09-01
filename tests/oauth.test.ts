@@ -221,3 +221,52 @@ test('die Freigabe sendet als normaler POST statt als Server Action', async () =
   expect(html.match(/<form action="\/api\/oauth\/authorize" method="post">/g)).toHaveLength(2);
   expect(html).not.toContain('$ACTION_');
 });
+
+describe('GET /api/oauth/roles — der Katalog', () => {
+  const anfrage = (authorization?: string) =>
+    new Request('http://hub.test/api/oauth/roles', {
+      headers: authorization ? {authorization} : {},
+    }) as never;
+
+  test('mit gültigen Basic-Zugangsdaten kommen Rollen und konkrete Rechte, nie „*"', async () => {
+    const {rollenKatalog} = await import('./oauth-rollen-helfer');
+    const {client, secret} = await neueAnbindung();
+    const basic = Buffer.from(
+      `${encodeURIComponent(client.client_id)}:${encodeURIComponent(secret)}`,
+    ).toString('base64');
+    const antwort = await rollenKatalog(anfrage(`Basic ${basic}`));
+    expect(antwort.status).toBe(200);
+    const body = await antwort.json();
+    expect(body.roles).toContain('mitarbeiter');
+    expect(body.roles).toContain('verwaltung');
+    expect(body.rechte).toContain('zeit.erfassen');
+    expect(body.rechte).toContain('ai.subaccounts.read');
+    expect(body.rechte).toContain('ai.subaccounts.manage');
+    expect(body.rechte).toContain('ai.settings.manage');
+    expect(body.rechte).not.toContain('*');
+  });
+
+  test('falsches Geheimnis und fehlende Anmeldung: 401 invalid_client', async () => {
+    const {rollenKatalog} = await import('./oauth-rollen-helfer');
+    const {client} = await neueAnbindung();
+    const falsch = Buffer.from(`${client.client_id}:falsch`).toString('base64');
+    for (const kopf of [`Basic ${falsch}`, undefined]) {
+      const antwort = await rollenKatalog(anfrage(kopf));
+      expect(antwort.status).toBe(401);
+      expect((await antwort.json()).error).toBe('invalid_client');
+    }
+  });
+});
+
+test('userinfo entfaltet „*" in alle konkreten Rechte', async () => {
+  const {userinfo, KONKRETE_RECHTE} = await import('./oauth-rollen-helfer');
+  const {client} = await neueAnbindung();
+  const nutzerId = neuerBenutzer('verwaltung'); // trägt „*" seit Migration 28
+  const {token} = tokenAusstellen(client, nutzerId);
+  const antwort = await userinfo(
+    new Request('http://hub.test/api/oauth/userinfo', {headers: {authorization: `Bearer ${token}`}}) as never,
+  );
+  expect(antwort.status).toBe(200);
+  const body = await antwort.json();
+  expect(body.rechte).toEqual(KONKRETE_RECHTE);
+});
