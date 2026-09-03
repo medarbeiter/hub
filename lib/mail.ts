@@ -59,6 +59,10 @@ export function kuerzeBetreff(betreff: string): string {
 let client: Resend | null = null;
 
 function resend(): Resend | null {
+  // Außerhalb der Produktion wird nie echt verschickt, auch mit hinterlegtem
+  // Schlüssel nicht: ein geteiltes .env in Dev/Test hat das Resend-Kontingent
+  // leergespammt. Der Konsolen-Pfad unten übernimmt.
+  if (process.env.NODE_ENV !== 'production') return null;
   const key = process.env.RESEND_API_KEY;
   if (!key) return null;
   client ??= new Resend(key);
@@ -107,10 +111,14 @@ export async function sendeMail(auftrag: MailAuftrag): Promise<VersandErgebnis> 
     if (!dienst) {
       // Ohne Schlüssel: die Nachricht sichtbar machen, statt sie zu verlieren.
       // In der Entwicklung ist genau das der Zweck.
+      const grund =
+        process.env.NODE_ENV !== 'production'
+          ? 'Kein Versand außerhalb der Produktion.'
+          : 'Kein RESEND_API_KEY hinterlegt.';
       console.info(
-        `[Mail übersprungen – kein RESEND_API_KEY]\nAn: ${auftrag.an}\nBetreff: ${auftrag.inhalt.betreff}\n\n${text}`,
+        `[Mail übersprungen – ${grund}]\nAn: ${auftrag.an}\nBetreff: ${auftrag.inhalt.betreff}\n\n${text}`,
       );
-      buche(auftrag, 'uebersprungen', 'Kein RESEND_API_KEY hinterlegt.');
+      buche(auftrag, 'uebersprungen', grund);
       return 'uebersprungen';
     }
 

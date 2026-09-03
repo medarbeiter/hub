@@ -51,6 +51,7 @@ const MIGRATIONS: Migration[] = [
   migration30ZugangscodePins,
   migration31SammelLoeschung,
   migration32EigeneRechte,
+  migration33Eintritt,
 ];
 
 /** The `PRAGMA user_version` a fully migrated database carries. */
@@ -891,6 +892,16 @@ function migration32EigeneRechte(db: Database) {
   ein.run('ai.settings.manage', 'Einstellungen', 'Die globalen Einstellungen von medarbeiterAI ändern.', 'medarbeiterAI', 'kritisch');
 }
 
+function migration33Eintritt(db: Database) {
+  // Eintrittsdatum, damit der Urlaub im Eintrittsjahr anteilig gerechnet wird
+  // (lib/abwesenheit-arten.ts, anteiligerAnspruch). Bestehende Konten bleiben
+  // bewusst NULL = voller Anspruch: created_at sagt nur, wann das Konto
+  // angelegt wurde, nicht seit wann jemand im Haus ist — ein Rückfüllen
+  // daraus hätte jedem Altbeschäftigten den Urlaub gekürzt. Die Verwaltung
+  // trägt die Daten auf /mitarbeiter nach.
+  db.exec('ALTER TABLE users ADD COLUMN eintritt TEXT');
+}
+
 /**
  * Bestehende Tagesarten in Spannen überführen. Aufeinanderfolgende Tage
  * derselben Art werden zu einer Abwesenheit zusammengezogen; ein Wochenende
@@ -1102,6 +1113,8 @@ export interface User {
   bundesland?: string | null;
   /** Jahresanspruch an Urlaubstagen; der Übertrag steht in `urlaub_uebertrag`. */
   urlaubstage_jahr: number;
+  /** Eintrittsdatum (ISO); NULL = vor Beginn der Erfassung, voller Anspruch in jedem Jahr. */
+  eintritt?: string | null;
   /** Lokale, nicht-biometrische Profilfigur — der Rückfall, wenn kein Foto liegt. */
   avatar_key?: import('./avatar').AvatarKey;
   /** Pfad unterhalb von data/avatare; gesetzt, wenn ein eigenes Foto hochgeladen wurde. */

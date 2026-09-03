@@ -233,8 +233,8 @@ export function Nachricht({
 
           <Hr style={{borderColor: F.kante, margin: '20px 0 12px'}} />
           <Text style={{margin: 0, fontSize: '12px', lineHeight: '18px', color: F.stein}}>
-            Diese Nachricht kommt automatisch aus dem MedArbeiter Hub, unserer Zeiterfassung.
-            {url ? ' Antworten auf diese Adresse liest niemand – der Weg zurück führt über den Knopf oben.' : ''}
+            Du erhältst diese Nachricht, weil du im MedArbeiter Hub registriert wurdest.
+            {url ? ' Antworten auf diese Nachricht werden nicht gelesen. Klicke den Button, um zurück zum Hub zu gelangen.' : ''}
           </Text>
           {abwaehlbar && (
             <Text style={{margin: '6px 0 0', fontSize: '12px', lineHeight: '18px', color: F.stein}}>

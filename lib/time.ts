@@ -513,7 +513,7 @@ export function getUser(id: number): User | null {
   return (
     getDb()
       .query<User, [number]>(
-        'SELECT id, email, name, role, weekly_minutes, active, created_at, bundesland, urlaubstage_jahr, avatar_key, avatar_datei FROM users WHERE id = ?',
+        'SELECT id, email, name, role, weekly_minutes, active, created_at, bundesland, urlaubstage_jahr, eintritt, avatar_key, avatar_datei FROM users WHERE id = ?',
       )
       .get(id) ?? null
   );

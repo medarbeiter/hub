@@ -26,6 +26,7 @@ import {
 import {sicher, sicheresFormular} from '@/lib/aktion';
 import {BUNDESLAENDER} from '@/lib/feiertage';
 import {istRecht, vereinigeRechte, type Recht, type RechtEintrag, type Rolle, type RollenEintrag} from '@/lib/rechte';
+import {DatumFeld} from './datum-feld';
 import {RechteAuswahl} from './rechte-auswahl';
 import {useMelde} from './melde';
 import type {PersonAngabe} from '@/lib/avatar';
@@ -43,6 +44,7 @@ export interface ManagedUser {
   active: number;
   bundesland?: string | null;
   urlaubstage_jahr: number;
+  eintritt?: string | null;
   /** Zusatzrechte über das Rollenbündel hinaus. */
   extra_rechte: Recht[];
 }
@@ -84,6 +86,7 @@ function UserForm({
   const [weeklyHours, setWeeklyHours] = useState(user ? String(user.weekly_minutes / 60) : '40');
   const [urlaubstage, setUrlaubstage] = useState(String(user?.urlaubstage_jahr ?? 30));
   const [land, setLand] = useState(user?.bundesland ?? '');
+  const [eintritt, setEintritt] = useState(user?.eintritt ?? '');
   // Vorgabe an: der übliche Weg, und ein Startpasswort, das beim ersten
   // Anmelden ohnehin ersetzt werden muss, ist vertretbar im Postfach. Wer das
   // nicht will, nimmt den Haken heraus und bekommt es nur angezeigt.
@@ -159,6 +162,14 @@ function UserForm({
           htmlName="urlaubstage"
           description="Der Jahresanspruch. Resturlaub aus dem Vorjahr wird pro Jahr separat eingetragen."
         />
+        <DatumFeld
+          label="Eintrittsdatum"
+          value={eintritt}
+          onChange={setEintritt}
+          placeholder="Leer: voller Anspruch in jedem Jahr"
+          description="Im Eintrittsjahr zählt ein Zwölftel des Urlaubs je vollen Monat (§ 5 BUrlG). Wer vor der Zeiterfassung im Haus war, braucht keins."
+        />
+        <input type="hidden" name="eintritt" value={eintritt} />
         <Selector
           label="Bundesland (Feiertage)"
           options={LAND_OPTIONS}

@@ -61,7 +61,7 @@ export function alsText(inhalt: MailInhalt, {anrede, basisUrl, abwaehlbar}: Text
 
   zeilen.push(
     '--',
-    'Diese Nachricht kommt automatisch aus dem MedArbeiter Hub, unserer Zeiterfassung.',
+    'Du erhältst diese Nachricht, weil du im MedArbeiter Hub registriert wurdest.',
   );
   if (abwaehlbar) {
     zeilen.push(

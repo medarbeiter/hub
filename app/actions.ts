@@ -872,6 +872,7 @@ function userInputFromForm(formData: FormData): UserInput {
     // 30 als Vorgabe: der gesetzliche Mindesturlaub liegt bei 20 Werktagen
     // (§ 3 BUrlG), üblich sind 30 — die Zahl steht im Formular und ist änderbar.
     urlaubstageJahr: Math.round(Number(formData.get('urlaubstage') ?? 30)),
+    eintritt: String(formData.get('eintritt') ?? '').trim(),
   };
 }
 
@@ -889,6 +890,7 @@ function userWerte(input: UserInput) {
     'Wochenstunden': (input.weeklyMinutes / 60).toFixed(2).replace('.', ','),
     Bundesland: input.bundesland || null,
     Urlaubstage: input.urlaubstageJahr,
+    Eintritt: input.eintritt ? fmtDate(input.eintritt) : null,
   };
 }
 
@@ -946,6 +948,7 @@ export async function userUpdateAction(_prev: UserActionState, formData: FormDat
           'Wochenstunden': (vorher.weekly_minutes / 60).toFixed(2).replace('.', ','),
           Bundesland: vorher.bundesland ?? null,
           Urlaubstage: vorher.urlaubstage_jahr,
+          Eintritt: vorher.eintritt ? fmtDate(vorher.eintritt) : null,
         }
       : null,
     nachher: userWerte(input),

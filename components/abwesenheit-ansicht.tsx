@@ -15,6 +15,7 @@ import {AbwesenheitEditor, type AbwesenheitEntwurf} from './abwesenheit-editor';
 import {AbwesenheitsGitter, AbwesenheitsJahr} from './abwesenheit-gitter';
 import {AbwesenheitStapel, STATUS_VARIANT, type AbwesenheitAnsicht} from './abwesenheit-stapel';
 import {AuNachreichen} from './au-nachreichen';
+import {fmtDate} from '@/lib/format';
 import {useMelde} from './melde';
 import {WahlAnzeige, useGitterWahl} from './monatsgitter';
 import {ABWESENHEIT_STATUS_SINN, Sinnbild} from './sinnbilder';
@@ -255,7 +256,10 @@ export function AbwesenheitAnsicht(props: AbwesenheitAnsichtProps) {
                       in Anzeigengröße im Kopf und in der Summenzeile unten. */}
                   <Heading level={3}>So entsteht der Anspruch</Heading>
                 </HStack>
-                <AnspruchZeile label="Jahresanspruch" wert={props.anspruch.jahresanspruch} />
+                <AnspruchZeile
+                  label={props.anspruch.eintritt ? `Anspruch anteilig ab Eintritt ${fmtDate(props.anspruch.eintritt)}` : 'Jahresanspruch'}
+                  wert={props.anspruch.jahresanspruch}
+                />
                 {props.anspruch.uebertrag > 0 && (
                   <AnspruchZeile label="Übertrag aus dem Vorjahr" wert={props.anspruch.uebertrag} />
                 )}

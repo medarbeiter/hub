@@ -38,6 +38,7 @@ export type MailArt =
   | 'reise.erinnerung'
   | 'reise.entschieden'
   | 'monat.abgeschlossen'
+  | 'team.jubilaeum'
   | 'zugang.willkommen'
   | 'zugang.passwort'
   | 'zugang.zugangscode-loeschen';
@@ -46,8 +47,8 @@ export interface MailBedeutung {
   label: string;
   /** Was diese Nachricht auslöst — steht in den persönlichen Einstellungen unter dem Schalter. */
   beschreibung: string;
-  /** An wen sie geht: die betroffene Person oder der Kreis, der entscheidet. */
-  empfaenger: 'person' | 'pruefende';
+  /** An wen sie geht: die betroffene Person, der Kreis, der entscheidet, oder alle anderen im Haus. */
+  empfaenger: 'person' | 'pruefende' | 'alle';
   /** Ob ein Konto sie abbestellen darf. Zugangspost darf das nie — siehe Kopfkommentar. */
   abwaehlbar: boolean;
 }
@@ -87,6 +88,12 @@ export const MAIL_ARTEN = {
     label: 'Monat abgeschlossen',
     beschreibung: 'Ein Monat wurde abgeschlossen und ist damit schreibgeschützt.',
     empfaenger: 'person',
+    abwaehlbar: true,
+  },
+  'team.jubilaeum': {
+    label: 'Dienstjubiläum im Team',
+    beschreibung: 'Jemand aus dem Team ist heute seit einem oder mehreren Jahren im Haus.',
+    empfaenger: 'alle',
     abwaehlbar: true,
   },
   'zugang.willkommen': {

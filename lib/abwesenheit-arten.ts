@@ -140,9 +140,32 @@ export function anspruchstage(
   return tageDerSpanne(vonISO, bisISO).filter((tag) => sollAmTag(tag) > 0);
 }
 
+/**
+ * Der Anspruch im Eintrittsjahr: ein Zwölftel je vollen Beschäftigungsmonat
+ * (§ 5 Abs. 1 BUrlG). Ein Monat zählt voll, wenn er am Ersten beginnt — wer
+ * am 1.8. anfängt, hat fünf, wer am 2.8. anfängt, vier. Bruchteile ab einem
+ * halben Tag werden aufgerundet, kleinere bleiben stehen (§ 5 Abs. 2 BUrlG).
+ * Ohne Eintrittsdatum (Bestand vor der Erfassung) gilt der volle Anspruch;
+ * vor dem Eintrittsjahr gibt es nichts, danach den vollen Anspruch.
+ */
+export function anteiligerAnspruch(jahresanspruch: number, eintrittISO: string | null | undefined, jahr: string): number {
+  if (!eintrittISO) return jahresanspruch;
+  const eintrittsjahr = eintrittISO.slice(0, 4);
+  if (eintrittsjahr > jahr) return 0;
+  if (eintrittsjahr < jahr) return jahresanspruch;
+  const monat = Number(eintrittISO.slice(5, 7));
+  const ersterTag = eintrittISO.slice(8, 10) === '01';
+  const volleMonate = 12 - monat + (ersterTag ? 1 : 0);
+  const roh = (jahresanspruch * volleMonate) / 12;
+  const rest = roh - Math.floor(roh);
+  return rest >= 0.5 ? Math.ceil(roh) : Math.round(roh * 100) / 100;
+}
+
 export interface Anspruch {
-  /** Jahresanspruch aus dem Personalstamm. */
+  /** Jahresanspruch — im Eintrittsjahr bereits anteilig (`anteiligerAnspruch`). */
   jahresanspruch: number;
+  /** Das Eintrittsdatum, wenn es in diesem Jahr liegt — der Grund, warum der Anspruch nicht der Vertragswert ist. */
+  eintritt?: string | null;
   /** Von der Verwaltung eingetragener Übertrag aus dem Vorjahr. */
   uebertrag: number;
   /** Bereits genehmigte Urlaubstage in diesem Jahr. */
@@ -157,7 +180,7 @@ export function restanspruch(a: Anspruch): number {
 }
 
 export function fmtTage(anzahl: number): string {
-  return `${anzahl} ${anzahl === 1 ? 'Tag' : 'Tage'}`;
+  return `${anzahl.toLocaleString('de-DE', {maximumFractionDigits: 2})} ${anzahl === 1 ? 'Tag' : 'Tage'}`;
 }
 
 /**

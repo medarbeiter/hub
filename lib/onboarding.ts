@@ -16,6 +16,7 @@ interface OnboardingRow {
   email: string;
   weekly_minutes: number;
   urlaubstage_jahr: number;
+  eintritt: string | null;
   profile_version: number;
   profile_accepted_version: number;
   onboarding_completed_at: string | null;
@@ -44,6 +45,8 @@ export interface OnboardingProfil {
   rolle: string;
   wochenMinuten: number;
   urlaubstageJahr: number;
+  /** Eintrittsdatum (ISO) oder null. */
+  eintritt: string | null;
   bundesland: string | null;
   bundeslandQuelle: 'Mitarbeiter' | 'Unternehmen' | null;
   profilVersion: number;
@@ -71,7 +74,7 @@ export interface EinrichtungsDaten {
 function rowFor(userId: number): OnboardingRow | null {
   return getDb()
     .query<OnboardingRow, [number]>(
-      `SELECT name, email, weekly_minutes, urlaubstage_jahr,
+      `SELECT name, email, weekly_minutes, urlaubstage_jahr, eintritt,
               profile_version, profile_accepted_version, onboarding_completed_at,
               preferred_view, attention_reminders, avatar_key
               , google_einrichtung_abgeschlossen, mail_abbestellt
@@ -143,6 +146,7 @@ export function onboardingProfil(user: User): OnboardingProfil {
     rolle: rolleLabel(user.role),
     wochenMinuten: user.weekly_minutes,
     urlaubstageJahr: user.urlaubstage_jahr,
+    eintritt: row?.eintritt ?? null,
     bundesland: land ? BUNDESLAENDER[land] : null,
     bundeslandQuelle: eigenesLand ? 'Mitarbeiter' : geerbtesLand ? 'Unternehmen' : null,
     profilVersion: row?.profile_version ?? 1,

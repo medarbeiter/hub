@@ -54,6 +54,7 @@ export default async function MitarbeiterPage() {
               active: u.active,
               bundesland: u.bundesland ?? null,
               urlaubstage_jahr: u.urlaubstage_jahr,
+              eintritt: u.eintritt ?? null,
               extra_rechte: u.extra_rechte,
             }))}
             selfId={actor.id}

@@ -7,6 +7,7 @@ import {
   inhaltAbwesenheitEntschieden,
   inhaltAbwesenheitErinnerung,
   inhaltAbwesenheitGemeldet,
+  inhaltJubilaeum,
   inhaltMonatAbgeschlossen,
   inhaltPasswortZurueckgesetzt,
   inhaltReiseEntschieden,
@@ -278,6 +279,15 @@ describe('die Nutzlast einer Reise', () => {
 });
 
 describe('die übrigen Nutzlasten', () => {
+  test('das Jubiläum zählt volle Jahre und führt zum Teamkalender', () => {
+    const eins = inhaltJubilaeum({person: 'Anna Berger', eintritt: '2025-09-03', jahre: 1});
+    expect(eins.betreff).toBe('Anna Berger ist heute seit einem Jahr dabei');
+    expect(wert(eins, 'Dabei seit')).toBe('1 Jahr');
+    const fuenf = inhaltJubilaeum({person: 'Anna Berger', eintritt: '2021-09-03', jahre: 5});
+    expect(fuenf.betreff).toBe('Anna Berger ist heute seit 5 Jahren dabei');
+    expect(fuenf.ziel?.pfad).toBe('/kalender');
+  });
+
   test('der Monatsabschluss nennt Ist, Soll und Saldo mit Vorzeichen', () => {
     const inhalt = inhaltMonatAbgeschlossen({
       monat: '2026-07',

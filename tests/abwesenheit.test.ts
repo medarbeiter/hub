@@ -16,7 +16,7 @@ import {
   zurueckweisen,
   zurueckziehen,
 } from '../lib/abwesenheit';
-import {restanspruch, sichtbareArt} from '../lib/abwesenheit-arten';
+import {anteiligerAnspruch, restanspruch, sichtbareArt} from '../lib/abwesenheit-arten';
 import {dayIssues} from '../lib/attention';
 import {setSetting} from '../lib/settings';
 import {lockMonth, zeitkontoSummary} from '../lib/time';
@@ -194,6 +194,24 @@ describe('Urlaubsanspruch', () => {
   test('der Übertrag der Verwaltung zählt mit', () => {
     expect(setUebertrag(chef, anna.id, '2026', 7)).toBeNull();
     expect(restanspruch(anspruchFor(anna, '2026'))).toBe(37);
+  });
+
+  test('im Eintrittsjahr ein Zwölftel je vollen Monat (§ 5 BUrlG)', () => {
+    expect(anteiligerAnspruch(30, '2026-08-01', '2026')).toBe(13); // 5 Monate = 12,5 → aufgerundet
+    expect(anteiligerAnspruch(30, '2026-08-02', '2026')).toBe(10); // August zählt nicht mehr voll
+    expect(anteiligerAnspruch(28, '2026-08-01', '2026')).toBe(12); // 11,67 → ab einem halben Tag aufgerundet
+    expect(anteiligerAnspruch(28, '2026-09-01', '2026')).toBe(9.33); // unter einem halben Tag bleibt stehen
+    expect(anteiligerAnspruch(30, '2026-01-01', '2026')).toBe(30);
+    expect(anteiligerAnspruch(30, '2026-08-01', '2027')).toBe(30); // Folgejahr voll
+    expect(anteiligerAnspruch(30, '2026-08-01', '2025')).toBe(0); // vor dem Eintritt nichts
+    expect(anteiligerAnspruch(30, null, '2026')).toBe(30); // Bestand ohne Datum: voll
+  });
+
+  test('das Eintrittsdatum kürzt den Jahresanspruch und steht daneben', () => {
+    db.query("UPDATE users SET eintritt = '2026-08-01' WHERE id = ?").run(anna.id);
+    const a = anspruchFor(anna, '2026');
+    expect(a).toMatchObject({jahresanspruch: 13, eintritt: '2026-08-01'});
+    expect(anspruchFor(anna, '2027')).toMatchObject({jahresanspruch: 30, eintritt: null});
   });
 
   test('ein Mitarbeiter trägt keinen Übertrag ein', () => {

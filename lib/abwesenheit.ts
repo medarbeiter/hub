@@ -26,6 +26,7 @@ import {
   AU_AB_TAGEN,
   type Anspruch,
   anspruchstage,
+  anteiligerAnspruch,
   istAntrag,
   istWirksam,
   laengeInTagen,
@@ -228,7 +229,17 @@ export function anspruchFor(user: User, jahr: string): Anspruch {
     if (a.status === 'genehmigt') genehmigt += tage;
     else beantragt += tage;
   }
-  return {jahresanspruch: user.urlaubstage_jahr, uebertrag: uebertragFor(user.id, jahr), genehmigt, beantragt};
+  // Aus der Tabelle, nicht vom übergebenen User: die Sitzung trägt die Spalte nicht.
+  const eintritt = getDb()
+    .query<{eintritt: string | null}, [number]>('SELECT eintritt FROM users WHERE id = ?')
+    .get(user.id)?.eintritt ?? null;
+  return {
+    jahresanspruch: anteiligerAnspruch(user.urlaubstage_jahr, eintritt, jahr),
+    eintritt: eintritt?.startsWith(jahr) ? eintritt : null,
+    uebertrag: uebertragFor(user.id, jahr),
+    genehmigt,
+    beantragt,
+  };
 }
 
 // ---------------------------------------------------------------------------

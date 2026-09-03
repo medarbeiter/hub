@@ -9,7 +9,8 @@
 import {afterEach, beforeEach, describe, expect, test} from 'bun:test';
 import type {Database} from 'bun:sqlite';
 import {createDb, setDbForTesting} from '../lib/db';
-import {ERINNERUNG_AB, WIEDERVORLAGE, erinnerungslauf, tageSeit, vergiss} from '../lib/erinnerungen';
+import {ERINNERUNG_AB, WIEDERVORLAGE, erinnerungslauf, jubilaeumJahre, tageSeit, vergiss} from '../lib/erinnerungen';
+import {hausZeit} from '../lib/format';
 
 let db: Database;
 
@@ -172,5 +173,33 @@ describe('der Erinnerungslauf', () => {
     db.query('INSERT INTO erinnerungen (bereich, gegenstand_id) VALUES (?, ?)').run('abwesenheit', id);
     vergiss('abwesenheit', id);
     expect(gedaechtnis('abwesenheit', id)).toBeNull();
+  });
+});
+
+describe('Dienstjubiläum', () => {
+  test('nur am Jahrestag, und erst ab einem vollen Jahr', () => {
+    expect(jubilaeumJahre('2024-09-03', '2026-09-03')).toBe(2);
+    expect(jubilaeumJahre('2026-09-03', '2026-09-03')).toBeNull();
+    expect(jubilaeumJahre('2024-09-03', '2026-09-04')).toBeNull();
+    expect(jubilaeumJahre(null, '2026-09-03')).toBeNull();
+    expect(jubilaeumJahre('2024-02-29', '2026-02-28')).toBe(2); // kein Schaltjahr
+    expect(jubilaeumJahre('2024-02-29', '2028-02-28')).toBeNull(); // Schaltjahr: am 29.
+    expect(jubilaeumJahre('2024-02-29', '2028-02-29')).toBe(4);
+  });
+
+  test('geht einmal an alle anderen, nicht an die Person selbst', async () => {
+    const jetzt = new Date();
+    const heute = hausZeit(jetzt).datum;
+    const eintritt = `${Number(heute.slice(0, 4)) - 3}${heute.slice(4)}`;
+    const jubilar = person('Jubilar', 'j@t.de');
+    person('Kollegin', 'k@t.de');
+    db.query('UPDATE users SET eintritt = ? WHERE id = ?').run(eintritt, jubilar);
+
+    expect(await erinnerungslauf(jetzt)).toBe(1);
+    expect(gedaechtnis('jubilaeum', jubilar)?.anzahl).toBe(1);
+    const post = db.query<{empfaenger: string}, []>("SELECT empfaenger FROM mail_versand WHERE art = 'team.jubilaeum'").all();
+    expect(post.map((p) => p.empfaenger)).toEqual(['k@t.de']);
+
+    expect(await erinnerungslauf(jetzt)).toBe(0); // schon gefeiert
   });
 });

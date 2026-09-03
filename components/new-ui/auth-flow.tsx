@@ -14,6 +14,7 @@ import {
   TextInput,
 } from '@astryxdesign/core';
 import Image from 'next/image';
+import {fmtDate} from '@/lib/format';
 import {useActionState, useEffect, useRef, useState, type ReactNode} from 'react';
 import {
   eigenesPasswortAendernAction,
@@ -487,6 +488,7 @@ function StammdatenSchritt({
     ['Rolle', profil.rolle],
     ['Wochen-Sollzeit', minuten ? `${stunden} Std. ${minuten} Min.` : `${stunden} Std.`],
     ['Urlaubsanspruch', `${profil.urlaubstageJahr} Tage`],
+    ...(profil.eintritt ? [['Eintritt', fmtDate(profil.eintritt)] as [string, string]] : []),
     [
       'Feiertagskalender',
       profil.bundesland

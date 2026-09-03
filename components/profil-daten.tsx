@@ -1,5 +1,5 @@
 import {Text} from '@astryxdesign/core';
-import {fmtDuration} from '@/lib/format';
+import {fmtDate, fmtDuration} from '@/lib/format';
 import type {OnboardingProfil} from '@/lib/onboarding';
 
 export function ProfilDaten({
@@ -25,6 +25,12 @@ export function ProfilDaten({
       <dd><Text weight="medium" hasTabularNumbers>{fmtDuration(profil.wochenMinuten)} Std. pro Woche</Text></dd>
       <dt><Text type="supporting" color="secondary">Urlaubsanspruch</Text></dt>
       <dd><Text weight="medium" hasTabularNumbers>{profil.urlaubstageJahr} Tage pro Jahr</Text></dd>
+      {profil.eintritt && (
+        <>
+          <dt><Text type="supporting" color="secondary">Eintritt</Text></dt>
+          <dd><Text weight="medium" hasTabularNumbers>{fmtDate(profil.eintritt)}</Text></dd>
+        </>
+      )}
       <dt><Text type="supporting" color="secondary">Feiertagskalender</Text></dt>
       <dd><Text weight="medium">{land}</Text></dd>
     </dl>

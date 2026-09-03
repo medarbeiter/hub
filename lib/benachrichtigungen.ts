@@ -115,9 +115,36 @@ export function empfaengerMitRecht(recht: Recht, ausserId?: number): Empfaenger[
     }));
 }
 
+/** Alle aktiven Konten außer einem — der Kreis für Post, die das ganze Haus betrifft. */
+export function alleEmpfaenger(ausserId: number): Empfaenger[] {
+  return getDb()
+    .query<KontoZeile, [number]>(
+      'SELECT id, name, email, role, mail_abbestellt FROM users WHERE active = 1 AND id <> ? ORDER BY name',
+    )
+    .all(ausserId)
+    .map((row) => ({id: row.id, name: row.name, email: row.email, abbestellt: abbestellteAus(row.mail_abbestellt)}));
+}
+
 // ---------------------------------------------------------------------------
 // Die Nutzlasten — rein, ohne Datenbank
 // ---------------------------------------------------------------------------
+
+/** Ein Dienstjubiläum — an alle anderen im Haus, nie an die Person selbst. */
+export function inhaltJubilaeum(d: {person: string; eintritt: string; jahre: number}): MailInhalt {
+  const dauer = d.jahre === 1 ? 'einem Jahr' : `${d.jahre} Jahren`;
+  return {
+    betreff: `${d.person} ist heute seit ${dauer} dabei`,
+    titel: `${d.jahre === 1 ? 'Ein Jahr' : `${d.jahre} Jahre`} ${d.person}`,
+    vorspann: `${d.person} hat am ${fmtDate(d.eintritt)} angefangen – heute vor ${dauer}. Ein guter Anlass, kurz vorbeizuschauen.`,
+    ton: 'erfolg',
+    angaben: [
+      {label: 'Eintritt', wert: fmtDate(d.eintritt)},
+      {label: 'Dabei seit', wert: d.jahre === 1 ? '1 Jahr' : `${d.jahre} Jahre`, betont: true},
+    ],
+    ziel: {label: 'Zum Teamkalender', pfad: '/kalender'},
+    nachsatz: 'Diese Nachricht erhält jeder im Team außer der Person selbst. Falls du diese Nachrichten nicht mehr erhalten möchtest, kannst du sie in deinem Hub-Profil deaktivieren.',
+  };
+}
 
 export interface SpanneAngaben {
   /**
@@ -502,6 +529,15 @@ export async function meldeReiseEntschieden(
       entschiedenVon,
     }),
   );
+}
+
+/** Das Jubiläum an alle anderen. Gibt zurück, wie viele Postfächer es erreicht hat. */
+export async function meldeJubilaeum(userId: number, person: string, eintritt: string, jahre: number): Promise<number> {
+  const art: MailArt = 'team.jubilaeum';
+  const kreis = alleEmpfaenger(userId).filter((e) => willEmpfangen(e, art));
+  const inhalt = inhaltJubilaeum({person, eintritt, jahre});
+  await sendeAnAlle(kreis.map((e) => ({art, an: e.email, anrede: anrede(e.name), betrifftId: userId, inhalt})));
+  return kreis.length;
 }
 
 export async function meldeMonatAbgeschlossen(userId: number, d: AbschlussAngaben): Promise<void> {

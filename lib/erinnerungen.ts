@@ -39,7 +39,8 @@ import {getDb, type Abwesenheit, type Reise, type User} from './db';
 import {istAntrag} from './abwesenheit-arten';
 import {mitTagen} from './abwesenheit';
 import {mitRechnung} from './spesen';
-import {erinnereAnAbwesenheit, erinnereAnReise} from './benachrichtigungen';
+import {erinnereAnAbwesenheit, erinnereAnReise, meldeJubilaeum} from './benachrichtigungen';
+import {hausZeit} from './format';
 
 /** Nach wie vielen Tagen ohne Entscheidung die erste Erinnerung hinausgeht. */
 export const ERINNERUNG_AB = 3;
@@ -47,7 +48,22 @@ export const ERINNERUNG_AB = 3;
 /** Und in welchem Abstand sie sich danach wiederholt, solange nichts geschieht. */
 export const WIEDERVORLAGE = 3;
 
-export type ErinnerungsBereich = 'abwesenheit' | 'reise';
+export type ErinnerungsBereich = 'abwesenheit' | 'reise' | 'jubilaeum';
+
+/**
+ * Wie viele volle Jahre jemand heute im Haus ist — oder null, wenn heute kein
+ * Jahrestag des Eintritts ist. Ein Eintritt am 29. Februar wird in einem
+ * Nicht-Schaltjahr am 28. gefeiert, nicht übersprungen.
+ */
+export function jubilaeumJahre(eintritt: string | null | undefined, heute: string): number | null {
+  if (!eintritt) return null;
+  const jahre = Number(heute.slice(0, 4)) - Number(eintritt.slice(0, 4));
+  if (jahre < 1) return null;
+  const tag = eintritt.slice(5);
+  if (tag === heute.slice(5)) return jahre;
+  const schaltjahr = new Date(`${heute.slice(0, 4)}-02-29T00:00:00Z`).getUTCDate() === 29;
+  return tag === '02-29' && !schaltjahr && heute.slice(5) === '02-28' ? jahre : null;
+}
 
 interface ErinnerungsZeile {
   bereich: string;
@@ -127,6 +143,7 @@ export async function erinnerungslauf(jetzt: Date = new Date()): Promise<number>
   try {
     versendet += await antraegeMahnen(jetzt);
     versendet += await reisenMahnen(jetzt);
+    versendet += await jubilaeenFeiern(jetzt);
     feger();
   } catch (fehler) {
     console.error('Erinnerungslauf fehlgeschlagen:', fehler);
@@ -186,6 +203,33 @@ async function reisenMahnen(jetzt: Date): Promise<number> {
     const erreicht = await erinnereAnReise(reise, user_name, rechnung, belege.length, tage);
     if (erreicht === 0) continue;
     merke('reise', reise.id);
+    versendet++;
+  }
+  return versendet;
+}
+
+/**
+ * Dienstjubiläen: wer heute seit vollen Jahren im Haus ist, wird dem Team
+ * gemeldet — einmal, das Gedächtnis ist dieselbe Tabelle (Bereich
+ * `jubilaeum`, Gegenstand = Konto), und ein Eintrag jünger als ein Jahr
+ * heißt: dieses Jubiläum ist schon gefeiert.
+ */
+async function jubilaeenFeiern(jetzt: Date): Promise<number> {
+  const heute = hausZeit(jetzt).datum;
+  const leute = getDb()
+    .query<{id: number; name: string; eintritt: string}, []>(
+      'SELECT id, name, eintritt FROM users WHERE active = 1 AND eintritt IS NOT NULL',
+    )
+    .all();
+  let versendet = 0;
+  for (const person of leute) {
+    const jahre = jubilaeumJahre(person.eintritt, heute);
+    if (jahre === null) continue;
+    const zeile = gedaechtnis('jubilaeum', person.id);
+    if (zeile && tageSeit(zeile.zuletzt_am, jetzt) < 300) continue;
+    const erreicht = await meldeJubilaeum(person.id, person.name, person.eintritt, jahre);
+    if (erreicht === 0) continue;
+    merke('jubilaeum', person.id);
     versendet++;
   }
   return versendet;
