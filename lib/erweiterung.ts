@@ -156,6 +156,17 @@ export function erweiterungVersion(wurzel: string = ERWEITERUNG_ORDNER): string 
 }
 
 /**
+ * Die Kennung, die ein entpackt geladener Ordner trägt: aus dem `key` im
+ * eingecheckten Manifest (der öffentliche Teil des Prod-Schlüssels — kein
+ * Geheimnis, und so sind Entwicklungskopie, Hub-Paket und Store-Upload
+ * dieselbe Erweiterung). `null`, wenn das Manifest keinen trägt.
+ */
+export function erweiterungIdAusManifest(wurzel: string = ERWEITERUNG_ORDNER): string | null {
+  const key = JSON.parse(readFileSync(join(wurzel, 'manifest.json'), 'utf8')).key;
+  return typeof key === 'string' && key !== '' ? erweiterungId(Buffer.from(key, 'base64')) : null;
+}
+
+/**
  * Die Quelldateien als ZIP, das Manifest um `key` (damit die Kennung auch
  * beim entpackten Laden dieselbe ist) und `update_url` ergänzt.
  */

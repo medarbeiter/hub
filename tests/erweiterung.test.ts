@@ -1,6 +1,6 @@
 import {describe, expect, test} from 'bun:test';
 import {createHash, generateKeyPairSync, verify} from 'node:crypto';
-import {crxKennung, crxPacken, erweiterungId, erweiterungZip, oeffentlicherSchluessel, updateXml} from '../lib/erweiterung';
+import {crxKennung, crxPacken, erweiterungId, erweiterungIdAusManifest, erweiterungZip, oeffentlicherSchluessel, updateXml} from '../lib/erweiterung';
 
 const {privateKey} = generateKeyPairSync('rsa', {modulusLength: 2048});
 const spki = oeffentlicherSchluessel(privateKey);
@@ -65,6 +65,10 @@ describe('CRX3', () => {
     expect(zip).toContain('"update_url": "https://hub.test/u.xml"');
     expect(zip).toContain(`"key": "${spki.toString('base64')}"`);
     expect(zip).toContain('"https://hub.test/*"');
+  });
+
+  test('das eingecheckte Manifest trägt den Prod-Key, also die Prod-Kennung', () => {
+    expect(erweiterungIdAusManifest()).toBe('blhkbmojfakacddpcdlkgklikhofdffg');
   });
 
   test('updateXml nennt Kennung, Version und Paketadresse', () => {

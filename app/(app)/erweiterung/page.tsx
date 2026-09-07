@@ -1,6 +1,6 @@
 import {Card, Heading, Text, VStack} from '@astryxdesign/core';
 import {requireRecht} from '@/lib/auth';
-import {erweiterungPaket, erweiterungVersion, richtlinienWert} from '@/lib/erweiterung';
+import {erweiterungIdAusManifest, erweiterungPaket, erweiterungVersion, richtlinienWert} from '@/lib/erweiterung';
 import {basisUrl} from '@/lib/mail-buch';
 import {ErweiterungInstallation} from '@/components/erweiterung-installation';
 import {ZeitRahmen} from '@/components/zeit-rahmen';
@@ -22,7 +22,8 @@ export default async function ErweiterungPage() {
   const paket = basis ? erweiterungPaket(basis) : null;
   const storeUrl = process.env.ERWEITERUNG_STORE_URL?.trim() || null;
   const storeId = process.env.ERWEITERUNG_STORE_ID?.trim() || null;
-  const ids = [paket?.id, storeId].filter((id): id is string => Boolean(id));
+  // Hub-Paket, entpackte Entwicklungskopie (Key im Manifest) und Store — auf Prod ein und dieselbe Kennung.
+  const ids = [...new Set([paket?.id, erweiterungIdAusManifest(), storeId].filter((id): id is string => Boolean(id)))];
 
   return (
     <ZeitRahmen
