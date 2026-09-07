@@ -348,7 +348,7 @@
       const a = zeichenFeld.eingaben[zeichenFeld.eingaben.length - 1];
       if (a.isConnected) {
         fremdeSuchen(a, a.getBoundingClientRect());
-        zeichenLegen();
+        zeichenLegen(true);
       }
     }
     if (!ablauf) return;
@@ -378,8 +378,12 @@
     }
   }
 
-  function zeichenLegen() {
+  // Beim Scrollen springt das Zeichen mit dem Feld (sonst zöge es nach); rückt
+  // es dagegen einem fremden Zeichen aus dem Weg, gleitet es hin — ein
+  // Zeichen, das ohne Grund an eine andere Stelle springt, sieht nach Fehler aus.
+  function zeichenLegen(gleiten = false) {
     if (!zeichen || !zeichenFeld) return;
+    zeichen.classList.toggle('gleitet', gleiten && zeichen.style.display !== 'none' && zeichen.style.left !== '');
     const anker = zeichenFeld.eingaben[zeichenFeld.eingaben.length - 1];
     if (!anker.isConnected || !sichtbar(anker)) {
       zeichen.style.display = 'none';
@@ -402,6 +406,8 @@
     const stil = document.createElement('style');
     stil.textContent = `
       :host { all: initial; position: fixed; z-index: 2147483646; }
+      :host(.gleitet) { transition: top .25s cubic-bezier(.2,.7,.2,1), left .25s cubic-bezier(.2,.7,.2,1); }
+      @media (prefers-reduced-motion: reduce) { :host(.gleitet) { transition: none; } }
       button { all: unset; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; cursor: pointer;
         background: #e1b025; border: 1px solid #8f6e06; box-shadow: 0 1px 2px rgba(28,25,23,.25); transition: transform .12s ease; }
       button:hover, button:focus-visible { background: #f0c23a; transform: scale(1.08); outline: none; }
@@ -659,7 +665,10 @@
     timer = setTimeout(pruefen, 350);
   };
   new MutationObserver(spaeter).observe(document.documentElement, {childList: true, subtree: true, attributes: true, attributeFilter: ['type', 'class', 'style', 'hidden']});
+  const zeichenNachziehen = () => setTimeout(() => zeichenFeld && ringTick(), 60);
+  document.addEventListener('focusout', zeichenNachziehen);
   document.addEventListener('focusin', async (e) => {
+    zeichenNachziehen();
     if (!(e.target instanceof HTMLInputElement)) return;
     // Zurück im bekannten Feld: die Auswahl wieder anbieten, falls sie geschlossen wurde.
     if (zeichenFeld?.eingaben.includes(e.target)) {
