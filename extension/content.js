@@ -131,31 +131,46 @@
   let aktuellesFeld = null;
   let ablaufTimer = null;
 
-  const CSS_TEXT = `
-    :host { all: initial; }
-    .tafel { position: fixed; z-index: 2147483647; width: 340px; overflow: hidden;
-      background: #fff; color: #1c1917; border: 1px solid #d9d2c1; border-radius: 10px;
-      box-shadow: 0 8px 24px rgba(28,25,23,.18); font: 13px/1.4 system-ui, -apple-system, sans-serif; }
-    .kopf { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #f7f1e2; border-bottom: 1px solid #ece2c9; }
-    .kopf b { flex: 1; font-weight: 600; }
-    .kopf button, .fuss button { all: unset; cursor: pointer; padding: 2px 6px; border-radius: 6px; color: #67625a; }
-    .kopf button:hover, .fuss button:hover { background: #ece2c9; }
-    .hinweis { padding: 8px 10px; color: #67625a; }
-    .suche { display: block; width: calc(100% - 20px); margin: 8px 10px 4px; padding: 6px 8px; border: 1px solid #d9d2c1; border-radius: 6px; font: inherit; box-sizing: border-box; }
-    ul { list-style: none; margin: 0; padding: 4px 0; }
-    .mehr { padding: 4px 10px 8px; color: #67625a; font-size: 12px; }
-    li button { all: unset; display: flex; align-items: center; gap: 10px; width: 100%; box-sizing: border-box; padding: 7px 10px; cursor: pointer; }
-    li button:hover, li button:focus-visible { background: #f7f1e2; outline: none; }
-    .name { flex: 1; min-width: 0; }
-    .name span { display: block; color: #67625a; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .code { font-variant-numeric: tabular-nums; font-size: 16px; letter-spacing: .08em; font-weight: 600; }
-    .marke { font-size: 11px; color: #7c5f05; background: #f7f1e2; border: 1px solid #e1b025; border-radius: 999px; padding: 0 6px; }
-    .fuss { display: flex; gap: 8px; justify-content: space-between; padding: 6px 10px; border-top: 1px solid #ece2c9; color: #67625a; font-size: 12px; }
-    .erfolg { padding: 8px 10px; background: #edf5e6; color: #2f5a1a; }
-    @keyframes herein { from { transform: translateY(6px); } to { transform: none; } }
-    .code.neu { animation: herein .28s cubic-bezier(.2,.7,.2,1) both; }
-    @media (prefers-reduced-motion: reduce) { .code.neu { animation: none; } }
-  `;
+  /** Eine Tafel im Shadow-DOM, gestylt aus tafel.css – derselben Datei wie das Popup der Symbolleiste. */
+  function tafelBauen(tag, label, klasse = '') {
+    const wirt = document.createElement(tag);
+    const schatten = wirt.attachShadow({mode: 'open'});
+    const stil = document.createElement('link');
+    stil.rel = 'stylesheet';
+    stil.href = chrome.runtime.getURL('tafel.css');
+    const tafel = document.createElement('div');
+    tafel.className = `tafel ${klasse}`.trim();
+    tafel.setAttribute('role', 'dialog');
+    tafel.setAttribute('aria-label', label);
+    // Erst zeigen, wenn das Stylesheet da ist – sonst stünde einen Moment rohes HTML am Seitenende.
+    wirt.style.visibility = 'hidden';
+    const bereit = new Promise((ok) => {
+      stil.onload = stil.onerror = ok;
+      setTimeout(ok, 300);
+    }).then(() => wirt.style.removeProperty('visibility'));
+    schatten.append(stil, tafel);
+    document.documentElement.append(wirt);
+    return {wirt, tafel, bereit};
+  }
+
+  /** Der Kopf jeder Tafel: Logo, Titel, optional die Seite, ✕. */
+  function kopfBauen(titel, zu, seite) {
+    const kopf = document.createElement('div');
+    kopf.className = 'kopf';
+    kopf.innerHTML = '<img alt=""><b></b><span class="seite"></span><button type="button" title="Schließen" aria-label="Schließen">✕</button>';
+    kopf.querySelector('img').src = chrome.runtime.getURL('icons/48.png');
+    kopf.querySelector('b').textContent = titel;
+    kopf.querySelector('.seite').textContent = seite ?? '';
+    kopf.querySelector('button').onclick = zu;
+    return kopf;
+  }
+
+  /** Die Auswahl unter ihr Feld legen, im Fenster gehalten. */
+  function tafelLegen(tafel, anker) {
+    const r = anker.getBoundingClientRect();
+    tafel.style.top = `${Math.min(r.bottom + 6, innerHeight - 80)}px`;
+    tafel.style.left = `${Math.max(8, Math.min(r.left, innerWidth - 368))}px`;
+  }
 
   function schliessen() {
     wirt?.remove();
@@ -163,38 +178,23 @@
     clearTimeout(ablaufTimer);
   }
 
+  let letzterZustand = {};
+
   function zeigen(feld, antwort, zustand) {
     schliessen();
     aktuellesFeld = feld;
-    wirt = document.createElement('medarbeiter-zugangscodes');
-    const schatten = wirt.attachShadow({mode: 'open'});
-    const stil = document.createElement('style');
-    stil.textContent = CSS_TEXT;
-    const tafel = document.createElement('div');
-    tafel.className = 'tafel';
-    tafel.setAttribute('role', 'dialog');
-    tafel.setAttribute('aria-label', 'MedArbeiter Zugangscodes');
-    schatten.append(stil, tafel);
-    document.documentElement.append(wirt);
-
-    const r = feld.anker.getBoundingClientRect();
-    tafel.style.top = `${Math.min(r.bottom + 6, innerHeight - 80)}px`;
-    tafel.style.left = `${Math.max(8, Math.min(r.left, innerWidth - 370))}px`;
+    letzterZustand = zustand;
+    const t = tafelBauen('medarbeiter-zugangscodes', 'MedArbeiter Zugangscodes');
+    wirt = t.wirt;
+    const tafel = t.tafel;
+    tafelLegen(tafel, feld.anker);
 
     let alle = false;
     let filter = '';
 
     const render = () => {
       tafel.innerHTML = '';
-      const kopf = document.createElement('div');
-      kopf.className = 'kopf';
-      kopf.innerHTML = '<b>MedArbeiter Zugangscodes</b>';
-      const zu = document.createElement('button');
-      zu.textContent = '✕';
-      zu.title = 'Schließen';
-      zu.onclick = schliessen;
-      kopf.append(zu);
-      tafel.append(kopf);
+      tafel.append(kopfBauen('Zugangscodes', schliessen, HOST));
 
       if (antwort.fehler === 'anmelden') {
         tafel.insertAdjacentHTML('beforeend', `<p class="hinweis">Bitte zuerst am Hub anmelden: <a href="${antwort.hub}" target="_blank">${antwort.hub}</a></p>`);
@@ -227,7 +227,8 @@
         h.textContent = `Für ${HOST} noch nichts gemerkt – wähle den richtigen Zugang.`;
         tafel.append(h);
       }
-      const liste = alle || passende.length === 0 ? codes : passende;
+      const erk = zustand.erkannt ?? erkannt;
+      const liste = (alle || passende.length === 0 ? codes : passende).slice().sort((a, b) => erk.has(b.id) - erk.has(a.id));
       if (alle || passende.length === 0) {
         const s = document.createElement('input');
         s.className = 'suche';
@@ -259,10 +260,10 @@
             s.textContent = c.konto;
             name.append(s);
           }
-          if (c.treffer >= 2) {
+          if (erk.has(c.id) || c.treffer >= 2) {
             const m = document.createElement('span');
             m.className = 'marke';
-            m.textContent = 'diese Seite';
+            m.textContent = erk.has(c.id) ? 'dieses Konto' : 'diese Seite';
             b.insertBefore(m, b.lastElementChild);
           }
           const codeEl = b.querySelector('.code');
@@ -321,7 +322,7 @@
       if (!jetzt.code) return;
       eintragen(feld, jetzt.code);
       // Ein Zugang, den die Seite noch nicht genau kannte: fragen, nicht raten.
-      if (c.treffer < 3) frageStellen(c);
+      if (c.treffer < 3) frageStellen(c, frisch.codes ?? []);
       schliessen();
     }
   }
@@ -511,12 +512,8 @@
       legeTimer = null;
       zeichenLegen();
       if (wirt && aktuellesFeld) {
-        const r = aktuellesFeld.anker.getBoundingClientRect();
         const tafel = wirt.shadowRoot?.querySelector('.tafel');
-        if (tafel) {
-          tafel.style.top = `${Math.min(r.bottom + 6, innerHeight - 80)}px`;
-          tafel.style.left = `${Math.max(8, Math.min(r.left, innerWidth - 370))}px`;
-        }
+        if (tafel) tafelLegen(tafel, aktuellesFeld.anker);
       }
     });
   };
@@ -537,9 +534,14 @@
     return t.slice(zweistufig ? -3 : -2).join('.');
   }
 
-  function frageStellen(c) {
-    const name = c.konto ? `${c.dienst} (${c.konto})` : c.dienst;
-    chrome.storage.local.set({frage: {id: c.id, name, host: HOST, bis: Date.now() + FRAGE_TTL}}).catch(() => {});
+  const zugangName = (c) => (c.konto ? `${c.dienst} (${c.konto})` : c.dienst);
+
+  /** Fragen — und die Geschwister gleich mit anbieten: dieselbe Seite, andere Konten desselben Dienstes. */
+  function frageStellen(c, codes = []) {
+    const weitere = codes
+      .filter((x) => x.id !== c.id && x.treffer > 0 && x.treffer < 3 && x.dienst === c.dienst)
+      .map((x) => ({id: x.id, name: zugangName(x)}));
+    chrome.storage.local.set({frage: {id: c.id, name: zugangName(c), host: HOST, bis: Date.now() + FRAGE_TTL, weitere}}).catch(() => {});
   }
 
   let frageWirt = null;
@@ -552,64 +554,54 @@
   function frageZeigen(frage) {
     if (window !== window.top) return; // einmal je Fenster, nicht je Frame
     frageSchliessen();
-    frageWirt = document.createElement('medarbeiter-zugangscodes-frage');
-    const schatten = frageWirt.attachShadow({mode: 'open'});
-    const stil = document.createElement('style');
-    stil.textContent = `
-      :host { all: initial; }
-      .tafel { position: fixed; right: 20px; bottom: 20px; z-index: 2147483647; width: 380px; box-sizing: border-box;
-        background: #1c1917; color: #f5efe0; border-radius: 14px; border-left: 4px solid #e1b025;
-        box-shadow: 0 12px 32px rgba(28,25,23,.45); font: 15px/1.4 system-ui, -apple-system, sans-serif; padding: 16px 18px;
-        animation: auf .3s cubic-bezier(.2,.7,.2,1) both; }
-      @keyframes auf { from { transform: translateY(16px); } to { transform: none; } }
-      @media (prefers-reduced-motion: reduce) { .tafel { animation: none; } }
-      .kopf { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-      .kopf img { width: 28px; height: 28px; border-radius: 7px; }
-      .kopf small { display: block; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: #a89f8c; }
-      .kopf b { display: block; font-size: 18px; font-weight: 700; line-height: 1.2; }
-      dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 0 0 12px; padding: 10px 12px; background: #2a2622; border-radius: 10px; }
-      dt { color: #a89f8c; font-size: 13px; }
-      dd { margin: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      dd.seite { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 14px; color: #f0c23a; }
-      p { margin: 0 0 14px; color: #d9d2c1; font-size: 14px; }
-      .knoepfe { display: flex; gap: 10px; }
-      button { all: unset; cursor: pointer; flex: 1; text-align: center; padding: 10px 14px; border-radius: 10px; font-weight: 700; font-size: 15px; }
-      .ja { background: #e1b025; color: #1c1917; border: 1px solid #8f6e06; }
-      .ja:hover { background: #f0c23a; }
-      .nein { color: #d9d2c1; border: 1px solid #67625a; }
-      .nein:hover { background: #2a2622; }
-      button:focus-visible { outline: 2px solid #e1b025; outline-offset: 2px; }
-      .ergebnis { font-weight: 600; color: #f5efe0; }
-    `;
-    const tafel = document.createElement('div');
-    tafel.className = 'tafel';
-    tafel.setAttribute('role', 'dialog');
-    tafel.setAttribute('aria-label', 'Diese Seite merken?');
-    tafel.innerHTML = `
-      <div class="kopf"><img alt=""><span><small>MedArbeiter Zugangscodes</small><b>Diese Seite merken?</b></span></div>
-      <dl><dt>Zugang</dt><dd class="zugang"></dd><dt>Seite</dt><dd class="seite"></dd></dl>
-      <p>Beim nächsten Mal steht dieser Code hier zuerst.</p>
-      <div class="knoepfe"><button class="nein" type="button">Nein</button><button class="ja" type="button">Ja, merken</button></div>`;
-    tafel.querySelector('img').src = chrome.runtime.getURL('icons/48.png');
-    tafel.querySelector('.zugang').textContent = frage.name;
-    tafel.querySelector('.zugang').title = frage.name;
-    tafel.querySelector('.seite').textContent = frage.host;
-    tafel.querySelector('.nein').onclick = () => {
+    const nein = () => {
       chrome.storage.local.remove('frage').catch(() => {});
       frageSchliessen();
     };
+    const t = tafelBauen('medarbeiter-zugangscodes-frage', 'Diese Seite merken?', 'frage');
+    frageWirt = t.wirt;
+    const tafel = t.tafel;
+    tafel.append(kopfBauen('Diese Seite merken?', nein));
+    tafel.insertAdjacentHTML('beforeend', `
+      <div class="rumpf">
+        <dl><dt>Zugang</dt><dd class="zugang"></dd><dt>Seite</dt><dd class="seite"></dd></dl>
+        <ul class="wahl" hidden></ul>
+        <p>Dann steht dieser Code hier beim nächsten Mal zuerst.</p>
+        <div class="knoepfe"><button class="nein" type="button">Nein</button><button class="ja" type="button">Ja, merken</button></div>
+      </div>`);
+    tafel.querySelector('.zugang').textContent = frage.name;
+    tafel.querySelector('.zugang').title = frage.name;
+    tafel.querySelector('dd.seite').textContent = frage.host;
+    // Weitere Konten desselben Dienstes: einmal fragen, mehrere merken.
+    const wahl = tafel.querySelector('.wahl');
+    const weitere = frage.weitere ?? [];
+    if (weitere.length > 0) {
+      wahl.hidden = false;
+      wahl.insertAdjacentHTML('beforeend', '<li class="wahl-titel">Auch für diese Konten merken:</li>');
+      for (const w of weitere) {
+        const li = document.createElement('li');
+        li.innerHTML = '<label><input type="checkbox"><span></span></label>';
+        li.querySelector('input').value = String(w.id);
+        li.querySelector('span').textContent = w.name;
+        wahl.append(li);
+      }
+    }
+    tafel.querySelector('.nein').onclick = nein;
     tafel.querySelector('.ja').onclick = async () => {
-      const antwort = await frag({art: 'seite', id: frage.id, host: frage.host});
+      const ids = [frage.id, ...[...wahl.querySelectorAll('input:checked')].map((i) => Number(i.value))];
+      const antworten = await Promise.all(ids.map((id) => frag({art: 'seite', id, host: frage.host})));
       chrome.storage.local.remove('frage').catch(() => {});
       tafel.querySelector('.knoepfe').remove();
-      const p = tafel.querySelector('p');
+      wahl.remove();
+      const p = tafel.querySelector('.rumpf p');
       p.className = 'ergebnis';
-      p.textContent = antwort.ok ? '✓ Gemerkt.' : `Nicht gemerkt: ${antwort.fehler ?? 'der Hub antwortet nicht'}.`;
-      setTimeout(frageSchliessen, antwort.ok ? 2500 : 8000);
+      const fehl = antworten.find((a) => !a.ok);
+      p.textContent = fehl
+        ? `Nicht gemerkt: ${fehl.fehler ?? 'der Hub antwortet nicht'}.`
+        : ids.length > 1 ? `✓ Gemerkt für ${ids.length} Zugänge.` : '✓ Gemerkt.';
+      setTimeout(frageSchliessen, fehl ? 8000 : 2500);
     };
-    schatten.append(stil, tafel);
-    document.documentElement.append(frageWirt);
-    setTimeout(() => tafel.querySelector('.ja').focus(), 50);
+    t.bereit.then(() => tafel.querySelector('.ja')?.focus());
   }
 
   function fragePruefen(frage) {
@@ -626,6 +618,226 @@
   chrome.storage.onChanged.addListener((aenderungen, bereich) => {
     if (bereich === 'local' && 'frage' in aenderungen) fragePruefen(aenderungen.frage.newValue);
   });
+
+  // ── Einen neuen Zugang erkennen ──────────────────────────────────────────
+  // Eine Einrichtungsseite zeigt den QR-Code (ein otpauth-Link) und daneben
+  // meist den Schlüssel als Text. Beides wird erkannt und als Angebot gezeigt:
+  // „Zugang im Hub speichern?" — nie still, nie ohne Hub-Sitzung. Ein Nein
+  // gilt einen Tag (chrome.storage.local, ohne das Geheimnis).
+  const geprueft = new Set();
+  let angebotWirt = null;
+  const HINWEIS_WORT = /authenticat|2fa|two[-_ ]?factor|zwei[-_ ]?faktor|mfa|totp|einmalcode|one[-_ ]?time|qr/i;
+  // ponytail: Heuristik – 16–64 Base32-Zeichen, gern in Vierergruppen, mit mindestens einer Ziffer;
+  // dazu muss die Seite von Authenticator/2FA sprechen. Ein Wort ohne Ziffer fällt durch.
+  const B32_TEXT = /^(?:[A-Z2-7]{4}[ -]?){4,16}[A-Z2-7]{0,3}=*$/i;
+
+  function quadratisch(el) {
+    const r = el.getBoundingClientRect();
+    return r.width >= 100 && r.width <= 640 && Math.abs(r.width - r.height) < r.width * 0.15;
+  }
+
+  /** Ein Bild als PNG-Daten-URL — oder seine Adresse, wenn die Leinwand fremd wäre. */
+  async function rastern(el) {
+    try {
+      if (el instanceof HTMLCanvasElement) return el.toDataURL('image/png');
+      const leinwand = document.createElement('canvas');
+      const stift = leinwand.getContext('2d');
+      const male = (bild, w, h) => {
+        leinwand.width = w;
+        leinwand.height = h;
+        stift.fillStyle = '#fff'; // ein durchsichtiger QR-Code hat sonst keinen Kontrast
+        stift.fillRect(0, 0, w, h);
+        stift.drawImage(bild, 0, 0, w, h);
+        return leinwand.toDataURL('image/png');
+      };
+      if (el instanceof HTMLImageElement) {
+        if (!el.complete || el.naturalWidth === 0) return null;
+        try {
+          return male(el, el.naturalWidth, el.naturalHeight);
+        } catch {
+          return el.currentSrc || el.src; // fremde Herkunft: der Hintergrund holt sie selbst
+        }
+      }
+      if (el instanceof SVGSVGElement) {
+        const r = el.getBoundingClientRect();
+        const w = Math.round(r.width);
+        const h = Math.round(r.height);
+        const kopie = el.cloneNode(true);
+        kopie.setAttribute('width', w);
+        kopie.setAttribute('height', h);
+        const bild = new Image();
+        bild.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(new XMLSerializer().serializeToString(kopie))}`;
+        await bild.decode();
+        return male(bild, w, h);
+      }
+    } catch {}
+    return null;
+  }
+
+  function otpauthName(uri) {
+    try {
+      const u = new URL(uri);
+      const label = decodeURIComponent(u.pathname.replace(/^\//, ''));
+      const [vorn, hinten] = label.includes(':') ? label.split(/:(.*)/s) : ['', label];
+      return {dienst: u.searchParams.get('issuer') || vorn.trim(), konto: (hinten ?? '').trim()};
+    } catch {
+      return {dienst: '', konto: ''};
+    }
+  }
+
+  async function zugangSuchen() {
+    if (angebotWirt) return;
+    const link = document.querySelector('a[href^="otpauth://"]');
+    if (link) return anbieten({otpauth: link.getAttribute('href')});
+    for (const el of [...document.querySelectorAll('img, canvas, svg')].filter(quadratisch).slice(0, 6)) {
+      const bild = await rastern(el);
+      if (!bild || geprueft.has(bild)) continue;
+      geprueft.add(bild);
+      const a = await frag({art: 'qr', bild});
+      if (a.otpauth) return anbieten({otpauth: a.otpauth});
+    }
+    if (!HINWEIS_WORT.test(document.body?.innerText ?? '')) return;
+    for (const el of document.querySelectorAll('code, kbd, samp, pre, strong, b, span, p, td, div, input[readonly], input[disabled]')) {
+      const eingabe = el instanceof HTMLInputElement;
+      if (!eingabe && el.children.length > 0) continue;
+      const text = (eingabe ? el.value : el.textContent).trim();
+      if (text.length < 16 || text.length > 80 || !B32_TEXT.test(text) || !/[2-7]/.test(text)) continue;
+      if (el.getBoundingClientRect().width === 0) continue;
+      const secret = text.replace(/[\s-]/g, '').toUpperCase();
+      if (geprueft.has(secret)) continue;
+      geprueft.add(secret);
+      return anbieten({secret});
+    }
+  }
+
+  async function anbieten(fund) {
+    const name = fund.otpauth ? otpauthName(fund.otpauth) : {dienst: '', konto: ''};
+    const dienst = name.dienst || basis(HOST).split('.')[0].replace(/^./, (z) => z.toUpperCase());
+    const schluessel = `${HOST}|${dienst}|${name.konto}`;
+    const {verworfen = {}} = await chrome.storage.local.get('verworfen').catch(() => ({}));
+    if ((verworfen[schluessel] ?? 0) > Date.now()) return;
+    const antwort = await holen();
+    if (antwort.fehler) return; // ohne Sitzung nichts Sichtbares auf fremden Seiten
+    angebotZeigen({...fund, dienst, konto: name.konto, schluessel, hub: antwort.hub});
+  }
+
+  function angebotZeigen(angebot) {
+    if (angebotWirt) return;
+    const t = tafelBauen('medarbeiter-zugangscodes-angebot', 'Zugang im Hub speichern?', 'frage');
+    angebotWirt = t.wirt;
+    const tafel = t.tafel;
+    const zu = () => {
+      angebotWirt?.remove();
+      angebotWirt = null;
+    };
+    const nein = () => {
+      chrome.storage.local.get('verworfen').then(({verworfen = {}}) => {
+        verworfen[angebot.schluessel] = Date.now() + 24 * 3600_000;
+        return chrome.storage.local.set({verworfen});
+      }).catch(() => {});
+      zu();
+    };
+    tafel.append(kopfBauen('Zugang im Hub speichern?', nein));
+    tafel.insertAdjacentHTML('beforeend', `
+      <div class="rumpf">
+        <p>Diese Seite zeigt ${angebot.otpauth ? 'einen QR-Code' : 'einen Schlüssel'} für einen neuen Einmalcode.</p>
+        <label class="feld">Dienst<input class="dienst" autocomplete="off"></label>
+        <label class="feld">Konto<input class="konto" autocomplete="off" placeholder="z. B. die E-Mail-Adresse"></label>
+        <dl><dt>Seite</dt><dd class="seite"></dd></dl>
+        <p class="fehler" hidden></p>
+        <div class="knoepfe"><button class="nein" type="button">Nein</button><button class="ja" type="button">Im Hub speichern</button></div>
+      </div>`);
+    tafel.querySelector('.dienst').value = angebot.dienst;
+    tafel.querySelector('.konto').value = angebot.konto;
+    tafel.querySelector('dd.seite').textContent = HOST;
+    tafel.querySelector('.nein').onclick = nein;
+    const ja = tafel.querySelector('.ja');
+    ja.onclick = async () => {
+      const dienst = tafel.querySelector('.dienst').value.trim();
+      const konto = tafel.querySelector('.konto').value.trim();
+      const fehler = tafel.querySelector('.fehler');
+      if (!dienst) {
+        fehler.hidden = false;
+        fehler.textContent = 'Bitte den Dienst benennen.';
+        return;
+      }
+      ja.disabled = true;
+      const a = await frag({art: 'anlegen', otpauth: angebot.otpauth, secret: angebot.secret, dienst, konto, host: HOST});
+      ja.disabled = false;
+      if (!a.ok) {
+        fehler.hidden = false;
+        fehler.textContent = a.fehler ?? 'Der Hub antwortet nicht.';
+        return;
+      }
+      tafel.querySelector('.rumpf').innerHTML = '<p class="ergebnis">✓ Gespeichert.</p><p class="hinweis"><a target="_blank"></a></p>';
+      const link = tafel.querySelector('a');
+      link.href = `${angebot.hub}/zugangscodes`;
+      link.textContent = 'Zugangscodes im Hub';
+      // Die Seite fragt jetzt meist den ersten Code ab — den kennt der Hub schon.
+      behandelt = null;
+      spaeter();
+      setTimeout(zu, 4000);
+    };
+    t.bereit.then(() => tafel.querySelector('.dienst').focus());
+  }
+
+  let scanTimer = null;
+  const scanSpaeter = () => {
+    clearTimeout(scanTimer);
+    scanTimer = setTimeout(() => zugangSuchen().catch(() => {}), 800);
+  };
+  document.addEventListener('load', scanSpaeter, true); // ein Bild, das erst später fertig ist
+
+  // ── Das Konto erkennen ───────────────────────────────────────────────────
+  // Ein Dienst, mehrere Konten (TikTok, Instagram, Google …): „diese Seite"
+  // reicht dann nicht, gefragt ist *welches* Konto gerade angemeldet wird.
+  // Drei Quellen, alle ohne Server: der Seitentext (Handle, E-Mail, Name auf
+  // der Codeseite), die Werte sichtbarer Eingabefelder, und was zuletzt in ein
+  // Benutzer-/E-Mail-Feld derselben Domäne getippt wurde — denn die Codeseite
+  // kommt meist nach einem Weiterladen, in dem der Name schon wieder weg ist.
+  // Gemerkt wird das Getippte zehn Minuten in chrome.storage.local, je Domäne.
+  const KONTO_FELD = /user|login|e-?mail|phone|tel\b|konto|benutzer|handle|account|anmeld|nutzer/i;
+  let merkTimer = null;
+  document.addEventListener('input', (e) => {
+    const el = e.target;
+    if (!(el instanceof HTMLInputElement) || !['text', 'email', 'tel', ''].includes(el.type)) return;
+    if (el.type !== 'email' && !KONTO_FELD.test(beschriftung(el))) return;
+    if (zeichenFeld?.eingaben.includes(el)) return;
+    clearTimeout(merkTimer);
+    merkTimer = setTimeout(() => {
+      const wert = el.value.trim();
+      if (wert.length < 3) return;
+      chrome.storage.local.get('konten').then(({konten = {}}) => {
+        for (const [k, v] of Object.entries(konten)) if (v.bis < Date.now()) delete konten[k];
+        konten[basis(HOST)] = {wert, bis: Date.now() + FRAGE_TTL};
+        return chrome.storage.local.set({konten});
+      }).catch(() => {});
+    }, 400);
+  }, true);
+
+  async function gemerktesKonto() {
+    const {konten = {}} = await chrome.storage.local.get('konten').catch(() => ({}));
+    const k = konten[basis(HOST)];
+    return k && k.bis > Date.now() ? k.wert : '';
+  }
+
+  /** Die Zugänge, deren Konto auf dieser Seite vorkommt. */
+  async function kontoTreffer(codes) {
+    const text = [
+      document.body?.innerText ?? '',
+      ...[...document.querySelectorAll('input')].map((i) => (i.type === 'password' ? '' : i.value)),
+      await gemerktesKonto(),
+    ]
+      .join('\n')
+      .toLowerCase();
+    return codes.filter((c) => {
+      const k = (c.konto ?? '').trim().toLowerCase().replace(/^@/, '');
+      // ponytail: Teilstring ab vier Zeichen – „info" träfe zu oft, eine E-Mail oder ein Handle nie zufällig.
+      return k.length >= 4 && text.includes(k);
+    });
+  }
+
+  let erkannt = new Set();
 
   // ── Ablauf ───────────────────────────────────────────────────────────────
   let behandelt = null;
@@ -649,12 +861,19 @@
       console.debug('[MedArbeiter] Hub antwortet nicht:', antwort.fehler, antwort.hub);
       return;
     }
-    const sicher = (antwort.codes ?? []).filter((c) => c.treffer >= 2);
-    const zustand = {};
-    if (sicher.length === 1 && sicher[0].code) {
-      eintragen(feld, sicher[0].code);
-      zustand.eingetragen = sicher[0].konto ? `${sicher[0].dienst} (${sicher[0].konto})` : sicher[0].dienst;
-      if (sicher[0].treffer < 3) frageStellen(sicher[0]);
+    const codes = antwort.codes ?? [];
+    const sicher = codes.filter((c) => c.treffer >= 2);
+    const passende = codes.filter((c) => c.treffer > 0);
+    // Erst das Konto, dann die Seite: unter mehreren Zugängen desselben Dienstes
+    // entscheidet, wessen Konto auf der Seite steht; ohne Konto genügt genau einer.
+    const gefunden = await kontoTreffer(sicher.length > 0 ? sicher : passende);
+    erkannt = new Set(gefunden.map((c) => c.id));
+    const wahl = gefunden.length === 1 ? gefunden[0] : sicher.length === 1 ? sicher[0] : null;
+    const zustand = {erkannt};
+    if (wahl?.code) {
+      eintragen(feld, wahl.code);
+      zustand.eingetragen = wahl.konto ? `${wahl.dienst} (${wahl.konto})` : wahl.dienst;
+      if (wahl.treffer < 3) frageStellen(wahl, codes);
     }
     zeigen(feld, antwort, zustand);
   }
@@ -664,7 +883,10 @@
     clearTimeout(timer);
     timer = setTimeout(pruefen, 350);
   };
-  new MutationObserver(spaeter).observe(document.documentElement, {childList: true, subtree: true, attributes: true, attributeFilter: ['type', 'class', 'style', 'hidden']});
+  new MutationObserver(() => {
+    spaeter();
+    scanSpaeter();
+  }).observe(document.documentElement, {childList: true, subtree: true, attributes: true, attributeFilter: ['type', 'class', 'style', 'hidden', 'src']});
   const zeichenNachziehen = () => setTimeout(() => zeichenFeld && ringTick(), 60);
   document.addEventListener('focusout', zeichenNachziehen);
   document.addEventListener('focusin', async (e) => {
@@ -672,7 +894,11 @@
     if (!(e.target instanceof HTMLInputElement)) return;
     // Zurück im bekannten Feld: die Auswahl wieder anbieten, falls sie geschlossen wurde.
     if (zeichenFeld?.eingaben.includes(e.target)) {
-      if (!wirt) zeigen(zeichenFeld, await holen(), {});
+      // Das Eintragen selbst fokussiert das Feld: bis die Antwort da ist, hat
+      // pruefen() die Auswahl meist schon gezeichnet — dann nicht überschreiben.
+      if (wirt) return;
+      const antwort = await holen();
+      if (!wirt) zeigen(zeichenFeld, antwort, letzterZustand);
       return;
     }
     behandelt = null;
@@ -683,9 +909,17 @@
     if (wirt && e.target !== wirt && e.target !== zeichen && !aktuellesFeld?.eingaben.includes(e.target)) schliessen();
   }, true);
   spaeter();
+  scanSpaeter();
 
-  // Das Popup der Erweiterung will eintragen (und wissen, ob es ging).
+  // Das Popup der Erweiterung will eintragen (und wissen, ob es ging) — oder
+  // die Sitzung am Hub hat gewechselt: dann von vorn, als wäre das Feld neu.
   chrome.runtime.onMessage.addListener((n, _a, antworte) => {
+    if (n?.art === 'sitzung') {
+      schliessen();
+      behandelt = null;
+      spaeter();
+      return false;
+    }
     if (n?.art !== 'fuellen') return false;
     const feld = feldFinden();
     if (!feld) return antworte({eingetragen: false}), false;

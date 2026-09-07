@@ -1,0 +1,75 @@
+/* Eine Tafel, drei Orte: die Auswahl am Feld, die Frage „Diese Seite merken?" (beide im
+   Shadow-DOM von content.js) und das Popup in der Symbolleiste. Farben sind die des Hubs
+   (theme/medarbeiterTheme.ts) als rohe Werte – eine fremde Seite hat kein :root von uns. */
+:host { all: initial; }
+body, .tafel { color: #1c1917; background: #fff; font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+body { width: 360px; margin: 0; }
+.tafel { position: fixed; z-index: 2147483647; width: 360px; box-sizing: border-box; overflow: hidden;
+  border: 1px solid #d9d2c1; border-radius: 12px; box-shadow: 0 12px 32px rgba(28, 25, 23, .22); }
+.tafel.frage { right: 20px; bottom: 20px; animation: auf .3s cubic-bezier(.2, .7, .2, 1) both; }
+@keyframes auf { from { transform: translateY(16px); } to { transform: none; } }
+
+/* Kopf: Logo, Titel, Seite, ein Knopf rechts (✕ oder ⚙). */
+.kopf { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #f7f1e2; border-bottom: 1px solid #ece2c9; }
+.kopf img { width: 24px; height: 24px; border-radius: 6px; flex: none; }
+.kopf b { font-size: 15px; font-weight: 600; white-space: nowrap; }
+.kopf .seite { flex: 1; min-width: 0; color: #67625a; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kopf button, .kopf a { all: unset; cursor: pointer; flex: none; width: 28px; height: 28px; display: grid; place-items: center;
+  border-radius: 8px; color: #67625a; font-size: 16px; }
+.kopf button:hover, .kopf a:hover { background: #ece2c9; color: #1c1917; }
+
+/* Hinweise und Suche. */
+.hinweis { margin: 0; padding: 10px 12px; color: #67625a; }
+.hinweis a, .fuss a { color: #7c5f05; }
+.erfolg { margin: 0; padding: 10px 12px; background: #edf5e6; color: #2f5a1a; border-bottom: 1px solid #ece2c9; }
+.suche { display: block; width: calc(100% - 24px); margin: 10px 12px 4px; padding: 8px 10px; box-sizing: border-box;
+  border: 1px solid #d9d2c1; border-radius: 8px; font: inherit; color: inherit; background: #fff; }
+.suche:focus { border-color: #8f6e06; }
+
+/* Die Liste der Zugänge. */
+ul { list-style: none; margin: 0; padding: 4px 0; }
+body > ul { max-height: 420px; overflow: auto; }
+.gruppe { padding: 8px 12px 2px; color: #67625a; font-size: 12px; font-weight: 600; }
+.mehr { padding: 4px 12px 8px; color: #67625a; font-size: 12px; }
+li button { all: unset; display: flex; align-items: center; gap: 12px; width: 100%; box-sizing: border-box; min-height: 44px; padding: 8px 12px; cursor: pointer; }
+li button:hover, li button:focus-visible { background: #f7f1e2; }
+.name { flex: 1; min-width: 0; font-weight: 500; }
+.name span { display: block; color: #67625a; font-size: 12px; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.code { font-variant-numeric: tabular-nums; font-size: 18px; letter-spacing: .1em; font-weight: 600; }
+.marke { flex: none; font-size: 12px; color: #7c5f05; background: #f7f1e2; border: 1px solid #e1b025; border-radius: 999px; padding: 1px 8px; }
+@keyframes herein { from { transform: translateY(6px); } to { transform: none; } }
+.code.neu { animation: herein .28s cubic-bezier(.2, .7, .2, 1) both; }
+
+/* Fuß: Restlaufzeit links, eine Nebenhandlung rechts. */
+.fuss { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border-top: 1px solid #ece2c9; color: #67625a; font-size: 12px; }
+.fuss button { all: unset; cursor: pointer; padding: 4px 8px; border-radius: 8px; color: #7c5f05; font-weight: 600; }
+.fuss button:hover { background: #f7f1e2; }
+
+/* Die Frage: Datensatz, ein Satz, zwei Knöpfe. */
+.rumpf { padding: 12px; }
+dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 0 0 12px; padding: 10px 12px; background: #f7f1e2; border-radius: 10px; }
+dt { color: #67625a; }
+dd { margin: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+dd.seite { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; color: #7c5f05; }
+.rumpf p { margin: 0 0 14px; color: #67625a; }
+.wahl { list-style: none; margin: 0 0 12px; padding: 0; }
+.wahl-titel { color: #67625a; font-size: 12px; padding: 2px 0 4px; }
+.wahl label { display: flex; align-items: center; gap: 10px; min-height: 32px; cursor: pointer; }
+.wahl input { width: 18px; height: 18px; margin: 0; accent-color: #e1b025; }
+.wahl span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ergebnis { font-weight: 600; color: #1c1917; }
+.feld { display: block; margin: 0 0 10px; color: #67625a; font-size: 12px; }
+.feld input { display: block; width: 100%; margin-top: 4px; padding: 8px 10px; box-sizing: border-box; border: 1px solid #d9d2c1; border-radius: 8px;
+  font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: #1c1917; background: #fff; }
+.feld input:focus { border-color: #8f6e06; outline: none; }
+.fehler { margin: 0 0 12px; color: #a32d2d; }
+.knoepfe button:disabled { opacity: .6; cursor: progress; }
+.knoepfe { display: flex; gap: 10px; }
+.knoepfe button { all: unset; cursor: pointer; flex: 1; box-sizing: border-box; text-align: center; padding: 10px 14px; border-radius: 10px; font-weight: 600; font-size: 15px; }
+.knoepfe .ja { background: #e1b025; color: #1c1917; border: 1px solid #8f6e06; }
+.knoepfe .ja:hover { background: #f0c23a; }
+.knoepfe .nein { background: #fff; color: #1c1917; border: 1px solid #d9d2c1; }
+.knoepfe .nein:hover { background: #f7f1e2; }
+
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid #8f6e06; outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .tafel.frage, .code.neu { animation: none; } }

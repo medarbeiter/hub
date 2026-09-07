@@ -81,6 +81,7 @@ function takt() {
 
 async function laden() {
   antwort = await frag({art: 'codes', host});
+  $('neu').href = `${antwort.hub}/zugangscodes`;
   render();
   takt();
 }
@@ -99,8 +100,11 @@ async function waehlen(c) {
   }
   // Nicht still merken: die Seite bekommt die Frage (content.js liest sie aus dem Speicher).
   if (host && c.treffer < 3) {
-    const name = c.konto ? `${c.dienst} (${c.konto})` : c.dienst;
-    chrome.storage.local.set({frage: {id: c.id, name, host, bis: Date.now() + 10 * 60_000}}).catch(() => {});
+    const name = (x) => (x.konto ? `${x.dienst} (${x.konto})` : x.dienst);
+    const weitere = (antwort.codes ?? [])
+      .filter((x) => x.id !== c.id && x.treffer > 0 && x.treffer < 3 && x.dienst === c.dienst)
+      .map((x) => ({id: x.id, name: name(x)}));
+    chrome.storage.local.set({frage: {id: c.id, name: name(c), host, bis: Date.now() + 10 * 60_000, weitere}}).catch(() => {});
   }
   $('status').textContent = eingetragen ? 'Eingetragen und kopiert.' : 'Kopiert.';
   if (eingetragen) setTimeout(() => window.close(), 600);
