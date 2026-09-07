@@ -23,6 +23,7 @@ aktualisiert sich nicht. Bei einem anderen Hub (lokal `http://localhost:3001`): 
 
 - **Feld erkennen**: `autocomplete="one-time-code"`, numerische Felder mit 4–8 Stellen, Felder deren Name/Label/Placeholder nach Code klingt (otp, 2fa, mfa, verification, Sicherheitscode, Einmal…), und Gruppen aus 4–8 Ein-Zeichen-Kästchen. Auch in Frames und bei später eingeblendeten Feldern (SPA).
 - **Zuordnen**: der Hub sortiert (`lib/zugangscode-treffer.ts`): gemerkte Seite genau (3) → gleiche Domäne (2) → Dienstname klingt nach der Domäne (1) → Rest (0).
+- **Zeichen im Feld**: wie beim Passwortmanager sitzt ein kleines Zeichen am rechten Rand des erkannten Feldes; es bleibt, solange das Feld da ist, und öffnet die Auswahl – auch ohne Hub-Sitzung (dann sagt sie, was fehlt).
 - **Eintragen**: genau *ein* Zugang mit Stufe ≥ 2 → wird sofort eingetragen, daneben steht die Auswahl zum Korrigieren. Sonst erscheint die Auswahl am Feld (Vorschläge zuerst, „Alle anzeigen" mit Suche).
 - **Lernen**: wer in der Auswahl oder im Popup einen Zugang wählt, der für diese Seite noch nicht gemerkt war, ordnet ihn ihr zu (`POST /api/zugangscodes`, Protokoll `zugangscode.seite`). Beim nächsten Mal ist er Stufe 3. Falsch gelernte Seiten entfernt man im Hub im Bearbeiten-Dialog (Feld „Seiten").
 - **Popup** (Symbolleiste): dieselbe Liste für den offenen Tab; Klick kopiert und trägt ein, wenn die Seite ein Feld hat.

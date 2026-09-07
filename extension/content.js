@@ -136,7 +136,7 @@
     schliessen();
     aktuellesFeld = feld;
     wirt = document.createElement('medarbeiter-zugangscodes');
-    const schatten = wirt.attachShadow({mode: 'closed'});
+    const schatten = wirt.attachShadow({mode: 'open'});
     const stil = document.createElement('style');
     stil.textContent = CSS_TEXT;
     const tafel = document.createElement('div');
@@ -266,18 +266,108 @@
     }
   }
 
+  // ── Das Zeichen im Feld ──────────────────────────────────────────────────
+  // Wie der Passwortmanager: ein kleines Zeichen am rechten Rand des Feldes,
+  // das bleibt, solange das Feld da ist — die Auswahl darf man schließen, den
+  // Weg zurück soll man sehen. Fest positioniert und bei Scrollen/Größe
+  // nachgeführt, weil es in fremden Seiten keinen sicheren Platz im Layout gibt.
+  let zeichen = null;
+  let zeichenFeld = null;
+
+  function zeichenLegen() {
+    if (!zeichen || !zeichenFeld) return;
+    const anker = zeichenFeld.eingaben[zeichenFeld.eingaben.length - 1];
+    if (!anker.isConnected || !sichtbar(anker)) {
+      zeichen.style.display = 'none';
+      return;
+    }
+    const r = anker.getBoundingClientRect();
+    zeichen.style.display = '';
+    zeichen.style.top = `${r.top + (r.height - 22) / 2}px`;
+    zeichen.style.left = `${r.right - 30}px`;
+  }
+
+  function zeichenZeigen(feld) {
+    if (zeichenFeld && zeichenFeld.anker === feld.anker) return;
+    zeichenEntfernen();
+    zeichenFeld = feld;
+    zeichen = document.createElement('medarbeiter-zugangscodes-zeichen');
+    const schatten = zeichen.attachShadow({mode: 'closed'});
+    const stil = document.createElement('style');
+    stil.textContent = `
+      :host { all: initial; position: fixed; z-index: 2147483646; }
+      button { all: unset; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; cursor: pointer;
+        background: #fff; border: 1px solid #e1b025; box-shadow: 0 1px 3px rgba(28,25,23,.18); }
+      button:hover, button:focus-visible { background: #f7f1e2; outline: none; }
+      img { width: 16px; height: 16px; display: block; }
+    `;
+    const knopf = document.createElement('button');
+    knopf.type = 'button';
+    knopf.title = 'MedArbeiter Zugangscode eintragen';
+    knopf.setAttribute('aria-label', knopf.title);
+    const bild = document.createElement('img');
+    bild.src = chrome.runtime.getURL('icons/48.png');
+    bild.alt = '';
+    knopf.append(bild);
+    knopf.addEventListener('pointerdown', (e) => e.stopPropagation());
+    knopf.addEventListener('click', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (wirt) return schliessen();
+      zeigen(feld, await holen(), {});
+    });
+    schatten.append(stil, knopf);
+    document.documentElement.append(zeichen);
+    zeichenLegen();
+  }
+
+  function zeichenEntfernen() {
+    zeichen?.remove();
+    zeichen = null;
+    zeichenFeld = null;
+  }
+
+  let legeTimer = null;
+  const nachfuehren = () => {
+    if (legeTimer) return;
+    legeTimer = requestAnimationFrame(() => {
+      legeTimer = null;
+      zeichenLegen();
+      if (wirt && aktuellesFeld) {
+        const r = aktuellesFeld.anker.getBoundingClientRect();
+        const tafel = wirt.shadowRoot?.querySelector('.tafel');
+        if (tafel) {
+          tafel.style.top = `${Math.min(r.bottom + 6, innerHeight - 80)}px`;
+          tafel.style.left = `${Math.max(8, Math.min(r.left, innerWidth - 370))}px`;
+        }
+      }
+    });
+  };
+  addEventListener('scroll', nachfuehren, true);
+  addEventListener('resize', nachfuehren);
+
   // ── Ablauf ───────────────────────────────────────────────────────────────
   let behandelt = null;
 
   async function pruefen() {
+    if (zeichenFeld && !zeichenFeld.anker.isConnected) {
+      zeichenEntfernen();
+      schliessen();
+      behandelt = null;
+    }
     const feld = feldFinden();
     if (!feld) return;
     if (behandelt === feld.anker) return;
     behandelt = feld.anker;
+    console.debug('[MedArbeiter] Codefeld erkannt', feld.eingaben);
+    zeichenZeigen(feld);
 
     const antwort = await holen();
-    if (antwort.fehler === 'anmelden' && !feld.anker.matches(':focus')) return; // still, kein Banner ohne Sitzung
-    if (antwort.fehler) return;
+    if (antwort.fehler) {
+      // Kein Banner ohne Sitzung — das Zeichen im Feld bleibt, und ein Klick darauf sagt, was fehlt.
+      console.debug('[MedArbeiter] Hub antwortet nicht:', antwort.fehler, antwort.hub);
+      return;
+    }
     const sicher = (antwort.codes ?? []).filter((c) => c.treffer >= 2);
     const zustand = {};
     if (sicher.length === 1 && sicher[0].code) {
@@ -293,17 +383,19 @@
     timer = setTimeout(pruefen, 350);
   };
   new MutationObserver(spaeter).observe(document.documentElement, {childList: true, subtree: true, attributes: true, attributeFilter: ['type', 'class', 'style', 'hidden']});
-  document.addEventListener('focusin', (e) => {
-    // Erneut anbieten, wenn jemand ins Feld zurückkehrt.
-    if (aktuellesFeld?.eingaben.includes(e.target)) return;
-    if (e.target instanceof HTMLInputElement) {
-      behandelt = null;
-      spaeter();
+  document.addEventListener('focusin', async (e) => {
+    if (!(e.target instanceof HTMLInputElement)) return;
+    // Zurück im bekannten Feld: die Auswahl wieder anbieten, falls sie geschlossen wurde.
+    if (zeichenFeld?.eingaben.includes(e.target)) {
+      if (!wirt) zeigen(zeichenFeld, await holen(), {});
+      return;
     }
+    behandelt = null;
+    spaeter();
   });
   document.addEventListener('keydown', (e) => e.key === 'Escape' && schliessen(), true);
   document.addEventListener('pointerdown', (e) => {
-    if (wirt && e.target !== wirt && !aktuellesFeld?.eingaben.includes(e.target)) schliessen();
+    if (wirt && e.target !== wirt && e.target !== zeichen && !aktuellesFeld?.eingaben.includes(e.target)) schliessen();
   }, true);
   spaeter();
 
