@@ -120,7 +120,7 @@
 
   const CSS_TEXT = `
     :host { all: initial; }
-    .tafel { position: fixed; z-index: 2147483647; min-width: 280px; max-width: 360px; max-height: 60vh; overflow: auto;
+    .tafel { position: fixed; z-index: 2147483647; width: 340px; overflow: hidden;
       background: #fff; color: #1c1917; border: 1px solid #d9d2c1; border-radius: 10px;
       box-shadow: 0 8px 24px rgba(28,25,23,.18); font: 13px/1.4 system-ui, -apple-system, sans-serif; }
     .kopf { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #f7f1e2; border-bottom: 1px solid #ece2c9; }
@@ -130,6 +130,7 @@
     .hinweis { padding: 8px 10px; color: #67625a; }
     .suche { display: block; width: calc(100% - 20px); margin: 8px 10px 4px; padding: 6px 8px; border: 1px solid #d9d2c1; border-radius: 6px; font: inherit; box-sizing: border-box; }
     ul { list-style: none; margin: 0; padding: 4px 0; }
+    .mehr { padding: 4px 10px 8px; color: #67625a; font-size: 12px; }
     li button { all: unset; display: flex; align-items: center; gap: 10px; width: 100%; box-sizing: border-box; padding: 7px 10px; cursor: pointer; }
     li button:hover, li button:focus-visible { background: #f7f1e2; outline: none; }
     .name { flex: 1; min-width: 0; }
@@ -207,7 +208,7 @@
       if (passende.length === 0 && !zustand.eingetragen) {
         const h = document.createElement('p');
         h.className = 'hinweis';
-        h.textContent = `Für ${HOST} ist noch kein Zugang gemerkt – wähle den richtigen, dann merkt er sich die Seite.`;
+        h.textContent = `Für ${HOST} noch nichts gemerkt – wähle den richtigen Zugang.`;
         tafel.append(h);
       }
       const liste = alle || passende.length === 0 ? codes : passende;
@@ -228,7 +229,8 @@
       const renderListe = () => {
         ul.innerHTML = '';
         const f = filter.trim().toLowerCase();
-        const zeilen = liste.filter((c) => !f || `${c.dienst} ${c.konto ?? ''}`.toLowerCase().includes(f)).slice(0, 40);
+        const treffer = liste.filter((c) => !f || `${c.dienst} ${c.konto ?? ''}`.toLowerCase().includes(f));
+        const zeilen = treffer.slice(0, 6);
         if (zeilen.length === 0) ul.innerHTML = '<li class="hinweis">Nichts gefunden.</li>';
         for (const c of zeilen) {
           const li = document.createElement('li');
@@ -251,6 +253,12 @@
           b.onclick = () => waehlen(c);
           li.append(b);
           ul.append(li);
+        }
+        if (treffer.length > zeilen.length) {
+          const m = document.createElement('li');
+          m.className = 'mehr';
+          m.textContent = `${treffer.length - zeilen.length} weitere – zum Eingrenzen oben tippen.`;
+          ul.append(m);
         }
       };
       renderListe();
@@ -342,19 +350,19 @@
     const stil = document.createElement('style');
     stil.textContent = `
       :host { all: initial; position: fixed; z-index: 2147483646; }
-      button { all: unset; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; cursor: pointer;
-        background: #fff; border: 1px solid #e1b025; box-shadow: 0 1px 3px rgba(28,25,23,.18); }
-      button:hover, button:focus-visible { background: #f7f1e2; outline: none; }
-      img { width: 16px; height: 16px; display: block; }
+      button { all: unset; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 7px; cursor: pointer;
+        background: #e1b025; border: 1px solid #8f6e06; box-shadow: 0 1px 2px rgba(28,25,23,.25); transition: transform .12s ease; }
+      button:hover, button:focus-visible { background: #f0c23a; transform: scale(1.08); outline: none; }
+      button:active { transform: scale(.96); }
+      svg { width: 14px; height: 14px; display: block; }
     `;
     const knopf = document.createElement('button');
     knopf.type = 'button';
     knopf.title = 'MedArbeiter Zugangscode eintragen';
     knopf.setAttribute('aria-label', knopf.title);
-    const bild = document.createElement('img');
-    bild.src = chrome.runtime.getURL('icons/48.png');
-    bild.alt = '';
-    knopf.append(bild);
+    // Drei Punkte: ein Code, der gleich erscheint — dunkle Tinte auf Gold wie jeder Primärknopf im Hub.
+    knopf.innerHTML =
+      '<svg viewBox="0 0 14 14" aria-hidden="true" fill="#1c1917"><circle cx="2.5" cy="7" r="1.9"/><circle cx="7" cy="7" r="1.9"/><circle cx="11.5" cy="7" r="1.9"/></svg>';
     // Schon beim Drücken, nicht erst beim Klick: eine Seite mit eigenem
     // Klick-Abfangen (Dialoge, Fokusfallen) kann den Klick schlucken, das
     // Drücken kommt immer an. mousedown ohne Wirkung, damit das Feld den
