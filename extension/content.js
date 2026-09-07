@@ -110,7 +110,19 @@
         ok({fehler: 'neu-laden'});
       }
     });
-  const holen = () => frag({art: 'codes', host: HOST});
+  // Wann der laufende Code kippt — aus jeder Antwort des Hubs gemerkt, damit
+  // das Zeichen im Feld den Ring zeichnen kann, ohne selbst zu fragen.
+  let ablauf = null; // {bisMs, periodeMs, versatzMs}
+  const jetztServer = () => Date.now() - (ablauf?.versatzMs ?? 0);
+  async function holen() {
+    const antwort = await frag({art: 'codes', host: HOST});
+    if (antwort.codes?.length) {
+      const bisMs = Math.min(...antwort.codes.map((c) => c.gueltigBisMs));
+      const periodeMs = Math.min(...antwort.codes.map((c) => c.periode)) * 1000;
+      ablauf = {bisMs, periodeMs, versatzMs: antwort.versatzMs};
+    }
+    return antwort;
+  }
   const merken = (id) => frag({art: 'seite', id, host: HOST});
 
   // ── Die Auswahl am Feld ──────────────────────────────────────────────────
@@ -139,6 +151,9 @@
     .marke { font-size: 11px; color: #7c5f05; background: #f7f1e2; border: 1px solid #e1b025; border-radius: 999px; padding: 0 6px; }
     .fuss { display: flex; gap: 8px; justify-content: space-between; padding: 6px 10px; border-top: 1px solid #ece2c9; color: #67625a; font-size: 12px; }
     .erfolg { padding: 8px 10px; background: #edf5e6; color: #2f5a1a; }
+    @keyframes herein { from { transform: translateY(6px); } to { transform: none; } }
+    .code.neu { animation: herein .28s cubic-bezier(.2,.7,.2,1) both; }
+    @media (prefers-reduced-motion: reduce) { .code.neu { animation: none; } }
   `;
 
   function schliessen() {
@@ -249,7 +264,9 @@
             m.textContent = 'diese Seite';
             b.insertBefore(m, b.lastElementChild);
           }
-          b.querySelector('.code').textContent = c.code ? `${c.code.slice(0, 3)} ${c.code.slice(3)}` : '—';
+          const codeEl = b.querySelector('.code');
+          codeEl.textContent = c.code ? `${c.code.slice(0, 3)} ${c.code.slice(3)}` : '—';
+          if (zustand.gewechselt) codeEl.classList.add('neu');
           b.onclick = () => waehlen(c);
           li.append(b);
           ul.append(li);
@@ -265,9 +282,9 @@
 
       const fuss = document.createElement('div');
       fuss.className = 'fuss';
-      const rest = Math.max(0, Math.round((Math.min(...codes.map((c) => c.gueltigBisMs)) - (Date.now() - antwort.versatzMs)) / 1000));
       console.debug('[MedArbeiter] Codes für', HOST, codes.map((c) => [c.dienst, c.treffer]));
-      fuss.innerHTML = `<span>noch ${rest} s gültig</span>`;
+      fuss.innerHTML = `<span class="rest"></span>`;
+      restZeigen(fuss.querySelector('.rest'));
       if (!alle && passende.length > 0 && passende.length < codes.length) {
         const mehr = document.createElement('button');
         mehr.textContent = `Alle ${codes.length} anzeigen`;
@@ -292,7 +309,7 @@
       ablaufTimer = setTimeout(async () => {
         if (!wirt) return;
         const frisch = await holen();
-        if (wirt) zeigen(feld, frisch, zustand);
+        if (wirt) zeigen(feld, frisch, {...zustand, gewechselt: true});
       }, Math.max(500, naechster - (Date.now() - antwort.versatzMs) + 300));
     }
 
@@ -315,6 +332,50 @@
   // nachgeführt, weil es in fremden Seiten keinen sicheren Platz im Layout gibt.
   let zeichen = null;
   let zeichenFeld = null;
+  let zeichenKnopf = null;
+  let ringTimer = null;
+  const restSpannen = new Set();
+
+  /** Eine Zeile „noch N s gültig", die mitläuft, solange sie im Dokument steht. */
+  function restZeigen(el) {
+    restSpannen.add(el);
+    ringTick();
+  }
+
+  function ringTick() {
+    if (zeichenFeld) {
+      const a = zeichenFeld.eingaben[zeichenFeld.eingaben.length - 1];
+      if (a.isConnected) {
+        fremdeSuchen(a, a.getBoundingClientRect());
+        zeichenLegen();
+      }
+    }
+    if (!ablauf) return;
+    let rest = ablauf.bisMs - jetztServer();
+    if (rest <= 0) {
+      // Der Code ist gekippt: Ring von vorn, kurzer Puls — die Auswahl holt sich
+      // die neuen Ziffern über ihren eigenen Timer.
+      ablauf.bisMs += Math.ceil(-rest / ablauf.periodeMs) * ablauf.periodeMs;
+      rest = ablauf.bisMs - jetztServer();
+      if (zeichenKnopf) {
+        zeichenKnopf.classList.remove('wechsel');
+        void zeichenKnopf.offsetWidth;
+        zeichenKnopf.classList.add('wechsel');
+      }
+    }
+    const sekunden = Math.max(0, Math.ceil(rest / 1000));
+    const ring = zeichenKnopf?.querySelector('.ring');
+    if (ring) {
+      const U = 2 * Math.PI * 9;
+      ring.setAttribute('stroke-dashoffset', (U * (1 - rest / ablauf.periodeMs)).toFixed(2));
+      ring.classList.toggle('knapp', sekunden <= 5);
+      zeichenKnopf.title = `MedArbeiter Zugangscode eintragen – noch ${sekunden} s gültig`;
+    }
+    for (const el of restSpannen) {
+      if (!el.isConnected) restSpannen.delete(el);
+      else el.textContent = `noch ${sekunden} s gültig`;
+    }
+  }
 
   function zeichenLegen() {
     if (!zeichen || !zeichenFeld) return;
@@ -325,17 +386,7 @@
     }
     const r = anker.getBoundingClientRect();
     const y = r.top + r.height / 2;
-    // Rechts im Feld sitzt oft schon jemand — das 1Password-Zeichen, ein
-    // Auge zum Anzeigen des Passworts. Wir rücken nach links, bis unter dem
-    // Zeichen nur noch das Feld selbst (oder seine Vorfahren) liegt.
-    let x = r.right - 19;
-    for (let i = 0; i < 4; i++) {
-      const drueber = document.elementsFromPoint(x, y).filter(
-        (el) => el !== zeichen && el !== wirt && el !== anker && !el.contains(anker),
-      );
-      if (drueber.length === 0 || x - 28 < r.left + 40) break;
-      x -= 28;
-    }
+    const x = freieKante(anker, r) - 8 - 11;
     zeichen.style.display = '';
     zeichen.style.top = `${y - 11}px`;
     zeichen.style.left = `${x - 11}px`;
@@ -350,19 +401,33 @@
     const stil = document.createElement('style');
     stil.textContent = `
       :host { all: initial; position: fixed; z-index: 2147483646; }
-      button { all: unset; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 7px; cursor: pointer;
+      button { all: unset; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; cursor: pointer;
         background: #e1b025; border: 1px solid #8f6e06; box-shadow: 0 1px 2px rgba(28,25,23,.25); transition: transform .12s ease; }
       button:hover, button:focus-visible { background: #f0c23a; transform: scale(1.08); outline: none; }
       button:active { transform: scale(.96); }
-      svg { width: 14px; height: 14px; display: block; }
+      svg { width: 22px; height: 22px; display: block; }
+      .spur { fill: none; stroke: rgba(28,25,23,.18); stroke-width: 2; }
+      .ring { fill: none; stroke: #1c1917; stroke-width: 2; stroke-linecap: round; transform: rotate(-90deg); transform-origin: 50% 50%;
+        transition: stroke-dashoffset 1s linear, stroke .3s; }
+      .ring.knapp { stroke: #b4380d; }
+      @keyframes wechsel { 0% { transform: scale(1); } 40% { transform: scale(1.25); } 100% { transform: scale(1); } }
+      button.wechsel { animation: wechsel .5s cubic-bezier(.2,.7,.2,1); }
+      @media (prefers-reduced-motion: reduce) { button.wechsel { animation: none; } .ring { transition: none; } button { transition: none; } }
     `;
     const knopf = document.createElement('button');
     knopf.type = 'button';
     knopf.title = 'MedArbeiter Zugangscode eintragen';
     knopf.setAttribute('aria-label', knopf.title);
-    // Drei Punkte: ein Code, der gleich erscheint — dunkle Tinte auf Gold wie jeder Primärknopf im Hub.
-    knopf.innerHTML =
-      '<svg viewBox="0 0 14 14" aria-hidden="true" fill="#1c1917"><circle cx="2.5" cy="7" r="1.9"/><circle cx="7" cy="7" r="1.9"/><circle cx="11.5" cy="7" r="1.9"/></svg>';
+    // Drei Punkte (ein Code, der gleich erscheint) in einem Ring, der abläuft
+    // wie der CodeRing im Hub: dunkle Tinte auf Gold, die letzten fünf
+    // Sekunden warnend orange, beim Kippen ein kurzer Puls.
+    const U = (2 * Math.PI * 9).toFixed(2);
+    knopf.innerHTML = `<svg viewBox="0 0 22 22" aria-hidden="true">
+      <circle class="spur" cx="11" cy="11" r="9"/>
+      <circle class="ring" cx="11" cy="11" r="9" stroke-dasharray="${U}" stroke-dashoffset="0"/>
+      <g fill="#1c1917"><circle cx="7.2" cy="11" r="1.5"/><circle cx="11" cy="11" r="1.5"/><circle cx="14.8" cy="11" r="1.5"/></g>
+    </svg>`;
+    zeichenKnopf = knopf;
     // Schon beim Drücken, nicht erst beim Klick: eine Seite mit eigenem
     // Klick-Abfangen (Dialoge, Fokusfallen) kann den Klick schlucken, das
     // Drücken kommt immer an. mousedown ohne Wirkung, damit das Feld den
@@ -381,13 +446,51 @@
     });
     schatten.append(stil, knopf);
     document.documentElement.append(zeichen);
+    fremdeSuchen(feld.eingaben[feld.eingaben.length - 1], feld.eingaben[feld.eingaben.length - 1].getBoundingClientRect());
     zeichenLegen();
+    clearInterval(ringTimer);
+    ringTimer = setInterval(ringTick, 1000);
+    ringTick();
   }
 
   function zeichenEntfernen() {
     zeichen?.remove();
     zeichen = null;
     zeichenFeld = null;
+    zeichenKnopf = null;
+    clearInterval(ringTimer);
+  }
+
+  /**
+   * Was rechts im Feld schon sitzt: das 1Password-Zeichen und seine
+   * Verwandten sind eigene Elemente (com-1password-button, bit-…), oft ohne
+   * Treffer für elementsFromPoint (pointer-events: none) — darum werden
+   * Sonderelemente, deren Rechteck das Feld schneidet, direkt gesucht und
+   * zusätzlich der Punkt selbst getestet. Zurück kommt die linkeste Kante,
+   * links von der unser Zeichen frei ist.
+   */
+  let fremdeZeichen = []; // die Sonderelemente im Feld, einmal je Sekunde gesucht (ringTick), nicht je Scrollbild
+  const zaehlt = (anker) => (el) => el !== zeichen && el !== wirt && el !== anker && !el.contains(anker) && !anker.contains(el);
+  function fremdeSuchen(anker, r) {
+    fremdeZeichen = [...document.querySelectorAll('*')].filter((el) => {
+      if (!el.tagName.includes('-') || !zaehlt(anker)(el)) return false;
+      const q = el.getBoundingClientRect();
+      return q.width > 0 && q.width <= 80 && q.right > r.left && q.left < r.right && q.bottom > r.top && q.top < r.bottom;
+    });
+  }
+  function freieKante(anker, r) {
+    let kante = r.right;
+    for (const el of fremdeZeichen) {
+      const q = el.getBoundingClientRect();
+      if (q.width > 0 && q.right > r.left && q.left < r.right) kante = Math.min(kante, q.left);
+    }
+    const y = r.top + r.height / 2;
+    const z = zaehlt(anker);
+    for (let x = kante - 8; x > r.left + 60; x -= 8) {
+      if (document.elementsFromPoint(x, y).filter(z).length === 0) return x;
+      kante = x;
+    }
+    return kante;
   }
 
   let legeTimer = null;
