@@ -1,33 +1,34 @@
 'use client';
 
-import {Badge, Banner, Button, Card, Heading, HStack, List, ListItem, SegmentedControl, SegmentedControlItem, Text, VStack} from '@astryxdesign/core';
+import {Badge, Banner, Button, Card, Heading, HStack, Text, VStack} from '@astryxdesign/core';
 import {useEffect, useState} from 'react';
 import {Sinnbild} from './sinnbilder';
 
-export type Betriebssystem = 'mac' | 'windows' | 'linux' | 'andere';
-
 interface Props {
-  id: string;
+  /** Die Kennungen, unter denen die Erweiterung antworten kann: Hub-Paket und, wenn gesetzt, Web Store. */
+  ids: string[];
   /** Die Version, die der Hub ausliefert. */
   version: string;
   basis: string;
-  /** Vom Server aus dem User-Agent gelesen — die Seite bietet die passende Form zuerst. */
-  system: Betriebssystem;
+  /** Die Store-Seite (ERWEITERUNG_STORE_URL) — der Weg für jeden Rechner ohne Verwaltung. */
+  storeUrl: string | null;
+  /** Der Wert für die Google Admin-Konsole, wenn der Hub das Paket liefert. */
+  richtlinie: string | null;
 }
+
+type Stand = {art: 'frage'} | {art: 'fehlt'} | {art: 'keinChrome'} | {art: 'da'; version: string};
 
 /**
  * Der Einrichtungsweg auf einem Blatt: Stand (ist sie da, welche Version),
- * ein Knopf, drei Schritte. Ein Web-Blatt darf keine Erweiterung installieren
- * — es gibt dem Betriebssystem die Richtlinie in seiner Doppelklick-Form, und
- * Chrome installiert beim nächsten Start selbst. Ob es geklappt hat, fragt
- * das Blatt die Erweiterung direkt (externally_connectable im Manifest, nur
- * für die Hausadresse) und alle drei Sekunden erneut, bis sie antwortet.
+ * ein Knopf. Ein Web-Blatt darf keine Erweiterung installieren, und einer
+ * lokalen Richtlinie traut Chrome auf einem unverwalteten Rechner nicht
+ * (lib/erweiterung.ts) — was bleibt, ist der Web Store: ein Klick, und der
+ * Store hält sie aktuell. Ob sie da ist, fragt das Blatt die Erweiterung
+ * direkt (externally_connectable im Manifest, nur für die Hausadresse) und
+ * alle drei Sekunden erneut, bis sie antwortet.
  */
-export function ErweiterungInstallation({id, version, basis, system}: Props) {
-  const [stand, setStand] = useState<{art: 'frage'} | {art: 'fehlt'} | {art: 'keinChrome'} | {art: 'da'; version: string}>(
-    {art: 'frage'},
-  );
-  const [wahl, setWahl] = useState<Betriebssystem>(system === 'andere' ? 'mac' : system);
+export function ErweiterungInstallation({ids, version, basis, storeUrl, richtlinie}: Props) {
+  const [stand, setStand] = useState<Stand>({art: 'frage'});
 
   useEffect(() => {
     const chrome = (window as unknown as {chrome?: {runtime?: {sendMessage?: unknown; lastError?: unknown}}}).chrome;
@@ -40,15 +41,19 @@ export function ErweiterungInstallation({id, version, basis, system}: Props) {
     }
     let laeuft = true;
     const fragen = () => {
-      try {
-        senden.call(chrome!.runtime, id, {art: 'da'}, (a) => {
-          // lastError muss gelesen werden, sonst meldet Chrome eine unbeantwortete Nachricht.
-          void chrome!.runtime!.lastError;
-          if (!laeuft) return;
-          setStand(a?.version ? {art: 'da', version: a.version} : {art: 'fehlt'});
-        });
-      } catch {
-        if (laeuft) setStand({art: 'fehlt'});
+      let offen = ids.length;
+      let gefunden: string | null = null;
+      for (const id of ids) {
+        try {
+          senden.call(chrome!.runtime, id, {art: 'da'}, (a) => {
+            // lastError muss gelesen werden, sonst meldet Chrome eine unbeantwortete Nachricht.
+            void chrome!.runtime!.lastError;
+            if (a?.version) gefunden = a.version;
+            if (--offen === 0 && laeuft) setStand(gefunden ? {art: 'da', version: gefunden} : {art: 'fehlt'});
+          });
+        } catch {
+          if (--offen === 0 && laeuft) setStand(gefunden ? {art: 'da', version: gefunden} : {art: 'fehlt'});
+        }
       }
     };
     fragen();
@@ -57,12 +62,7 @@ export function ErweiterungInstallation({id, version, basis, system}: Props) {
       laeuft = false;
       clearInterval(takt);
     };
-  }, [id]);
-
-  const wert = `${id};${basis}/api/erweiterung/update.xml`;
-  const herunterladen = (fuer: 'mac' | 'windows' | 'linux') => {
-    window.location.href = `${basis}/api/erweiterung/richtlinie?fuer=${fuer}`;
-  };
+  }, [ids]);
 
   return (
     <VStack gap={4}>
@@ -72,8 +72,8 @@ export function ErweiterungInstallation({id, version, basis, system}: Props) {
           title={`Installiert – Version ${stand.version}`}
           description={
             stand.version === version
-              ? 'Auf dem neuesten Stand. Chrome holt neue Versionen von hier selbst.'
-              : `Der Hub liefert ${version}; Chrome holt sie beim nächsten Abgleich, „Aktualisieren" auf chrome://extensions sofort.`
+              ? 'Auf dem neuesten Stand. Neue Versionen kommen von selbst.'
+              : `Der Hub steht auf ${version}; die neue Version kommt beim nächsten Abgleich, „Aktualisieren" auf chrome://extensions sofort.`
           }
         />
       )}
@@ -91,42 +91,26 @@ export function ErweiterungInstallation({id, version, basis, system}: Props) {
               <Heading level={3}>Einrichten</Heading>
               {stand.art === 'fehlt' && <Badge variant="neutral" label="Noch nicht installiert" />}
             </HStack>
-            <SegmentedControl label="Betriebssystem" value={wahl} onChange={(v) => setWahl(v as Betriebssystem)}>
-              <SegmentedControlItem value="mac" label="Mac" />
-              <SegmentedControlItem value="windows" label="Windows" />
-              <SegmentedControlItem value="linux" label="Linux" />
-            </SegmentedControl>
-            {wahl === 'mac' && (
-              <Schritte
-                knopf="Profil laden"
-                onClick={() => herunterladen('mac')}
-                schritte={[
-                  'Die geladene Datei „MedArbeiter-Zugangscodes.mobileconfig" doppelklicken.',
-                  'Systemeinstellungen → Allgemein → Geräteverwaltung → das Profil „MedArbeiter Zugangscodes" installieren.',
-                  'Chrome ganz beenden (⌘Q) und wieder öffnen. Diese Seite meldet sich, sobald die Erweiterung da ist.',
-                ]}
-              />
-            )}
-            {wahl === 'windows' && (
-              <Schritte
-                knopf="Registrierungsdatei laden"
-                onClick={() => herunterladen('windows')}
-                schritte={[
-                  'Die geladene Datei „MedArbeiter-Zugangscodes.reg" doppelklicken und die Nachfrage bestätigen.',
-                  'Chrome ganz beenden und wieder öffnen.',
-                  'Nimmt Chrome die Richtlinie auf einem Rechner ohne Domäne nicht an, geht es über die Google Admin-Konsole (unten).',
-                ]}
-              />
-            )}
-            {wahl === 'linux' && (
-              <Schritte
-                knopf="Richtlinie laden"
-                onClick={() => herunterladen('linux')}
-                schritte={[
-                  'Die geladene Datei nach /etc/opt/chrome/policies/managed/medarbeiter.json legen (sudo).',
-                  'Chrome ganz beenden und wieder öffnen.',
-                ]}
-                befehl={`sudo sh -c 'mkdir -p /etc/opt/chrome/policies/managed && curl -fsSL "${basis}/api/erweiterung/richtlinie?fuer=linux" -o /etc/opt/chrome/policies/managed/medarbeiter.json'`}
+            {storeUrl ? (
+              <>
+                <Text type="body" as="p">
+                  Im Chrome Web Store auf „Hinzufügen" klicken und bestätigen. Diese Seite meldet sich, sobald die
+                  Erweiterung da ist; aktuell hält sie der Store von selbst.
+                </Text>
+                <HStack>
+                  <Button
+                    label="Im Chrome Web Store öffnen"
+                    variant="primary"
+                    icon={<Sinnbild sinn="installieren" />}
+                    onClick={() => window.open(storeUrl, '_blank', 'noopener')}
+                  />
+                </HStack>
+              </>
+            ) : (
+              <Banner
+                status="warning"
+                title="Noch keine Store-Seite hinterlegt"
+                description="Auf einem Rechner ohne Geräteverwaltung installiert Chrome nur aus dem Web Store. Die Verwaltung lädt das Paket dort hoch (bun scripts/erweiterung-store-zip.ts, Sichtbarkeit „Nicht gelistet“) und trägt ERWEITERUNG_STORE_URL und ERWEITERUNG_STORE_ID in die Umgebung des Hubs ein – dann steht hier ein Knopf."
               />
             )}
           </VStack>
@@ -137,43 +121,20 @@ export function ErweiterungInstallation({id, version, basis, system}: Props) {
           <Heading level={4}>Für alle im Haus auf einmal</Heading>
           <Text type="supporting" color="secondary" as="p">
             Google Admin-Konsole → Geräte → Chrome → Apps und Erweiterungen → Nutzer und Browser → „+" → „Per
-            Erweiterungs-ID hinzufügen": Kennung und Update-URL aus dem Wert unten, Richtlinie „Installation
-            erzwingen". Danach hat jeder, der in Chrome mit dem Firmenkonto angemeldet ist, die Erweiterung — ohne
-            die Schritte oben.
+            Erweiterungs-ID hinzufügen", Richtlinie „Installation erzwingen". Aus dem Web Store genügt die Kennung;
+            ohne Store-Seite nimmt die Konsole Kennung und Update-URL aus dem Wert unten – dieser Weg braucht keine
+            Klicks auf den Rechnern, weil Chrome einer Cloud-Richtlinie traut.
           </Text>
-          <Text type="code" as="p">{wert}</Text>
+          {richtlinie ? (
+            <Text type="code" as="p">{richtlinie}</Text>
+          ) : (
+            <Text type="supporting" color="secondary" as="p">
+              Der Hub liefert das Paket erst, wenn APP_URL gesetzt ist und er data/ beschreiben darf.
+            </Text>
+          )}
+          <Text type="code" as="p">{`${basis}/api/erweiterung/update.xml`}</Text>
         </VStack>
       </Card>
-    </VStack>
-  );
-}
-
-function Schritte({
-  knopf,
-  onClick,
-  schritte,
-  befehl,
-}: {
-  knopf: string;
-  onClick: () => void;
-  schritte: string[];
-  befehl?: string;
-}) {
-  return (
-    <VStack gap={2}>
-      <HStack>
-        <Button label={knopf} variant="primary" icon={<Sinnbild sinn="installieren" />} onClick={onClick} />
-      </HStack>
-      <List listStyle="decimal">
-        {schritte.map((s) => (
-          <ListItem key={s} label={s} />
-        ))}
-      </List>
-      {befehl && (
-        <Text type="code" as="p">
-          {befehl}
-        </Text>
-      )}
     </VStack>
   );
 }

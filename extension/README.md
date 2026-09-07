@@ -4,16 +4,17 @@ Trägt die Einmalcodes aus dem Hub (`/zugangscodes`) auf Anmeldeseiten ein.
 
 ## Installieren – und aktuell bleiben
 
-Chrome aktualisiert nur, was es über eine Richtlinie installiert hat. Der Hub liefert darum das signierte Paket
-und das Update-Manifest selbst (`lib/erweiterung.ts`, `/api/erweiterung/…`), und die Seite **/erweiterung** im Hub
-ist der Einrichtungsweg: sie erkennt das System, gibt die Richtlinie zum Doppelklick (`.mobileconfig` auf dem Mac,
-`.reg` auf Windows, JSON auf Linux) und meldet, sobald die Erweiterung antwortet. Für alle auf einmal: der Wert für die
-Google Admin-Konsole steht ebenfalls dort. Danach: Chrome neu starten, fertig – jede neue Version
-(Versionsnummer in `manifest.json` erhöhen) holt Chrome beim nächsten Abgleich, `background.js` bittet beim Start
-und täglich darum und lädt sie sofort.
+**Chrome traut auf einem Rechner ohne MDM/Domäne keiner lokalen Richtlinie**, die eine Erweiterung von
+außerhalb des Web Stores erzwingt – es streicht den Eintrag still (Chromium: `FilterSensitiveExtensionsInstallForcelist`).
+Ein manuell installiertes Profil oder eine `.reg` bringt daher nichts. Es bleiben zwei Wege, beide auf **/erweiterung**:
 
-Voraussetzung im Hub: `ERWEITERUNG_KEY` (einmal `bun scripts/erweiterung-schluessel.ts`, dann in die Umgebung – der
-Schlüssel bestimmt die Kennung und darf sich nie ändern) und `APP_URL`.
+1. **Chrome Web Store, nicht gelistet** – ein Klick je Rechner, der Store hält aktuell. Einmalig: Developer-Konto
+   (5 $), `bun scripts/erweiterung-store-zip.ts > medarbeiter-zugangscodes.zip`, hochladen, Sichtbarkeit „Nicht
+   gelistet", dann `ERWEITERUNG_STORE_URL` und `ERWEITERUNG_STORE_ID` in die Umgebung des Hubs. Neue Version =
+   Versionsnummer erhöhen, ZIP neu hochladen.
+2. **Google Admin-Konsole** – Installation erzwingen für alle, kein Klick auf den Rechnern (einer Cloud-Richtlinie
+   traut Chrome). Aus dem Store per Kennung, oder ohne Store per Kennung + Update-URL des Hubs: der Hub signiert das
+   Paket selbst (`lib/erweiterung.ts`, `/api/erweiterung/update.xml`, Schlüssel in `data/erweiterung-schluessel.txt`).
 
 Zum Entwickeln: `chrome://extensions` → Entwicklermodus → „Entpackte Erweiterung laden" → dieser Ordner. Diese Kopie
 aktualisiert sich nicht. Bei einem anderen Hub (lokal `http://localhost:3001`): Erweiterung → Einstellungen.

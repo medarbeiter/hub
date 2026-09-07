@@ -1,6 +1,6 @@
 import {describe, expect, test} from 'bun:test';
 import {createHash, generateKeyPairSync, verify} from 'node:crypto';
-import {crxKennung, crxPacken, erweiterungId, erweiterungZip, mobileconfig, oeffentlicherSchluessel, regDatei, richtlinieJson, updateXml} from '../lib/erweiterung';
+import {crxKennung, crxPacken, erweiterungId, erweiterungZip, oeffentlicherSchluessel, updateXml} from '../lib/erweiterung';
 
 const {privateKey} = generateKeyPairSync('rsa', {modulusLength: 2048});
 const spki = oeffentlicherSchluessel(privateKey);
@@ -65,17 +65,6 @@ describe('CRX3', () => {
     expect(zip).toContain('"update_url": "https://hub.test/u.xml"');
     expect(zip).toContain(`"key": "${spki.toString('base64')}"`);
     expect(zip).toContain('"https://hub.test/*"');
-  });
-
-  test('Richtliniendateien tragen den Wert, das Profil ersetzt sich selbst', () => {
-    const paket = {id: 'b'.repeat(32), version: '1.0.0', crx: Buffer.alloc(0)};
-    const wert = `${'b'.repeat(32)};https://hub.test/api/erweiterung/update.xml`;
-    const mc = mobileconfig(paket, 'https://hub.test');
-    expect(mc).toContain(`<string>${wert}</string>`);
-    expect(mc).toContain('<key>PayloadScope</key><string>User</string>');
-    expect(mc).toBe(mobileconfig(paket, 'https://hub.test'));
-    expect(regDatei(paket, 'https://hub.test')).toContain(`"1"="${wert}"`);
-    expect(JSON.parse(richtlinieJson(paket, 'https://hub.test'))).toEqual({ExtensionInstallForcelist: [wert]});
   });
 
   test('updateXml nennt Kennung, Version und Paketadresse', () => {

@@ -1,11 +1,15 @@
 // Die Browser-Erweiterung als Paket, das Chrome selbst aktuell hält.
 //
 // Ein entpackt geladener Ordner wird nie aktualisiert, und einen fremden CRX
-// nimmt Chrome nur über eine Richtlinie (ExtensionInstallForcelist) an. Der
-// Weg ist deshalb: der Hub liefert das Paket als CRX3 samt Omaha-Update-
-// Manifest, die Richtlinie zeigt auf dieses Manifest, und Chrome holt jede
-// neue Version von selbst (alle paar Stunden, sofort nach dem Start — die
-// Erweiterung selbst bittet zusätzlich um die Prüfung, background.js).
+// nimmt Chrome nur über eine Richtlinie (ExtensionInstallForcelist) an — und
+// die nur aus einer Quelle, der es traut: **auf einem Rechner ohne MDM oder
+// Domäne streicht Chrome jeden Forcelist-Eintrag, dessen Update-URL nicht
+// der Web Store ist** (policy_loader_mac.mm: ShouldFilterSensitivePolicies,
+// policy_loader_common.cc: FilterSensitiveExtensionsInstallForcelist). Ein
+// manuell installiertes Konfigurationsprofil hilft also nicht. Dieses Paket
+// ist deshalb für die Wege, die Chrome traut: die Google Admin-Konsole
+// (Cloud-Richtlinie) und MDM-verwaltete Geräte. Für alle anderen Rechner ist
+// der Web Store (unlistet) der Weg — `ERWEITERUNG_STORE_URL` auf /erweiterung.
 //
 // Signiert wird mit einem RSA-Schlüssel aus `ERWEITERUNG_KEY` (PKCS#8 als
 // Base64, erzeugt mit `bun scripts/erweiterung-schluessel.ts`). Aus dem
@@ -215,62 +219,4 @@ export function updateXml(paket: ErweiterungPaket, basis: string): string {
 /** Der Wert der Richtlinie ExtensionInstallForcelist: „<Kennung>;<Update-URL>". */
 export function richtlinienWert(paket: ErweiterungPaket, basis: string): string {
   return `${paket.id};${basis}/api/erweiterung/update.xml`;
-}
-
-// ── Richtliniendateien: ein Doppelklick statt Terminal ──────────────────────
-// Ein Web-Blatt kann keine Erweiterung installieren; es kann dem Browser aber
-// die Richtlinie in der Form geben, die das Betriebssystem mit einem
-// Doppelklick übernimmt. Chrome liest sie beim nächsten Start und installiert
-// — und aktualisiert von da an selbst.
-
-function xmlSicher(text: string): string {
-  return text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
-}
-
-/** Eine feste UUID aus der Kennung: dasselbe Profil ersetzt sich, statt sich zu stapeln. */
-function profilUuid(paket: ErweiterungPaket, zusatz: string): string {
-  const h = createHash('sha256').update(`${paket.id}:${zusatz}`).digest('hex');
-  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20, 32)}`.toUpperCase();
-}
-
-/** macOS: Konfigurationsprofil (Nutzerbereich, braucht kein Administratorkennwort). */
-export function mobileconfig(paket: ErweiterungPaket, basis: string): string {
-  const wert = xmlSicher(richtlinienWert(paket, basis));
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>PayloadContent</key>
-  <array>
-    <dict>
-      <key>PayloadType</key><string>com.google.Chrome</string>
-      <key>PayloadIdentifier</key><string>de.med-arbeiter.hub.chrome.zugangscodes</string>
-      <key>PayloadUUID</key><string>${profilUuid(paket, 'chrome')}</string>
-      <key>PayloadVersion</key><integer>1</integer>
-      <key>PayloadDisplayName</key><string>MedArbeiter Zugangscodes für Chrome</string>
-      <key>ExtensionInstallForcelist</key>
-      <array><string>${wert}</string></array>
-    </dict>
-  </array>
-  <key>PayloadType</key><string>Configuration</string>
-  <key>PayloadIdentifier</key><string>de.med-arbeiter.hub.zugangscodes</string>
-  <key>PayloadUUID</key><string>${profilUuid(paket, 'profil')}</string>
-  <key>PayloadVersion</key><integer>1</integer>
-  <key>PayloadScope</key><string>User</string>
-  <key>PayloadDisplayName</key><string>MedArbeiter Zugangscodes</string>
-  <key>PayloadDescription</key><string>Installiert die Browser-Erweiterung „MedArbeiter Zugangscodes" in Chrome und hält sie aktuell.</string>
-  <key>PayloadOrganization</key><string>MedArbeiter</string>
-</dict>
-</plist>
-`;
-}
-
-/** Windows: Registrierungsdatei im Nutzerzweig — kein Administrator nötig. */
-export function regDatei(paket: ErweiterungPaket, basis: string): string {
-  return `Windows Registry Editor Version 5.00\r\n\r\n[HKEY_CURRENT_USER\\Software\\Policies\\Google\\Chrome\\ExtensionInstallForcelist]\r\n"1"="${richtlinienWert(paket, basis)}"\r\n`;
-}
-
-/** Linux: die Richtlinie als JSON für /etc/opt/chrome/policies/managed/. */
-export function richtlinieJson(paket: ErweiterungPaket, basis: string): string {
-  return `${JSON.stringify({ExtensionInstallForcelist: [richtlinienWert(paket, basis)]}, null, 2)}\n`;
 }
