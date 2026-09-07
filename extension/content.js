@@ -95,7 +95,21 @@
   }
 
   // ── Der Hub ──────────────────────────────────────────────────────────────
-  const frag = (nachricht) => new Promise((ok) => chrome.runtime.sendMessage(nachricht, (a) => ok(a ?? {fehler: 'netz'})));
+  // Nach einem Neuladen der Erweiterung lebt dieses Skript in der offenen
+  // Seite weiter, hat aber keinen Draht mehr — sendMessage wirft dann. Das
+  // ist kein Netzfehler, sondern ein „Seite neu laden".
+  const frag = (nachricht) =>
+    new Promise((ok) => {
+      try {
+        if (!chrome.runtime?.id) return ok({fehler: 'neu-laden'});
+        chrome.runtime.sendMessage(nachricht, (a) => {
+          void chrome.runtime.lastError;
+          ok(a ?? {fehler: 'netz'});
+        });
+      } catch {
+        ok({fehler: 'neu-laden'});
+      }
+    });
   const holen = () => frag({art: 'codes', host: HOST});
   const merken = (id) => frag({art: 'seite', id, host: HOST});
 
@@ -169,8 +183,12 @@
         tafel.insertAdjacentHTML('beforeend', `<p class="hinweis">Bitte zuerst am Hub anmelden: <a href="${antwort.hub}" target="_blank">${antwort.hub}</a></p>`);
         return;
       }
+      if (antwort.fehler === 'neu-laden') {
+        tafel.insertAdjacentHTML('beforeend', '<p class="hinweis">Die Erweiterung wurde aktualisiert – bitte diese Seite neu laden.</p>');
+        return;
+      }
       if (antwort.fehler) {
-        tafel.insertAdjacentHTML('beforeend', '<p class="hinweis">Der Hub ist gerade nicht erreichbar.</p>');
+        tafel.insertAdjacentHTML('beforeend', `<p class="hinweis">Der Hub ist gerade nicht erreichbar (${antwort.hub ?? 'Adresse in den Einstellungen der Erweiterung'}).</p>`);
         return;
       }
       if (zustand.eingetragen) {
@@ -181,7 +199,17 @@
       }
 
       const codes = antwort.codes ?? [];
+      if (codes.length === 0) {
+        tafel.insertAdjacentHTML('beforeend', `<p class="hinweis">Für dein Konto ist im Hub kein Zugangscode hinterlegt. <a href="${antwort.hub}/zugangscodes" target="_blank">Zugangscodes im Hub</a></p>`);
+        return;
+      }
       const passende = codes.filter((c) => c.treffer > 0);
+      if (passende.length === 0 && !zustand.eingetragen) {
+        const h = document.createElement('p');
+        h.className = 'hinweis';
+        h.textContent = `Für ${HOST} ist noch kein Zugang gemerkt – wähle den richtigen, dann merkt er sich die Seite.`;
+        tafel.append(h);
+      }
       const liste = alle || passende.length === 0 ? codes : passende;
       if (alle || passende.length === 0) {
         const s = document.createElement('input');
@@ -230,6 +258,7 @@
       const fuss = document.createElement('div');
       fuss.className = 'fuss';
       const rest = Math.max(0, Math.round((Math.min(...codes.map((c) => c.gueltigBisMs)) - (Date.now() - antwort.versatzMs)) / 1000));
+      console.debug('[MedArbeiter] Codes für', HOST, codes.map((c) => [c.dienst, c.treffer]));
       fuss.innerHTML = `<span>noch ${rest} s gültig</span>`;
       if (!alle && passende.length > 0 && passende.length < codes.length) {
         const mehr = document.createElement('button');
@@ -242,7 +271,12 @@
       }
       tafel.append(fuss);
     };
-    render();
+    try {
+      render();
+    } catch (e) {
+      console.error('[MedArbeiter] Auswahl konnte nicht gezeichnet werden', e);
+      tafel.innerHTML = `<p class="hinweis">Die Auswahl konnte nicht gezeichnet werden: ${String(e)}</p>`;
+    }
 
     // Wenn der Code kippt, neu holen — die Ziffern in der Auswahl sollen stimmen.
     const naechster = Math.min(...(antwort.codes ?? []).map((c) => c.gueltigBisMs));
@@ -282,9 +316,21 @@
       return;
     }
     const r = anker.getBoundingClientRect();
+    const y = r.top + r.height / 2;
+    // Rechts im Feld sitzt oft schon jemand — das 1Password-Zeichen, ein
+    // Auge zum Anzeigen des Passworts. Wir rücken nach links, bis unter dem
+    // Zeichen nur noch das Feld selbst (oder seine Vorfahren) liegt.
+    let x = r.right - 19;
+    for (let i = 0; i < 4; i++) {
+      const drueber = document.elementsFromPoint(x, y).filter(
+        (el) => el !== zeichen && el !== wirt && el !== anker && !el.contains(anker),
+      );
+      if (drueber.length === 0 || x - 28 < r.left + 40) break;
+      x -= 28;
+    }
     zeichen.style.display = '';
-    zeichen.style.top = `${r.top + (r.height - 22) / 2}px`;
-    zeichen.style.left = `${r.right - 30}px`;
+    zeichen.style.top = `${y - 11}px`;
+    zeichen.style.left = `${x - 11}px`;
   }
 
   function zeichenZeigen(feld) {
