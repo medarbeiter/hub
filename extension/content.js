@@ -355,12 +355,21 @@
     bild.src = chrome.runtime.getURL('icons/48.png');
     bild.alt = '';
     knopf.append(bild);
-    knopf.addEventListener('pointerdown', (e) => e.stopPropagation());
-    knopf.addEventListener('click', async (e) => {
+    // Schon beim Drücken, nicht erst beim Klick: eine Seite mit eigenem
+    // Klick-Abfangen (Dialoge, Fokusfallen) kann den Klick schlucken, das
+    // Drücken kommt immer an. mousedown ohne Wirkung, damit das Feld den
+    // Fokus behält — wie beim Passwortmanager.
+    knopf.addEventListener('mousedown', (e) => e.preventDefault());
+    knopf.addEventListener('pointerdown', async (e) => {
       e.preventDefault();
       e.stopPropagation();
+      console.debug('[MedArbeiter] Zeichen gedrückt', wirt ? 'schließen' : 'öffnen');
       if (wirt) return schliessen();
       zeigen(feld, await holen(), {});
+    });
+    knopf.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
     });
     schatten.append(stil, knopf);
     document.documentElement.append(zeichen);
