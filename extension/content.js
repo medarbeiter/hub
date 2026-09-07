@@ -387,7 +387,7 @@
     }
     const r = anker.getBoundingClientRect();
     const y = r.top + r.height / 2;
-    const x = freieKante(anker, r) - 8 - 11;
+    const x = freieKante(anker, r);
     zeichen.style.display = '';
     zeichen.style.top = `${y - 11}px`;
     zeichen.style.left = `${x - 11}px`;
@@ -485,13 +485,17 @@
       const q = el.getBoundingClientRect();
       if (q.width > 0 && q.right > r.left && q.left < r.right) kante = Math.min(kante, q.left);
     }
+    // Die Mitte des Zeichens so wählen, dass seine ganze Breite (22 px plus
+    // Luft) frei ist — ein freier Punkt allein reicht nicht: das 1Password-
+    // Zeichen ist ein fest positionierter Knopf in einem geschlossenen
+    // Schatten, sein Wirt hat kein Rechteck, nur der Punkttest sieht ihn.
     const y = r.top + r.height / 2;
     const z = zaehlt(anker);
-    for (let x = kante - 8; x > r.left + 60; x -= 8) {
-      if (document.elementsFromPoint(x, y).filter(z).length === 0) return x;
-      kante = x;
+    const frei = (x) => [-13, -6, 0, 6, 13].every((d) => document.elementsFromPoint(x + d, y).filter(z).length === 0);
+    for (let x = kante - 8 - 11; x - 11 > r.left + 40; x -= 4) {
+      if (frei(x)) return x;
     }
-    return kante;
+    return kante - 8 - 11;
   }
 
   let legeTimer = null;
