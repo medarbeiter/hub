@@ -97,7 +97,11 @@ async function waehlen(c) {
       eingetragen = Boolean(r?.eingetragen);
     } catch {}
   }
-  if (host && c.treffer < 3) frag({art: 'seite', id: c.id, host});
+  // Nicht still merken: die Seite bekommt die Frage (content.js liest sie aus dem Speicher).
+  if (host && c.treffer < 3) {
+    const name = c.konto ? `${c.dienst} (${c.konto})` : c.dienst;
+    chrome.storage.local.set({frage: {id: c.id, name, host, bis: Date.now() + 10 * 60_000}}).catch(() => {});
+  }
   $('status').textContent = eingetragen ? 'Eingetragen und kopiert.' : 'Kopiert.';
   if (eingetragen) setTimeout(() => window.close(), 600);
 }

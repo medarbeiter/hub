@@ -1,8 +1,10 @@
 // Auf jeder Seite: erkennt das Feld für den Einmalcode, holt die passenden
 // Codes vom Hub (über background.js) und trägt ein — von selbst, wenn genau
 // ein Zugang zu dieser Seite gemerkt ist, sonst über eine kleine Auswahl am
-// Feld. Wer dort einen anderen Zugang wählt als den vorgeschlagenen, bringt
-// dem Hub bei, dass dieser Zugang zu dieser Seite gehört.
+// Feld. Gelernt wird nie still: nach dem Eintragen fragt eine kleine Tafel,
+// ob der Zugang zu dieser Seite gehört — und weil die Seite nach dem Code
+// meist sofort weiterlädt, liegt die Frage in chrome.storage und steht auf
+// der nächsten Seite derselben Domäne wieder da, bis sie beantwortet ist.
 (() => {
   if (window.__medarbeiterCodes) return;
   window.__medarbeiterCodes = true;
@@ -123,7 +125,6 @@
     }
     return antwort;
   }
-  const merken = (id) => frag({art: 'seite', id, host: HOST});
 
   // ── Die Auswahl am Feld ──────────────────────────────────────────────────
   let wirt = null;
@@ -319,8 +320,8 @@
       const jetzt = frisch.codes?.find((x) => x.id === c.id) ?? c;
       if (!jetzt.code) return;
       eintragen(feld, jetzt.code);
-      // Ein Zugang, den die Seite nicht kannte, gehört ab jetzt zu ihr.
-      if (c.treffer < 3) merken(c.id);
+      // Ein Zugang, den die Seite noch nicht genau kannte: fragen, nicht raten.
+      if (c.treffer < 3) frageStellen(c);
       schliessen();
     }
   }
@@ -512,6 +513,94 @@
   addEventListener('scroll', nachfuehren, true);
   addEventListener('resize', nachfuehren);
 
+  // ── Die Frage nach dem Eintragen ─────────────────────────────────────────
+  // „Gehört <Zugang> zu <Seite>?" — als Eintrag in chrome.storage.local, nicht
+  // als Zustand dieser Seite: der Code löst meist sofort ein Weiterladen aus,
+  // und die Frage soll das überleben. Jede Seite derselben Domäne zeigt sie,
+  // bis jemand Ja oder Nein sagt; nach zehn Minuten verfällt sie.
+  const FRAGE_TTL = 10 * 60_000;
+
+  function basis(host) {
+    const t = host.split('.');
+    if (t.length <= 2) return host;
+    const zweistufig = t.at(-1).length === 2 && t.at(-2).length <= 3;
+    return t.slice(zweistufig ? -3 : -2).join('.');
+  }
+
+  function frageStellen(c) {
+    const name = c.konto ? `${c.dienst} (${c.konto})` : c.dienst;
+    chrome.storage.local.set({frage: {id: c.id, name, host: HOST, bis: Date.now() + FRAGE_TTL}}).catch(() => {});
+  }
+
+  let frageWirt = null;
+
+  function frageSchliessen() {
+    frageWirt?.remove();
+    frageWirt = null;
+  }
+
+  function frageZeigen(frage) {
+    if (window !== window.top) return; // einmal je Fenster, nicht je Frame
+    frageSchliessen();
+    frageWirt = document.createElement('medarbeiter-zugangscodes-frage');
+    const schatten = frageWirt.attachShadow({mode: 'open'});
+    const stil = document.createElement('style');
+    stil.textContent = `
+      :host { all: initial; }
+      .tafel { position: fixed; right: 16px; bottom: 16px; z-index: 2147483647; width: 320px; background: #1c1917; color: #f5efe0;
+        border-radius: 12px; box-shadow: 0 8px 24px rgba(28,25,23,.35); font: 13px/1.45 system-ui, -apple-system, sans-serif; padding: 12px 14px;
+        animation: auf .25s cubic-bezier(.2,.7,.2,1) both; }
+      @keyframes auf { from { transform: translateY(12px); } to { transform: none; } }
+      @media (prefers-reduced-motion: reduce) { .tafel { animation: none; } }
+      b { display: block; font-weight: 600; margin-bottom: 2px; }
+      p { margin: 0 0 10px; color: #d9d2c1; }
+      .knoepfe { display: flex; gap: 8px; justify-content: flex-end; }
+      button { all: unset; cursor: pointer; padding: 6px 12px; border-radius: 8px; font-weight: 600; }
+      .ja { background: #e1b025; color: #1c1917; border: 1px solid #8f6e06; }
+      .ja:hover { background: #f0c23a; }
+      .nein { color: #d9d2c1; border: 1px solid #67625a; }
+      .nein:hover { background: #2a2622; }
+      button:focus-visible { outline: 2px solid #e1b025; outline-offset: 2px; }
+    `;
+    const tafel = document.createElement('div');
+    tafel.className = 'tafel';
+    tafel.setAttribute('role', 'dialog');
+    tafel.setAttribute('aria-label', 'Seite merken?');
+    tafel.innerHTML = `<b>Seite merken?</b><p></p><div class="knoepfe"><button class="nein" type="button">Nein</button><button class="ja" type="button">Ja, merken</button></div>`;
+    tafel.querySelector('p').textContent = `Der Code für ${frage.name} wurde auf ${frage.host} eingetragen. Soll er hier künftig zuerst vorgeschlagen werden?`;
+    tafel.querySelector('.nein').onclick = () => {
+      chrome.storage.local.remove('frage').catch(() => {});
+      frageSchliessen();
+    };
+    tafel.querySelector('.ja').onclick = async () => {
+      const antwort = await frag({art: 'seite', id: frage.id, host: frage.host});
+      chrome.storage.local.remove('frage').catch(() => {});
+      tafel.querySelector('.knoepfe').remove();
+      tafel.querySelector('p').textContent = antwort.ok
+        ? `Gemerkt – ${frage.name} wird auf ${frage.host} ab jetzt zuerst vorgeschlagen.`
+        : `Konnte nicht gemerkt werden: ${antwort.fehler ?? 'der Hub antwortet nicht'}.`;
+      setTimeout(frageSchliessen, antwort.ok ? 3500 : 8000);
+    };
+    schatten.append(stil, tafel);
+    document.documentElement.append(frageWirt);
+    setTimeout(() => tafel.querySelector('.ja').focus(), 50);
+  }
+
+  function fragePruefen(frage) {
+    if (!frage) return frageSchliessen();
+    if (frage.bis < Date.now()) {
+      chrome.storage.local.remove('frage').catch(() => {});
+      return frageSchliessen();
+    }
+    if (basis(frage.host) !== basis(HOST)) return;
+    frageZeigen(frage);
+  }
+
+  chrome.storage.local.get('frage').then(({frage}) => fragePruefen(frage)).catch(() => {});
+  chrome.storage.onChanged.addListener((aenderungen, bereich) => {
+    if (bereich === 'local' && 'frage' in aenderungen) fragePruefen(aenderungen.frage.newValue);
+  });
+
   // ── Ablauf ───────────────────────────────────────────────────────────────
   let behandelt = null;
 
@@ -539,6 +628,7 @@
     if (sicher.length === 1 && sicher[0].code) {
       eintragen(feld, sicher[0].code);
       zustand.eingetragen = sicher[0].konto ? `${sicher[0].dienst} (${sicher[0].konto})` : sicher[0].dienst;
+      if (sicher[0].treffer < 3) frageStellen(sicher[0]);
     }
     zeigen(feld, antwort, zustand);
   }

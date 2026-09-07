@@ -25,7 +25,7 @@ aktualisiert sich nicht. Bei einem anderen Hub (lokal `http://localhost:3001`): 
 - **Zuordnen**: der Hub sortiert (`lib/zugangscode-treffer.ts`): gemerkte Seite genau (3) → gleiche Domäne (2) → Dienstname klingt nach der Domäne (1) → Rest (0).
 - **Zeichen im Feld**: wie beim Passwortmanager sitzt ein kleines Zeichen am rechten Rand des erkannten Feldes; es bleibt, solange das Feld da ist, und öffnet die Auswahl – auch ohne Hub-Sitzung (dann sagt sie, was fehlt).
 - **Eintragen**: genau *ein* Zugang mit Stufe ≥ 2 → wird sofort eingetragen, daneben steht die Auswahl zum Korrigieren. Sonst erscheint die Auswahl am Feld (Vorschläge zuerst, „Alle anzeigen" mit Suche).
-- **Lernen**: wer in der Auswahl oder im Popup einen Zugang wählt, der für diese Seite noch nicht gemerkt war, ordnet ihn ihr zu (`POST /api/zugangscodes`, Protokoll `zugangscode.seite`). Beim nächsten Mal ist er Stufe 3. Falsch gelernte Seiten entfernt man im Hub im Bearbeiten-Dialog (Feld „Seiten").
+- **Lernen – nie still**: nach jedem Eintragen eines Zugangs, den die Seite nicht genau kannte (Stufe < 3), fragt eine dunkle Tafel unten rechts „Seite merken?" mit Ja/Nein. Die Frage liegt in `chrome.storage.local` und überlebt das Weiterladen, das der Code meist auslöst: jede Seite derselben Domäne zeigt sie, bis sie beantwortet ist (zehn Minuten). Ja = `POST /api/zugangscodes` (Protokoll `zugangscode.seite`), beim nächsten Mal Stufe 3. Falsch gemerkte Seiten entfernt man im Hub im Bearbeiten-Dialog (Feld „Seiten").
 - **Popup** (Symbolleiste): dieselbe Liste für den offenen Tab; Klick kopiert und trägt ein, wenn die Seite ein Feld hat.
 
 ## Grenzen
