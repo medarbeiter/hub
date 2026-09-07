@@ -1,4 +1,4 @@
-import {Badge, VStack} from '@astryxdesign/core';
+import {Badge, HStack, VStack} from '@astryxdesign/core';
 import {requireRecht} from '@/lib/auth';
 import {hatRecht} from '@/lib/rechte';
 import {einParameter} from '@/lib/format';
@@ -7,6 +7,7 @@ import {activeUsers} from '@/lib/time';
 import {aktuelleZugangscodes} from '@/lib/zugangscodes';
 import {ZeitRahmen} from '@/components/zeit-rahmen';
 import {ZugangscodeFilter} from '@/components/zugangscode-filter';
+import {Verweis} from '@/components/verweis';
 import {ZugangAnlegen, ZugangscodeTafel} from '@/components/zugangscode-tafel';
 
 export const dynamic = 'force-dynamic';
@@ -75,15 +76,20 @@ export default async function ZugangscodesPage({searchParams}: PageProps) {
       }
       figurMeta={dienst !== '' ? <Badge variant="neutral" label={dienst} /> : null}
       werkzeuge={
-        darfErfassen ? (
-          <ZugangAnlegen
-            selbstId={user.id}
-            darfVerwalten={darfVerwalten}
-            personenWahl={personenWahl}
-            rollenWahl={rollenWahl}
-            bestehend={alle.map((c) => ({dienst: c.dienst, konto: c.konto}))}
-          />
-        ) : null
+        <HStack gap={3} vAlign="center" wrap="wrap">
+          <Verweis href="/erweiterung" className="tafel-verweis">
+            Browser-Erweiterung
+          </Verweis>
+          {darfErfassen && (
+            <ZugangAnlegen
+              selbstId={user.id}
+              darfVerwalten={darfVerwalten}
+              personenWahl={personenWahl}
+              rollenWahl={rollenWahl}
+              bestehend={alle.map((c) => ({dienst: c.dienst, konto: c.konto}))}
+            />
+          )}
+        </HStack>
       }
       belege={
         <VStack gap={4}>

@@ -124,6 +124,8 @@ export const AKTIONEN = {
   // Ein Pin ordnet die Anzeige, nicht den Datensatz — darum Routine, kein Eingriff.
   'zugangscode.anpinnen': {bereich: 'zugang', label: 'Zugangscode angepinnt', eingriff: false},
   'zugangscode.abpinnen': {bereich: 'zugang', label: 'Pin gelöst', eingriff: false},
+  // Die Erweiterung lernt, zu welcher Seite ein Code gehört — Anzeigeordnung, kein Eingriff.
+  'zugangscode.seite': {bereich: 'zugang', label: 'Seite zugeordnet', eingriff: false},
   abmelden: {bereich: 'zugang', label: 'Abgemeldet', eingriff: false},
 
   // ── Arbeitszeit ──────────────────────────────────────────────────────────

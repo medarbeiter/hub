@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "MedArbeiter Zugangscodes",
+  "description": "Trägt die Einmalcodes aus dem MedArbeiter Hub auf Anmeldeseiten ein.",
+  "version": "1.0.2",
+  "icons": {
+    "16": "icons/16.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "MedArbeiter Zugangscodes"
+  },
+  "options_page": "options.html",
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "storage",
+    "activeTab",
+    "clipboardWrite",
+    "alarms"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
+  "externally_connectable": {
+    "matches": [
+      "https://hub.med-arbeiter.de/*",
+      "http://localhost:3001/*"
+    ]
+  }
+}

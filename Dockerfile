@@ -29,6 +29,8 @@ ENV NODE_ENV=production \
 COPY --from=build --chown=bun:bun /app/.next/standalone ./
 COPY --from=build --chown=bun:bun /app/.next/static ./.next/static
 COPY --from=build --chown=bun:bun /app/public ./public
+# Die Browser-Erweiterung wird zur Laufzeit signiert (lib/erweiterung.ts) und braucht ihre Quellen.
+COPY --from=build --chown=bun:bun /app/extension ./extension
 COPY --from=bootstrap --chown=bun:bun /app/dist/bootstrap-admin.js ./bootstrap-admin.js
 RUN mkdir -p /app/data && chown bun:bun /app/data
 USER bun

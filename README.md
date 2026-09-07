@@ -13,6 +13,12 @@ bun scripts/seed.ts --demo   # optional: synthetische Demo-Mitarbeiter und -Zeit
 bun run dev                  # http://localhost:3000
 ```
 
+Neben ihr liegt `data/erweiterung-schluessel.txt`, der Signierschlüssel der
+Browser-Erweiterung – vom Hub beim ersten Aufruf angelegt, und er bestimmt die
+Kennung der Erweiterung: geht er verloren, ist die nächste Version eine fremde
+Erweiterung für jeden Rechner im Haus. Er gehört zum Backup wie die Datenbank
+(oder alternativ als `ERWEITERUNG_KEY` in die Umgebung).
+
 Die Datenbank liegt unter `data/medarbeiter.db` (SQLite/WAL, wird automatisch
 angelegt und migriert). Produktion: `bun run build && bun run start`.
 

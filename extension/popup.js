@@ -1,0 +1,119 @@
+// Das Popup in der Symbolleiste: die Codes für die offene Seite zuerst, dann
+// alle. Ein Klick kopiert den Code und trägt ihn ein, wenn die Seite ein Feld
+// hat — und merkt dem Hub die Seite, wenn sie diesen Zugang noch nicht kannte.
+const $ = (id) => document.getElementById(id);
+let tab = null;
+let host = '';
+let antwort = null;
+let timer = null;
+
+const frag = (n) => new Promise((ok) => chrome.runtime.sendMessage(n, (a) => ok(a ?? {fehler: 'netz'})));
+
+function zeile(c) {
+  const li = document.createElement('li');
+  const b = document.createElement('button');
+  const name = document.createElement('span');
+  name.className = 'name';
+  name.textContent = c.dienst;
+  if (c.konto) {
+    const s = document.createElement('span');
+    s.textContent = c.konto;
+    name.append(s);
+  }
+  b.append(name);
+  if (c.treffer >= 2) {
+    const m = document.createElement('span');
+    m.className = 'marke';
+    m.textContent = 'diese Seite';
+    b.append(m);
+  }
+  const code = document.createElement('span');
+  code.className = 'code';
+  code.textContent = c.code ? `${c.code.slice(0, 3)} ${c.code.slice(3)}` : '—';
+  b.append(code);
+  b.onclick = () => waehlen(c);
+  li.append(b);
+  return li;
+}
+
+function render() {
+  const liste = $('liste');
+  const hinweis = $('hinweis');
+  liste.innerHTML = '';
+  hinweis.hidden = true;
+  if (antwort.fehler === 'anmelden') {
+    hinweis.hidden = false;
+    hinweis.innerHTML = `Bitte zuerst am Hub anmelden: <a href="${antwort.hub}/zugangscodes" target="_blank">${antwort.hub}</a>`;
+    return;
+  }
+  if (antwort.fehler) {
+    hinweis.hidden = false;
+    hinweis.textContent = `Der Hub ist nicht erreichbar (${antwort.hub}).`;
+    return;
+  }
+  const f = $('suche').value.trim().toLowerCase();
+  const codes = antwort.codes.filter((c) => !f || `${c.dienst} ${c.konto ?? ''}`.toLowerCase().includes(f));
+  const passende = codes.filter((c) => c.treffer > 0);
+  const andere = codes.filter((c) => c.treffer === 0);
+  if (passende.length > 0 && andere.length > 0) {
+    liste.insertAdjacentHTML('beforeend', '<li class="gruppe">Für diese Seite</li>');
+    passende.forEach((c) => liste.append(zeile(c)));
+    liste.insertAdjacentHTML('beforeend', '<li class="gruppe">Alle Zugänge</li>');
+    andere.forEach((c) => liste.append(zeile(c)));
+  } else {
+    codes.forEach((c) => liste.append(zeile(c)));
+  }
+  if (codes.length === 0) {
+    hinweis.hidden = false;
+    hinweis.textContent = 'Nichts gefunden.';
+  }
+}
+
+function takt() {
+  clearInterval(timer);
+  timer = setInterval(async () => {
+    if (!antwort?.codes?.length) return;
+    const rest = Math.min(...antwort.codes.map((c) => c.gueltigBisMs)) - (Date.now() - antwort.versatzMs);
+    $('rest').textContent = `noch ${Math.max(0, Math.ceil(rest / 1000))} s gültig`;
+    if (rest <= 0) await laden();
+  }, 250);
+}
+
+async function laden() {
+  antwort = await frag({art: 'codes', host});
+  render();
+  takt();
+}
+
+async function waehlen(c) {
+  const frisch = await frag({art: 'codes', host});
+  const jetzt = frisch.codes?.find((x) => x.id === c.id) ?? c;
+  if (!jetzt.code) return;
+  await navigator.clipboard.writeText(jetzt.code).catch(() => {});
+  let eingetragen = false;
+  if (tab?.id) {
+    try {
+      const r = await chrome.tabs.sendMessage(tab.id, {art: 'fuellen', code: jetzt.code});
+      eingetragen = Boolean(r?.eingetragen);
+    } catch {}
+  }
+  if (host && c.treffer < 3) frag({art: 'seite', id: c.id, host});
+  $('status').textContent = eingetragen ? 'Eingetragen und kopiert.' : 'Kopiert.';
+  if (eingetragen) setTimeout(() => window.close(), 600);
+}
+
+$('suche').addEventListener('input', render);
+$('optionen').addEventListener('click', (e) => {
+  e.preventDefault();
+  chrome.runtime.openOptionsPage();
+});
+
+(async () => {
+  [tab] = await chrome.tabs.query({active: true, currentWindow: true});
+  try {
+    const u = new URL(tab?.url ?? '');
+    if (/^https?:$/.test(u.protocol)) host = u.hostname.replace(/^www\./, '');
+  } catch {}
+  $('seite').textContent = host;
+  await laden();
+})();

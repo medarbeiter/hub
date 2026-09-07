@@ -60,6 +60,8 @@ export interface ZugangscodeZeile {
   darfBearbeiten: boolean;
   /** Der rohe Kreis fürs Bearbeiten-Formular — nur, wenn Bearbeiten erlaubt ist. */
   kreis: {sichtbarkeit: 'alle' | 'rolle' | 'personen'; rollen: string[]; personen: number[]} | null;
+  /** Die Seiten, auf denen die Browser-Erweiterung diesen Code anbietet. */
+  seiten: string[];
 }
 
 export interface PersonWahl {
@@ -220,6 +222,7 @@ function ZugangForm({
   const [eingabe, setEingabe] = useState('');
   const [dienst, setDienst] = useState(zeile?.dienst ?? '');
   const [konto, setKonto] = useState(zeile?.konto ?? '');
+  const [seiten, setSeiten] = useState(zeile?.seiten.join(' ') ?? '');
   const [scanne, setScanne] = useState(false);
   const [scanFehler, setScanFehler] = useState<string | null>(null);
   const [gelesen, setGelesen] = useState(false);
@@ -496,6 +499,14 @@ function ZugangForm({
           htmlName="konto"
           placeholder="z. B. info@firma.de"
           description="Optional – hilft, wenn es beim selben Dienst mehrere Konten gibt."
+        />
+        <TextInput
+          label="Seiten"
+          value={seiten}
+          onChange={setSeiten}
+          htmlName="seiten"
+          placeholder="z. B. login.ionos.de"
+          description="Optional – wo die Browser-Erweiterung diesen Code anbietet. Mehrere Adressen durch Leerzeichen trennen; sie lernt auch selbst dazu."
         />
         <KreisWahl
           selbstId={selbstId}

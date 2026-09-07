@@ -52,6 +52,7 @@ const MIGRATIONS: Migration[] = [
   migration31SammelLoeschung,
   migration32EigeneRechte,
   migration33Eintritt,
+  migration34ZugangscodeSeiten,
 ];
 
 /** The `PRAGMA user_version` a fully migrated database carries. */
@@ -902,6 +903,17 @@ function migration33Eintritt(db: Database) {
   db.exec('ALTER TABLE users ADD COLUMN eintritt TEXT');
 }
 
+function migration34ZugangscodeSeiten(db: Database) {
+  // Die Seiten, auf denen ein Zugang gebraucht wird — Hostnamen, durch
+  // Leerzeichen getrennt („accounts.google.com github.com"). Die Browser-
+  // Erweiterung (extension/) fragt mit dem Hostnamen der offenen Seite an
+  // und bekommt die passenden Codes zuerst; wählt jemand einen anderen, wird
+  // dessen Seite hier gemerkt (lib/zugangscodes.ts, seiteMerken). Eine Spalte
+  // statt einer Tabelle: die Liste ist kurz, wird als Ganzes gelesen und im
+  // Formular als ein Feld bearbeitet.
+  db.exec("ALTER TABLE totp_konten ADD COLUMN seiten TEXT NOT NULL DEFAULT ''");
+}
+
 /**
  * Bestehende Tagesarten in Spannen überführen. Aufeinanderfolgende Tage
  * derselben Art werden zu einer Abwesenheit zusammengezogen; ein Wochenende
@@ -1253,6 +1265,8 @@ export interface TotpKonto {
   created_at: string;
   /** Leserkreis: alle Angemeldeten, die Rollen in `totp_konto_rollen` oder die Personen in `totp_konto_personen`. */
   sichtbarkeit: 'alle' | 'rolle' | 'personen';
+  /** Hostnamen, durch Leerzeichen getrennt — leer, wenn keine Seite zugeordnet ist (Migration 34). */
+  seiten: string;
 }
 
 /** Ein Pin-Ziel eines Zugangscodes — additive Zeilen, siehe Migration 30. */

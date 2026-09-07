@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <title>MedArbeiter Zugangscodes – Einstellungen</title>
+  <style>
+    body { max-width: 480px; margin: 40px auto; font: 14px/1.5 system-ui, -apple-system, sans-serif; color: #1c1917; }
+    label { display: block; font-weight: 600; margin-bottom: 4px; }
+    input { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #d9d2c1; border-radius: 6px; font: inherit; }
+    button { margin-top: 12px; padding: 8px 14px; border: 1px solid #8f6e06; border-radius: 6px; background: #e1b025; color: #1c1917; font: inherit; font-weight: 600; cursor: pointer; }
+    p { color: #67625a; }
+  </style>
+</head>
+<body>
+  <h1>MedArbeiter Zugangscodes</h1>
+  <label for="hub">Adresse des Hubs</label>
+  <input id="hub" type="url" placeholder="https://hub.med-arbeiter.de" />
+  <p>Die Erweiterung nutzt die Anmeldung, die dieser Browser am Hub bereits hat. Wer dort nicht angemeldet ist, sieht keine Codes.</p>
+  <button id="speichern">Speichern</button>
+  <p id="stand"></p>
+  <script type="module" src="options.js"></script>
+</body>
+</html>

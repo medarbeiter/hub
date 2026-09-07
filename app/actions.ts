@@ -1764,6 +1764,7 @@ function zugangEingabeAusForm(actorId: number, formData: FormData): Zugangskonto
   const eingabe = String(formData.get('eingabe') ?? '').trim();
   let dienst = String(formData.get('dienst') ?? '').trim();
   let konto = String(formData.get('konto') ?? '').trim();
+  const seiten = String(formData.get('seiten') ?? '');
   const kreis = kreisAusForm(actorId, formData);
 
   // Ein otpauth-Link bringt alles mit; ein nackter Base32-Schlüssel nutzt die
@@ -1774,9 +1775,9 @@ function zugangEingabeAusForm(actorId: number, formData: FormData): Zugangskonto
     if (typeof geparst === 'string') return geparst;
     dienst = dienst || geparst.dienst;
     konto = konto || geparst.konto;
-    return {dienst, konto: konto || null, secret: geparst.secret, verfahren: geparst.verfahren, ...kreis};
+    return {dienst, konto: konto || null, secret: geparst.secret, verfahren: geparst.verfahren, seiten, ...kreis};
   }
-  return {dienst, konto: konto || null, secret: eingabe, verfahren: VERFAHREN_STANDARD, ...kreis};
+  return {dienst, konto: konto || null, secret: eingabe, verfahren: VERFAHREN_STANDARD, seiten, ...kreis};
 }
 
 export async function zugangscodeAnlegenAction(_prev: ActionState, formData: FormData): Promise<ActionState> {

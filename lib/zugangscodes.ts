@@ -23,6 +23,7 @@ import {getDb, type TotpKonto, type TotpPin, type User, type ZugangscodeLoeschun
 import {hatRecht} from './rechte';
 import {istRolle, rolleLabel} from './rollen';
 import {base32Dekodieren, periodeEnde, totpCode, type TotpVerfahren} from './totp';
+import {hostNormieren, seitenParsen, seitenText, treffer, type TrefferStufe} from './zugangscode-treffer';
 
 /** 30 Minuten, den Bestätigungslink zu öffnen — lang genug fürs Postfach, kurz genug fürs Risiko. */
 const LOESCHUNG_TTL_MS = 30 * 60_000;
@@ -47,6 +48,8 @@ export interface ZugangskontoEingabe {
   sichtbarkeit: ZugangSichtbarkeit;
   rollen?: string[];
   personen?: number[];
+  /** Die Seiten, auf denen der Code gebraucht wird — Hostnamen, frei getrennt; fehlt = unverändert. */
+  seiten?: string;
 }
 
 /** Wer eine Zeile liest oder anfasst — nur die Identität, die die Sitzung ohnehin trägt. */
@@ -183,9 +186,9 @@ export function zugangskontoAnlegen(actor: Leser, eingabe: ZugangskontoEingabe):
   const db = getDb();
   const row = db.transaction(() => {
     const neu = db
-      .query<TotpKonto, [string, string | null, string, string, number, number, number, string]>(
-        `INSERT INTO totp_konten (dienst, konto, secret, algorithmus, stellen, periode, erstellt_von, sichtbarkeit)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+      .query<TotpKonto, [string, string | null, string, string, number, number, number, string, string]>(
+        `INSERT INTO totp_konten (dienst, konto, secret, algorithmus, stellen, periode, erstellt_von, sichtbarkeit, seiten)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
       )
       .get(
         dienst,
@@ -196,6 +199,7 @@ export function zugangskontoAnlegen(actor: Leser, eingabe: ZugangskontoEingabe):
         eingabe.verfahren.periode,
         actor.id,
         kreis.sichtbarkeit,
+        seitenText(seitenParsen(eingabe.seiten ?? '')),
       );
     if (neu) schreibeKreis(neu.id, kreis);
     return neu;
@@ -228,15 +232,17 @@ export function zugangskontoAendern(actor: Leser, id: number, eingabe: Zugangsko
     }
   }
 
+  const seiten = eingabe.seiten === undefined ? bestehend.seiten : seitenText(seitenParsen(eingabe.seiten));
   const db = getDb();
   db.transaction(() => {
     if (neuesSecret !== '') {
       db.query(
-        'UPDATE totp_konten SET dienst = ?, konto = ?, sichtbarkeit = ?, secret = ?, algorithmus = ?, stellen = ?, periode = ? WHERE id = ?',
+        'UPDATE totp_konten SET dienst = ?, konto = ?, sichtbarkeit = ?, seiten = ?, secret = ?, algorithmus = ?, stellen = ?, periode = ? WHERE id = ?',
       ).run(
         dienst,
         konto,
         kreis.sichtbarkeit,
+        seiten,
         neuesSecret,
         eingabe.verfahren.algorithmus,
         eingabe.verfahren.stellen,
@@ -244,16 +250,71 @@ export function zugangskontoAendern(actor: Leser, id: number, eingabe: Zugangsko
         id,
       );
     } else {
-      db.query('UPDATE totp_konten SET dienst = ?, konto = ?, sichtbarkeit = ? WHERE id = ?').run(
+      db.query('UPDATE totp_konten SET dienst = ?, konto = ?, sichtbarkeit = ?, seiten = ? WHERE id = ?').run(
         dienst,
         konto,
         kreis.sichtbarkeit,
+        seiten,
         id,
       );
     }
     schreibeKreis(id, kreis);
   })();
   return null;
+}
+
+/**
+ * Die Erweiterung hat gelernt: dieser Zugang gehört (auch) zu dieser Seite.
+ * Merken darf, wer den Zugang sieht — eine Seite ist keine Freigabe, der
+ * Leserkreis bleibt, und wer den Code auf einer Seite eintippt, weiß am
+ * besten, wohin er gehört. Gibt den gemerkten Host zurück, `null` wenn er
+ * schon dastand, oder einen deutschen Satz.
+ */
+export function seiteMerken(actor: Leser, totpId: number, seite: string): string | null {
+  if (!hatRecht(actor, 'zugangscodes.sehen')) return 'Keine Berechtigung.';
+  const host = hostNormieren(seite);
+  if (host === null) return 'Die Seite konnte nicht gelesen werden.';
+  const konto = sichtbareZugangskonten(actor).find((k) => k.id === totpId);
+  if (!konto) return 'Diesen Zugang gibt es nicht mehr.';
+  const seiten = seitenParsen(konto.seiten);
+  if (seiten.includes(host)) return null;
+  getDb()
+    .query('UPDATE totp_konten SET seiten = ? WHERE id = ?')
+    .run(seitenText([...seiten, host]), totpId);
+  return null;
+}
+
+/** Was die Erweiterung bekommt: Code, Ablauf und wie gut der Zugang zur Seite passt — nie das Geheimnis. */
+export interface SeitenCode {
+  id: number;
+  dienst: string;
+  konto: string | null;
+  code: string | null;
+  gueltigBisMs: number;
+  periode: number;
+  treffer: TrefferStufe;
+}
+
+/** Die sichtbaren Codes, die passendsten zuerst; `host` kommt normiert oder roh, `null` = keine Seite. */
+export function codesFuerSeite(fuer: Leser, host: string | null, beiMs: number = Date.now()): SeitenCode[] {
+  const h = host === null ? null : hostNormieren(host);
+  return sichtbareZugangskonten(fuer)
+    .map((k) => {
+      const geheimnis = base32Dekodieren(k.secret);
+      return {
+        id: k.id,
+        dienst: k.dienst,
+        konto: k.konto,
+        code:
+          geheimnis === null
+            ? null
+            : totpCode(geheimnis, {algorithmus: k.algorithmus, stellen: k.stellen, periode: k.periode}, beiMs),
+        gueltigBisMs: periodeEnde(k.periode, beiMs),
+        periode: k.periode,
+        treffer: treffer(k, h),
+      };
+    })
+    .sort((a, b) => b.treffer - a.treffer);
 }
 
 /**
@@ -411,6 +472,8 @@ export interface Zugangscode {
   darfBearbeiten: boolean;
   /** Der rohe Kreis fürs Bearbeiten-Formular — nur, wenn Bearbeiten erlaubt ist. */
   kreis: {sichtbarkeit: ZugangSichtbarkeit; rollen: string[]; personen: number[]} | null;
+  /** Die Seiten, auf denen die Erweiterung diesen Code anbietet. */
+  seiten: string[];
 }
 
 export function aktuelleZugangscodes(fuer: Leser, beiMs: number = Date.now()): Zugangscode[] {
@@ -438,6 +501,7 @@ export function aktuelleZugangscodes(fuer: Leser, beiMs: number = Date.now()): Z
       gruppe: angepinnt ? 'angepinnt' : k.sichtbarkeit === 'alle' ? 'alle' : nurIch ? 'selbst' : 'geteilt',
       pin: {selbst: pin.personen.includes(fuer.id), breite: verwaltet ? pin : null},
       darfBearbeiten: darf,
+      seiten: seitenParsen(k.seiten),
       kreis: darf
         ? {sichtbarkeit: k.sichtbarkeit, rollen: kreisRollen(k.id), personen: personen.map((p) => p.id)}
         : null,
