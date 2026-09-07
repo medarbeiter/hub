@@ -551,27 +551,43 @@
     const stil = document.createElement('style');
     stil.textContent = `
       :host { all: initial; }
-      .tafel { position: fixed; right: 16px; bottom: 16px; z-index: 2147483647; width: 320px; background: #1c1917; color: #f5efe0;
-        border-radius: 12px; box-shadow: 0 8px 24px rgba(28,25,23,.35); font: 13px/1.45 system-ui, -apple-system, sans-serif; padding: 12px 14px;
-        animation: auf .25s cubic-bezier(.2,.7,.2,1) both; }
-      @keyframes auf { from { transform: translateY(12px); } to { transform: none; } }
+      .tafel { position: fixed; right: 20px; bottom: 20px; z-index: 2147483647; width: 380px; box-sizing: border-box;
+        background: #1c1917; color: #f5efe0; border-radius: 14px; border-left: 4px solid #e1b025;
+        box-shadow: 0 12px 32px rgba(28,25,23,.45); font: 15px/1.4 system-ui, -apple-system, sans-serif; padding: 16px 18px;
+        animation: auf .3s cubic-bezier(.2,.7,.2,1) both; }
+      @keyframes auf { from { transform: translateY(16px); } to { transform: none; } }
       @media (prefers-reduced-motion: reduce) { .tafel { animation: none; } }
-      b { display: block; font-weight: 600; margin-bottom: 2px; }
-      p { margin: 0 0 10px; color: #d9d2c1; }
-      .knoepfe { display: flex; gap: 8px; justify-content: flex-end; }
-      button { all: unset; cursor: pointer; padding: 6px 12px; border-radius: 8px; font-weight: 600; }
+      .kopf { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+      .kopf img { width: 28px; height: 28px; border-radius: 7px; }
+      .kopf small { display: block; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: #a89f8c; }
+      .kopf b { display: block; font-size: 18px; font-weight: 700; line-height: 1.2; }
+      dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 0 0 12px; padding: 10px 12px; background: #2a2622; border-radius: 10px; }
+      dt { color: #a89f8c; font-size: 13px; }
+      dd { margin: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      dd.seite { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 14px; color: #f0c23a; }
+      p { margin: 0 0 14px; color: #d9d2c1; font-size: 14px; }
+      .knoepfe { display: flex; gap: 10px; }
+      button { all: unset; cursor: pointer; flex: 1; text-align: center; padding: 10px 14px; border-radius: 10px; font-weight: 700; font-size: 15px; }
       .ja { background: #e1b025; color: #1c1917; border: 1px solid #8f6e06; }
       .ja:hover { background: #f0c23a; }
       .nein { color: #d9d2c1; border: 1px solid #67625a; }
       .nein:hover { background: #2a2622; }
       button:focus-visible { outline: 2px solid #e1b025; outline-offset: 2px; }
+      .ergebnis { font-weight: 600; color: #f5efe0; }
     `;
     const tafel = document.createElement('div');
     tafel.className = 'tafel';
     tafel.setAttribute('role', 'dialog');
-    tafel.setAttribute('aria-label', 'Seite merken?');
-    tafel.innerHTML = `<b>Seite merken?</b><p></p><div class="knoepfe"><button class="nein" type="button">Nein</button><button class="ja" type="button">Ja, merken</button></div>`;
-    tafel.querySelector('p').textContent = `Der Code für ${frage.name} wurde auf ${frage.host} eingetragen. Soll er hier künftig zuerst vorgeschlagen werden?`;
+    tafel.setAttribute('aria-label', 'Diese Seite merken?');
+    tafel.innerHTML = `
+      <div class="kopf"><img alt=""><span><small>MedArbeiter Zugangscodes</small><b>Diese Seite merken?</b></span></div>
+      <dl><dt>Zugang</dt><dd class="zugang"></dd><dt>Seite</dt><dd class="seite"></dd></dl>
+      <p>Beim nächsten Mal steht dieser Code hier zuerst.</p>
+      <div class="knoepfe"><button class="nein" type="button">Nein</button><button class="ja" type="button">Ja, merken</button></div>`;
+    tafel.querySelector('img').src = chrome.runtime.getURL('icons/48.png');
+    tafel.querySelector('.zugang').textContent = frage.name;
+    tafel.querySelector('.zugang').title = frage.name;
+    tafel.querySelector('.seite').textContent = frage.host;
     tafel.querySelector('.nein').onclick = () => {
       chrome.storage.local.remove('frage').catch(() => {});
       frageSchliessen();
@@ -580,10 +596,10 @@
       const antwort = await frag({art: 'seite', id: frage.id, host: frage.host});
       chrome.storage.local.remove('frage').catch(() => {});
       tafel.querySelector('.knoepfe').remove();
-      tafel.querySelector('p').textContent = antwort.ok
-        ? `Gemerkt – ${frage.name} wird auf ${frage.host} ab jetzt zuerst vorgeschlagen.`
-        : `Konnte nicht gemerkt werden: ${antwort.fehler ?? 'der Hub antwortet nicht'}.`;
-      setTimeout(frageSchliessen, antwort.ok ? 3500 : 8000);
+      const p = tafel.querySelector('p');
+      p.className = 'ergebnis';
+      p.textContent = antwort.ok ? '✓ Gemerkt.' : `Nicht gemerkt: ${antwort.fehler ?? 'der Hub antwortet nicht'}.`;
+      setTimeout(frageSchliessen, antwort.ok ? 2500 : 8000);
     };
     schatten.append(stil, tafel);
     document.documentElement.append(frageWirt);
