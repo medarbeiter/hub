@@ -80,6 +80,7 @@
     const {eingaben} = feld;
     if (eingaben.length === 1) {
       wertSetzen(eingaben[0], code);
+      absenden(feld, code);
       return true;
     }
     // Kästchen: erst als Paste anbieten (viele verteilen die Ziffern selbst),
@@ -90,10 +91,59 @@
       eingaben[0].focus();
       eingaben[0].dispatchEvent(new ClipboardEvent('paste', {bubbles: true, cancelable: true, clipboardData: dt}));
     } catch {}
-    if (eingaben.every((e, i) => e.value === code[i])) return true;
-    code.split('').forEach((z, i) => eingaben[i] && wertSetzen(eingaben[i], z));
-    eingaben[Math.min(code.length, eingaben.length) - 1]?.focus();
+    if (!eingaben.every((e, i) => e.value === code[i])) {
+      code.split('').forEach((z, i) => eingaben[i] && wertSetzen(eingaben[i], z));
+      eingaben[Math.min(code.length, eingaben.length) - 1]?.focus();
+    }
+    absenden(feld, code);
     return true;
+  }
+
+  // ── Absenden ─────────────────────────────────────────────────────────────
+  // Nach dem Eintragen den Knopf drücken, den ein Mensch jetzt drücken würde:
+  // im Formular des Feldes (sonst im nächsten Container mit einem Knopf) der
+  // sichtbare, nicht gesperrte Knopf, dessen Beschriftung nach Bestätigen
+  // klingt — sonst der Submit-Knopf. Kurz gewartet, weil viele Seiten den
+  // Knopf erst freigeben, wenn ihr Framework die Eingabe verarbeitet hat; und
+  // wer bei sechs Ziffern von selbst weiterlädt, hat dann kein Feld mehr —
+  // dann wird nichts gedrückt, ein zweites Absenden wäre ein Fehler.
+  const ABSENDE_WORT = /verif|best[aä]tig|weiter|continue|next|submit|senden|\bsend\b|confirm|anmeld|log ?in|sign ?in|einloggen|\bok\b|fertig|done|pr[üu]fen|\bcheck\b|fortfahren|absenden|\benter\b|authenticat|proceed/i;
+  const KEIN_ABSENDEN = /zur[üu]ck|abbrech|cancel|\bback\b|resend|erneut|neu senden|another|andere|hilfe|help|schlie[ßs]|close|skip|überspringen|later|später/i;
+
+  function absendeKnopf(feld) {
+    const anker = feld.anker;
+    const text = (b) => `${b.textContent} ${b.value ?? ''} ${b.getAttribute('aria-label') ?? ''}`.trim();
+    let kandidaten = anker.form ? [...anker.form.querySelectorAll('button, input[type="submit"], input[type="button"], [role="button"]')] : [];
+    for (let el = anker.parentElement; kandidaten.length === 0 && el && el !== document.body; el = el.parentElement) {
+      kandidaten = [...el.querySelectorAll('button, input[type="submit"], [role="button"]')];
+    }
+    const brauchbar = kandidaten.filter((b) => {
+      const r = b.getBoundingClientRect();
+      return r.width > 0 && r.height > 0 && !b.disabled && b.getAttribute('aria-disabled') !== 'true' && !KEIN_ABSENDEN.test(text(b));
+    });
+    return brauchbar.find((b) => ABSENDE_WORT.test(text(b))) ?? brauchbar.find((b) => b.type === 'submit') ?? null;
+  }
+
+  function absenden(feld, code) {
+    setTimeout(() => {
+      const {eingaben, anker} = feld;
+      if (!anker.isConnected || anker.disabled) return; // die Seite ist schon weiter
+      const voll = eingaben.length === 1 ? eingaben[0].value === code : eingaben.every((e, i) => e.value === code[i]);
+      if (!voll) return;
+      const knopf = absendeKnopf(feld);
+      if (knopf) {
+        console.debug('[MedArbeiter] Absenden über', knopf);
+        knopf.click();
+        return;
+      }
+      // Kein Knopf, aber ein Formular, in dem sonst nichts mehr fehlt: wie die Eingabetaste.
+      const form = anker.form;
+      if (!form || !form.requestSubmit) return;
+      const offen = [...form.querySelectorAll('input, select, textarea')].some(
+        (e) => !eingaben.includes(e) && e.required && !e.disabled && e.type !== 'hidden' && !e.value,
+      );
+      if (!offen) form.requestSubmit();
+    }, 300);
   }
 
   // ── Der Hub ──────────────────────────────────────────────────────────────
