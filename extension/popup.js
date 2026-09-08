@@ -110,6 +110,58 @@ async function waehlen(c) {
   if (eingetragen) setTimeout(() => window.close(), 600);
 }
 
+// ── Pause ─────────────────────────────────────────────────────────────────
+// Dieselbe Regel wie in content.js: aus, bis <Zeit>, oder je Domäne.
+function basis(h) {
+  const t = h.split('.');
+  if (t.length <= 2) return h;
+  return t.slice(t.at(-1).length === 2 && t.at(-2).length <= 3 ? -3 : -2).join('.');
+}
+
+async function pauseZeigen() {
+  const {pause = {}} = await chrome.storage.local.get('pause');
+  const stand = $('pause-stand');
+  const knopf = $('pause-knopf');
+  const hier = host && pause.seiten?.[basis(host)];
+  let text = '';
+  if (pause.aus) text = 'Ausgeschaltet.';
+  else if (pause.bis && pause.bis > Date.now()) text = `Pausiert bis ${new Date(pause.bis).toLocaleTimeString('de-DE', {hour: '2-digit', minute: '2-digit'})} Uhr.`;
+  else if (hier) text = `Auf ${basis(host)} aus.`;
+  stand.textContent = text;
+  $('pause').classList.toggle('aktiv', text !== '');
+  knopf.textContent = text ? 'Fortsetzen' : 'Pausieren';
+  knopf.onclick = text
+    ? async () => {
+        const naechste = {...pause, aus: false, bis: null};
+        if (hier) naechste.seiten = Object.fromEntries(Object.entries(pause.seiten).filter(([k]) => k !== basis(host)));
+        await chrome.storage.local.set({pause: naechste});
+        $('pause-wahl').hidden = true;
+        pauseZeigen();
+      }
+    : () => {
+        $('pause-wahl').hidden = !$('pause-wahl').hidden;
+      };
+}
+
+for (const b of document.querySelectorAll('#pause-wahl button')) {
+  b.onclick = async () => {
+    const {pause = {}} = await chrome.storage.local.get('pause');
+    const art = b.dataset.pause;
+    if (art === 'seite' && host) pause.seiten = {...(pause.seiten ?? {}), [basis(host)]: true};
+    if (art === 'stunde') pause.bis = Date.now() + 3600_000;
+    if (art === 'morgen') {
+      const m = new Date();
+      m.setDate(m.getDate() + 1);
+      m.setHours(6, 0, 0, 0);
+      pause.bis = m.getTime();
+    }
+    if (art === 'aus') pause.aus = true;
+    await chrome.storage.local.set({pause});
+    $('pause-wahl').hidden = true;
+    pauseZeigen();
+  };
+}
+
 $('suche').addEventListener('input', render);
 $('optionen').addEventListener('click', (e) => {
   e.preventDefault();
@@ -123,5 +175,6 @@ $('optionen').addEventListener('click', (e) => {
     if (/^https?:$/.test(u.protocol)) host = u.hostname.replace(/^www\./, '');
   } catch {}
   $('seite').textContent = host;
+  await pauseZeigen();
   await laden();
 })();

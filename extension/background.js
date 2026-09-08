@@ -97,6 +97,20 @@ chrome.cookies.onChanged.addListener(({cookie}) => {
   });
 });
 
+// Pausiert oder aus: ein Zeichen am Symbol, damit niemand die Erweiterung
+// für kaputt hält. Läuft die Zeit ab, kommt der Wecker und nimmt es weg.
+async function abzeichen() {
+  const {pause = {}} = await chrome.storage.local.get('pause');
+  const laeuft = pause.bis && pause.bis > Date.now();
+  const an = Boolean(pause.aus || laeuft);
+  chrome.action.setBadgeText({text: an ? '⏸' : ''});
+  chrome.action.setBadgeBackgroundColor({color: '#67625a'});
+  if (laeuft) chrome.alarms.create('pause', {when: pause.bis + 1000});
+}
+chrome.storage.onChanged.addListener((a, bereich) => bereich === 'local' && 'pause' in a && abzeichen());
+chrome.alarms.onAlarm.addListener((a) => a.name === 'pause' && abzeichen());
+abzeichen();
+
 // ── Aktuell bleiben ────────────────────────────────────────────────────────
 // Über die Richtlinie installiert, fragt Chrome die update_url des Hubs alle
 // paar Stunden von selbst. Beim Start und einmal am Tag bitten wir ausdrücklich

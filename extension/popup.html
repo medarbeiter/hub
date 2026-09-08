@@ -13,6 +13,16 @@
     <a id="neu" href="#" target="_blank" title="Zugang im Hub anlegen" aria-label="Zugang im Hub anlegen">＋</a>
     <a id="optionen" href="#" title="Einstellungen" aria-label="Einstellungen">⚙</a>
   </header>
+  <div id="pause" class="pause">
+    <span id="pause-stand"></span>
+    <button id="pause-knopf" type="button">Pausieren</button>
+  </div>
+  <ul id="pause-wahl" class="pause-wahl" hidden>
+    <li><button type="button" data-pause="seite">Auf dieser Seite aus</button></li>
+    <li><button type="button" data-pause="stunde">Für eine Stunde</button></li>
+    <li><button type="button" data-pause="morgen">Bis morgen früh</button></li>
+    <li><button type="button" data-pause="aus">Erweiterung ausschalten</button></li>
+  </ul>
   <input id="suche" class="suche" placeholder="Dienst oder Konto suchen …" autofocus />
   <p id="hinweis" class="hinweis" hidden></p>
   <ul id="liste"></ul>

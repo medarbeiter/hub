@@ -18,13 +18,25 @@ body { width: 360px; margin: 0; }
   border-radius: 8px; color: #67625a; font-size: 16px; }
 .kopf button:hover, .kopf a:hover { background: #ece2c9; color: #1c1917; }
 
+/* Pause: Stand links, ein Knopf rechts; die Wahl klappt darunter auf. */
+.pause { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-bottom: 1px solid #ece2c9; font-size: 12px; color: #67625a; }
+.pause.aktiv { background: #fdf3df; color: #1c1917; }
+.pause span { flex: 1; }
+.pause button { all: unset; cursor: pointer; padding: 4px 10px; border-radius: 8px; color: #7c5f05; font-weight: 600; }
+.pause button:hover { background: #f7f1e2; }
+.pause-wahl { list-style: none; margin: 0; padding: 4px 0; border-bottom: 1px solid #ece2c9; background: #fbf8f1; }
+.pause-wahl button { all: unset; display: block; width: 100%; box-sizing: border-box; padding: 8px 12px 8px 24px; cursor: pointer; }
+.pause-wahl button:hover { background: #f7f1e2; }
+.fuss-knoepfe { display: flex; gap: 4px; }
+.fuss button.leise { color: #67625a; font-weight: 400; }
+
 /* Hinweise und Suche. */
 .hinweis { margin: 0; padding: 10px 12px; color: #67625a; }
 .hinweis a, .fuss a { color: #7c5f05; }
 .erfolg { margin: 0; padding: 10px 12px; background: #edf5e6; color: #2f5a1a; border-bottom: 1px solid #ece2c9; }
 .suche { display: block; width: calc(100% - 24px); margin: 10px 12px 4px; padding: 8px 10px; box-sizing: border-box;
   border: 1px solid #d9d2c1; border-radius: 8px; font: inherit; color: inherit; background: #fff; }
-.suche:focus { border-color: #8f6e06; }
+.suche:focus { border-color: #8f6e06; outline: none; }
 
 /* Die Liste der Zugänge. */
 ul { list-style: none; margin: 0; padding: 4px 0; }

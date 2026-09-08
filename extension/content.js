@@ -12,9 +12,21 @@
   const HOST = location.hostname.replace(/^www\./, '');
 
   // ── Felder erkennen ──────────────────────────────────────────────────────
-  const OTP_WORT =
-    /(otp|one[-_ ]?time|totp|2[-_ ]?fa|mfa|two[-_ ]?factor|zwei[-_ ]?faktor|verif|auth(enticat)?[-_ ]?(or|ion)?[-_ ]?code|security[-_ ]?code|sicherheitscode|passcode|einmal|best[aä]tigungscode|token|pin\b|code)/i;
+  // Drei Stufen, damit ein Farbwähler oder eine Postleitzahl nie ein Codefeld
+  // ist: (1) ein Wort, das *nur* ein Einmalcode trägt, genügt allein;
+  // (2) ein Wort, das gegen ein Codefeld spricht, schließt es aus, egal was
+  // sonst dasteht; (3) das Schwache — „code", „pin", ein numerisches Feld
+  // mit 4–8 Stellen — zählt nur, wenn die Seite selbst von Bestätigung,
+  // Anmeldung in zwei Schritten oder einem Einmalcode spricht.
+  const OTP_STARK =
+    /(otp|one[-_ ]?time|totp|2[-_ ]?fa\b|\bmfa|two[-_ ]?factor|zwei[-_ ]?faktor|authenticat|verif(y|ication|izier)|security[-_ ]?code|sicherheitscode|best[aä]tigungscode|einmal|passcode|login[-_ ]?code|anmeldecode)/i;
+  const OTP_SCHWACH = /(\bcode\b|\bpin\b|token)/i;
+  const KEIN_CODE =
+    /(plz|postleitzahl|postal|\bzip\b|post[-_ ]?code|colou?r|farbe|\bhex\b|hausnummer|house|street|stra[sß]e|iban|\bbic\b|steuer|\btax\b|\bvat\b|ust[-_ ]?id|kunden|customer|\border\b|bestell|artikel|\bsku\b|promo|coupon|gutschein|rabatt|discount|voucher|referral|invite|einladung|tracking|sendung|\bdate\b|datum|\byear\b|jahr|month|monat|\bday\b|cvc|cvv|\bcard\b|karte|kredit|credit|search|\bsuche?\b|price|preis|betrag|amount|menge|quantity|\bqty\b|anzahl|telefonnummer|phone[-_ ]?number|mobile[-_ ]?number|handynummer|rufnummer|\bfax\b|\bage\b|captcha|geburt|birth|kennzeichen|\bplate\b|\bort\b|\bcity\b|stadt|country|\bland\b|vorwahl|durchwahl|\broom\b|zimmer|\bseat\b|\bfloor\b|etage|weight|gewicht|\bsize\b|gr[oö][sß]e|width|height|breite|h[oö]he|percent|prozent|\bscore\b|punkte|\bslug\b|hostname|domain)/i;
+  const SEITEN_HINWEIS =
+    /authenticat|2[-_ ]?fa\b|two[-_ ]?factor|zwei[-_ ]?faktor|\bmfa\b|totp|einmal|one[-_ ]?time|verif|best[aä]tigungscode|sicherheitscode|security code|\bcode\b/i;
   const TYPEN = new Set(['text', 'tel', 'number', 'password', '']);
+  const FREMDE_AUTOCOMPLETE = /^(email|username|tel|cc-|new-password|current-password|postal-code|address|street|country|bday|name|given-name|family-name|organization)/;
 
   function sichtbar(el) {
     if (!el.isConnected || el.disabled || el.readOnly) return false;
@@ -33,26 +45,37 @@
     return teile.filter(Boolean).join(' ');
   }
 
+  /** Spricht die Seite von einem Code? Einmal je Suchlauf gerechnet — innerText kostet Layout. */
+  let hinweisStand = null;
+  const seitenHinweis = () => (hinweisStand ??= SEITEN_HINWEIS.test(document.body?.innerText ?? ''));
+
   function istCodeFeld(el) {
     if (!(el instanceof HTMLInputElement) || !TYPEN.has(el.type) || !sichtbar(el)) return false;
     if (el.autocomplete === 'one-time-code') return true;
-    if (/^(email|username|tel|cc-|new-password|current-password)/.test(el.autocomplete)) return false;
+    if (FREMDE_AUTOCOMPLETE.test(el.autocomplete)) return false;
+    const text = beschriftung(el);
+    if (KEIN_CODE.test(text)) return false;
+    if (OTP_STARK.test(text)) return true;
     const ml = Number(el.maxLength);
-    if (el.inputMode === 'numeric' && ml >= 4 && ml <= 8) return true;
-    return OTP_WORT.test(beschriftung(el));
+    const numerisch = (el.inputMode === 'numeric' || el.type === 'number' || /^\[?0-9/.test(el.pattern ?? '')) && ml >= 4 && ml <= 8;
+    return (numerisch || OTP_SCHWACH.test(text)) && seitenHinweis();
   }
 
-  /** Sechs Kästchen mit maxlength=1 nebeneinander sind ein Feld. */
+  /** Sechs Kästchen mit maxlength=1 nebeneinander sind ein Feld — wenn die Seite von einem Code spricht. */
   function ziffernGruppe(el) {
     if (Number(el.maxLength) !== 1) return null;
     const wurzel = el.form ?? el.parentElement?.parentElement ?? document.body;
     const alle = [...wurzel.querySelectorAll('input')].filter(
       (i) => Number(i.maxLength) === 1 && TYPEN.has(i.type) && sichtbar(i),
     );
-    return alle.length >= 4 && alle.length <= 8 ? alle : null;
+    if (alle.length < 4 || alle.length > 8) return null;
+    if (alle.some((i) => KEIN_CODE.test(beschriftung(i)))) return null;
+    const stark = alle.some((i) => i.autocomplete === 'one-time-code' || OTP_STARK.test(beschriftung(i)));
+    return stark || seitenHinweis() ? alle : null;
   }
 
   function feldFinden() {
+    hinweisStand = null;
     for (const el of document.querySelectorAll('input')) {
       const gruppe = ziffernGruppe(el);
       if (gruppe) return {eingaben: gruppe, anker: gruppe[0]};
@@ -335,8 +358,15 @@
       const fuss = document.createElement('div');
       fuss.className = 'fuss';
       console.debug('[MedArbeiter] Codes für', HOST, codes.map((c) => [c.dienst, c.treffer]));
-      fuss.innerHTML = `<span class="rest"></span>`;
+      fuss.innerHTML = `<span class="rest"></span><span class="fuss-knoepfe"></span>`;
       restZeigen(fuss.querySelector('.rest'));
+      const knoepfe = fuss.querySelector('.fuss-knoepfe');
+      const aus = document.createElement('button');
+      aus.textContent = 'Hier aus';
+      aus.title = `Auf ${basis(HOST)} nicht mehr anbieten (im Popup wieder einschaltbar)`;
+      aus.className = 'leise';
+      aus.onclick = hierAus;
+      knoepfe.append(aus);
       if (!alle && passende.length > 0 && passende.length < codes.length) {
         const mehr = document.createElement('button');
         mehr.textContent = `Alle ${codes.length} anzeigen`;
@@ -344,7 +374,7 @@
           alle = true;
           render();
         };
-        fuss.append(mehr);
+        knoepfe.append(mehr);
       }
       tafel.append(fuss);
     };
@@ -655,7 +685,7 @@
   }
 
   function fragePruefen(frage) {
-    if (!frage) return frageSchliessen();
+    if (!frage || pausiert()) return frageSchliessen();
     if (frage.bis < Date.now()) {
       chrome.storage.local.remove('frage').catch(() => {});
       return frageSchliessen();
@@ -664,9 +694,10 @@
     frageZeigen(frage);
   }
 
-  chrome.storage.local.get('frage').then(({frage}) => fragePruefen(frage)).catch(() => {});
   chrome.storage.onChanged.addListener((aenderungen, bereich) => {
-    if (bereich === 'local' && 'frage' in aenderungen) fragePruefen(aenderungen.frage.newValue);
+    if (bereich !== 'local') return;
+    if ('pause' in aenderungen) pauseSetzen(aenderungen.pause.newValue);
+    if ('frage' in aenderungen) fragePruefen(aenderungen.frage.newValue);
   });
 
   // ── Einen neuen Zugang erkennen ──────────────────────────────────────────
@@ -736,7 +767,7 @@
   }
 
   async function zugangSuchen() {
-    if (angebotWirt) return;
+    if (angebotWirt || pausiert()) return;
     const link = document.querySelector('a[href^="otpauth://"]');
     if (link) return anbieten({otpauth: link.getAttribute('href')});
     for (const el of [...document.querySelectorAll('img, canvas, svg')].filter(quadratisch).slice(0, 6)) {
@@ -838,6 +869,35 @@
   };
   document.addEventListener('load', scanSpaeter, true); // ein Bild, das erst später fertig ist
 
+  // ── Pause ────────────────────────────────────────────────────────────────
+  // Aus, für eine Weile, oder auf dieser Seite nie: ein Eintrag `pause` in
+  // chrome.storage.local — {aus, bis, seiten: {domäne: true}} — gesetzt vom
+  // Popup oder vom „Hier aus"-Knopf der Auswahl. Solange er greift, gibt es
+  // kein Zeichen, keine Auswahl, keine Frage und keinen Blick auf QR-Codes.
+  let pause = {};
+  const pausiert = () => Boolean(pause.aus || (pause.bis && pause.bis > Date.now()) || pause.seiten?.[basis(HOST)]);
+  function pauseSetzen(p) {
+    pause = p ?? {};
+    if (!pausiert()) {
+      behandelt = null;
+      spaeter();
+      scanSpaeter();
+      return;
+    }
+    zeichenEntfernen();
+    schliessen();
+    frageSchliessen();
+    angebotWirt?.remove();
+    angebotWirt = null;
+    behandelt = null;
+  }
+  function hierAus() {
+    chrome.storage.local.get('pause').then(({pause: p = {}}) => {
+      p.seiten = {...(p.seiten ?? {}), [basis(HOST)]: true};
+      return chrome.storage.local.set({pause: p});
+    }).catch(() => {});
+  }
+
   // ── Das Konto erkennen ───────────────────────────────────────────────────
   // Ein Dienst, mehrere Konten (TikTok, Instagram, Google …): „diese Seite"
   // reicht dann nicht, gefragt ist *welches* Konto gerade angemeldet wird.
@@ -893,6 +953,7 @@
   let behandelt = null;
 
   async function pruefen() {
+    if (pausiert()) return;
     if (zeichenFeld && !zeichenFeld.anker.isConnected) {
       zeichenEntfernen();
       schliessen();
@@ -958,8 +1019,17 @@
   document.addEventListener('pointerdown', (e) => {
     if (wirt && e.target !== wirt && e.target !== zeichen && !aktuellesFeld?.eingaben.includes(e.target)) schliessen();
   }, true);
-  spaeter();
-  scanSpaeter();
+  // Erst die Pause lesen, dann loslegen — und die liegen gebliebene Frage.
+  chrome.storage.local.get(['pause', 'frage']).then(({pause: p, frage}) => {
+    pause = p ?? {};
+    if (pausiert()) return;
+    spaeter();
+    scanSpaeter();
+    fragePruefen(frage);
+  }).catch(() => {
+    spaeter();
+    scanSpaeter();
+  });
 
   // Das Popup der Erweiterung will eintragen (und wissen, ob es ging) — oder
   // die Sitzung am Hub hat gewechselt: dann von vorn, als wäre das Feld neu.
