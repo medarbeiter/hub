@@ -8,6 +8,7 @@ import {
   fmtDate,
   fmtDateLong,
   fmtMonth,
+  istMonat,
   monthOf,
   parseDatumEingabe,
   todayISO,
@@ -54,6 +55,13 @@ import {Sinnbild} from './sinnbilder';
  * nichts; das Feld fällt beim Verlassen auf den geltenden Wert zurück, statt
  * still auf einen erfundenen zu springen.
  */
+// Ein leerer Wert (z. B. ein noch nicht gesetztes Eintrittsdatum) ist kein
+// Monat, den das Gitter zeichnen kann — dann zeigt der Wähler den laufenden
+// Monat statt eines ungültigen.
+function monatVon(datum: string): string {
+  return istMonat(monthOf(datum)) ? monthOf(datum) : monthOf(todayISO());
+}
+
 interface DatumFeldProps {
   label: string;
   /** Der geltende Tag als ISO-Datum. Dieses Feld kennt keinen leeren Zustand. */
@@ -82,7 +90,7 @@ export function DatumFeld({
   const [offen, setOffen] = useState(false);
   /** Der Tippzustand. `null` heißt: das Feld zeigt den geltenden Wert an. */
   const [entwurf, setEntwurf] = useState<string | null>(null);
-  const [monat, setMonat] = useState(() => monthOf(value));
+  const [monat, setMonat] = useState(() => monatVon(value));
 
   // Heute erst im Browser: auf dem Server ist es der Tag der Maschine, und die
   // beiden auseinanderlaufen zu lassen wäre ein Hydrationsfehler an jedem
@@ -93,7 +101,7 @@ export function DatumFeld({
   // Wer das Gitter öffnet, will den geltenden Monat sehen — auch wenn er beim
   // letzten Mal woanders geblättert hat.
   useEffect(() => {
-    if (offen) setMonat(monthOf(value));
+    if (offen) setMonat(monatVon(value));
   }, [offen, value]);
 
   const gitter = useMemo(() => kalendergitter(monat), [monat]);
@@ -132,9 +140,9 @@ export function DatumFeld({
         <TextInput
           label={label}
           description={description}
-          value={entwurf ?? fmtDateLong(value)}
+          value={entwurf ?? (value ? fmtDateLong(value) : '')}
           onChange={setEntwurf}
-          onFocus={() => setEntwurf(fmtDate(value))}
+          onFocus={() => setEntwurf(value ? fmtDate(value) : '')}
           onBlur={uebernehmen}
           onEnter={uebernehmen}
           placeholder={placeholder}

@@ -18,7 +18,7 @@
 // Faltung viermal im Code, liefe irgendwann eine davon auf einer anderen
 // Woche.
 
-import {addDays, kwOf, letzterTagDesMonats, mondayOf, monthOf, weekdayIndex} from './format';
+import {addDays, istMonat, kwOf, letzterTagDesMonats, mondayOf, monthOf, weekdayIndex} from './format';
 
 /** Mo–So, so wie ein deutscher Kalender die Woche schreibt. */
 export const WOCHENTAGE = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'] as const;
@@ -65,6 +65,12 @@ export interface Kalendergitter {
  * Spalte durchgehend ein Wochentag ist.
  */
 export function kalendergitter(monat: string): Kalendergitter {
+  // Ein ungültiger Monat (z. B. ein leeres Eintrittsdatum, das dieses Gitter
+  // in seiner kompakten Form als Datumsfeld zeichnet) darf keine
+  // Datumsrechnung mit Invalid Date auslösen — die liefe hier in eine
+  // Endlosschleife, weil "NaN-NaN-NaN" nie über sein eigenes Vergleichsziel
+  // hinauswächst.
+  if (!istMonat(monat)) return {monat, wochen: [], alleTage: [], monatsTage: []};
   const erster = `${monat}-01`;
   const letzter = letzterTagDesMonats(monat);
   const start = mondayOf(erster);

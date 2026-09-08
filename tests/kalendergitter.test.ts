@@ -47,6 +47,11 @@ describe('kalendergitter', () => {
     const g = kalendergitter('2026-08');
     expect(g.wochen.map((w) => w.kw)).toEqual([31, 32, 33, 34, 35, 36]);
   });
+
+  test('ein ungültiger Monat liefert ein leeres Gitter statt einer Endlosschleife', () => {
+    expect(kalendergitter('')).toEqual({monat: '', wochen: [], alleTage: [], monatsTage: []});
+    expect(kalendergitter('2026-13').wochen).toEqual([]);
+  });
 });
 
 describe('wochenraster', () => {
