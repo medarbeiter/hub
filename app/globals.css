@@ -1717,6 +1717,34 @@ html {
   overscroll-behavior: contain;
 }
 
+/* Die Personenkarte: einmal wachsen, nicht dreimal springen.
+
+   Vorher holte die Karte drei Antworten und hängte jeden Abschnitt, sobald
+   seiner da war — drei Sprünge, und der Dialog richtete sich jedes Mal neu
+   aus. Jetzt kommt eine Antwort, und `PersonKarte` misst vor dem Wechsel die
+   Höhe des Gerüsts, setzt sie fest, und lässt den Rumpf dann auf die Höhe des
+   Inhalts laufen (`.karte-waechst`, block-size mit --schwung-zug: ein Element
+   ändert seine Größe an Ort und Stelle, es kommt nicht und geht nicht). Der
+   Rollbalken bleibt solange weg, sonst blitzte er im Wachsen kurz auf. Die
+   Abschnitte kommen derweil wie die Suchtreffer herein — transform-only, je
+   Abschnitt 40 ms später, auf dieselben Keyframes. */
+.karte-rumpf.karte-waechst {
+  overflow: hidden;
+  transition: block-size var(--takt-zug) var(--schwung-zug);
+}
+.karte-abschnitt {
+  animation: treffer-herein var(--takt-schritt) var(--schwung-an) both;
+  animation-delay: calc(var(--reihe, 0) * 40ms);
+}
+@media (prefers-reduced-motion: reduce) {
+  .karte-rumpf.karte-waechst {
+    transition: none;
+  }
+  .karte-abschnitt {
+    animation: none;
+  }
+}
+
 /* Der Kamerasucher des QR-Lesers (components/qr-leser.tsx). Festes 4:3 statt
    der nativen Videohöhe, damit der Dialog beim Kamerastart nicht springt; die
    Tintenfläche ist das Sucherloch, solange noch kein Bild kommt. */
@@ -2917,4 +2945,162 @@ a:has(.link-puls[data-laedt='true']) {
   .suche-treffer {
     animation: none;
   }
+}
+/* Der Strang: Teamereignisse auf einer Linie. Kein zweiter Zeitstrahl neben
+   der Tagesbahn — die zeichnet Stunden, das hier reiht Tage. Drei Spalten:
+   das Datum (einmal je Tag), die Linie mit dem Gesicht je Ereignis als
+   Knoten, der Beitrag. Die Linie wird je Ereignis gezeichnet, damit sie über
+   Tagesgrenzen hinweg nahtlos bleibt; nur am ersten Knoten beginnt sie und am
+   letzten endet sie. */
+.strang,
+.strang-ereignisse {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.strang {
+  --strang-datum: 88px;
+  --strang-punkt: 36px; /* Astryx' Avatar `md` — das Maß von `PersonZeichen groesse="karte"` */
+}
+.strang-tag {
+  display: grid;
+  grid-template-columns: var(--strang-datum) minmax(0, 1fr);
+  column-gap: var(--spacing-3);
+}
+.strang-datum {
+  padding-block: var(--spacing-4);
+}
+.strang-ereignis {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--strang-punkt) minmax(0, 1fr);
+  column-gap: var(--spacing-4);
+  align-items: start;
+  padding-block: var(--spacing-4);
+  overflow-wrap: anywhere;
+}
+.strang-ereignis + .strang-ereignis,
+.strang-tag + .strang-tag .strang-ereignis:first-child {
+  border-block-start: var(--border-width) solid var(--color-border);
+}
+.strang-ereignis::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: calc(var(--strang-punkt) / 2);
+  border-inline-start: var(--border-width) solid var(--color-border-emphasized);
+}
+.strang-tag:first-child .strang-ereignis:first-child::before {
+  inset-block-start: calc(var(--spacing-4) + var(--strang-punkt) / 2);
+}
+.strang-tag:last-child .strang-ereignis:last-child::before {
+  inset-block-end: calc(100% - var(--spacing-4) - var(--strang-punkt) / 2);
+}
+/* Das Gesicht sitzt auf der Linie; ein Ring in Papierfarbe hebt es von ihr ab. */
+.strang-punkt {
+  position: relative;
+  display: inline-flex;
+  border-radius: var(--radius-full);
+  box-shadow: 0 0 0 3px var(--color-background);
+}
+.strang-beitrag {
+  min-inline-size: 0;
+}
+@media (max-width: 920px) {
+  .strang {
+    --strang-datum: 64px;
+  }
+  .strang-tag {
+    column-gap: var(--spacing-2);
+  }
+}
+
+/* Gesicht und Name sind ein Knopf, der die Personenkarte öffnet; die Zeile
+   ist so hoch wie das Gesicht auf der Linie, damit der Name auf dessen Mitte
+   steht. Das Gesicht selbst bleibt reine Zeichnung (`karte={false}`) — ein
+   Knopf im Knopf ist kein gültiges HTML. */
+.strang-kopf {
+  min-block-size: var(--strang-punkt);
+  display: flex;
+  align-items: center;
+}
+.strang-person {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  border-radius: var(--radius-inner);
+}
+.strang-person:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.strang-person:focus-visible {
+  outline: 2px solid var(--color-icon-accent);
+  outline-offset: 2px;
+}
+/* Ein Emoji trägt seine Farbe selbst und steht in Textgröße. */
+.reaktion-emoji {
+  font-size: var(--font-size-base);
+  line-height: 1;
+}
+/* Eine Reaktion ist eine Pille: Emoji und Zähler als Knopf, die Gesichter
+   dahinter im selben Grund – nicht daneben als zweites Ding. Die eigene
+   Reaktion trägt den bronzenen Haarstrich der ausgewählten Dinge im Haus. */
+.reaktion-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-0-5);
+  padding: var(--spacing-0-5) var(--spacing-1-5);
+  border-radius: var(--radius-full);
+  background: var(--color-background-muted);
+  box-shadow: inset 0 0 0 1px transparent;
+}
+.reaktion-chip[data-eigene] {
+  background: var(--color-accent-muted);
+  box-shadow: inset 0 0 0 1px var(--color-icon-accent);
+}
+.reaktion-chip > .astryx-button {
+  block-size: 26px;
+  min-block-size: 0;
+  padding-inline: var(--spacing-1);
+  border-radius: var(--radius-full);
+}
+.reaktion-gesichter {
+  display: inline-flex;
+  align-items: center;
+}
+.emoji-raster {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: var(--spacing-1);
+}
+
+/* Ein Ziel, das ein Verweis aus dem Strang anspringt, landet unter dem Kopf. */
+.ziel-zeile {
+  scroll-margin-block-start: var(--spacing-10);
+}
+/* Der Zielsatz: Wörter und Bausteine fließen wie Text und umbrechen wie Text,
+   auf dem Goldhauch des Kopfes, damit der Satz als das Eigentliche der Tafel
+   liest. Ein Baustein ist eine Astryx-Auswahl ohne sichtbares Etikett; die
+   Zahlenfelder sind so breit wie ihr Inhalt, nicht wie ein Formularfeld. */
+.ziel-satz {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2) var(--spacing-2);
+  margin: 0;
+  padding: var(--spacing-4) var(--spacing-5);
+  border-radius: var(--radius-container);
+  background: var(--color-accent-muted);
+  font-family: var(--font-family-body);
+  font-size: var(--font-size-xl);
+  line-height: 1.6;
+  color: var(--color-text-primary);
+}
+.ziel-baustein {
+  display: inline-flex;
+}
+.ziel-frei {
+  flex: 1 1 14rem;
 }

@@ -40,8 +40,12 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({children}: {children: ReactNode}) {
+  // suppressHydrationWarning nur am <html>: Browser-Erweiterungen (gesehen:
+  // ein Formular-Ausfüller mit `data-mo-form-ext`) hängen dort Attribute an,
+  // bevor React hydriert. Das ist kein Fehler dieser Anwendung, und die
+  // Unterdrückung reicht eine Ebene tief — Kinder werden weiter geprüft.
   return (
-    <html lang="de" className={`${poppins.variable} ${figtree.variable}`}>
+    <html lang="de" className={`${poppins.variable} ${figtree.variable}`} suppressHydrationWarning>
       <body>
         <div
           hidden

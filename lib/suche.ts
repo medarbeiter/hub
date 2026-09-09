@@ -193,6 +193,8 @@ const SEITEN: Ort[] = [
   {label: 'Zeitkonto', href: '/?ansicht=konto', sinn: 'konto', woerter: 'saldo überstunden guthaben'},
   {label: 'Abwesenheit', href: '/abwesenheit', sinn: 'abwesenheit', woerter: 'urlaub krank fortbildung freizeitausgleich antrag', start: true},
   {label: 'Teamkalender', href: '/kalender', sinn: 'teamkalender', woerter: 'wer ist da abwesend', start: true},
+  {label: 'Timeline', href: '/timeline', sinn: 'teamleben', woerter: 'timeline ziele jubiläum eintritt erfolg'},
+  {label: 'Meine Ziele', href: '/timeline?ansicht=ziele', sinn: 'ziele', woerter: 'ziel setzen vorhaben zehn stunden'},
   {label: 'Reisen & Spesen', href: '/spesen', sinn: 'reise', woerter: 'dienstreise pauschale beleg verpflegung', start: true},
   {label: 'Zugangscodes', href: '/zugangscodes', sinn: 'zugangscode', woerter: 'einmalcode totp zwei faktor'},
   {label: 'Protokoll', href: '/protokoll', sinn: 'protokoll', woerter: 'nachweis änderungen wer hat'},

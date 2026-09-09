@@ -41,6 +41,8 @@ import {mitTagen} from './abwesenheit';
 import {mitRechnung} from './spesen';
 import {erinnereAnAbwesenheit, erinnereAnReise, meldeJubilaeum} from './benachrichtigungen';
 import {hausZeit} from './format';
+import {zieleFortsetzen} from './ziele';
+import {clickupAktualisieren} from './clickup';
 
 /** Nach wie vielen Tagen ohne Entscheidung die erste Erinnerung hinausgeht. */
 export const ERINNERUNG_AB = 3;
@@ -144,6 +146,8 @@ export async function erinnerungslauf(jetzt: Date = new Date()): Promise<number>
     versendet += await antraegeMahnen(jetzt);
     versendet += await reisenMahnen(jetzt);
     versendet += await jubilaeenFeiern(jetzt);
+    zieleFortsetzen(hausZeit(jetzt).datum);
+    await clickupAktualisieren(jetzt.getTime());
     feger();
   } catch (fehler) {
     console.error('Erinnerungslauf fehlgeschlagen:', fehler);

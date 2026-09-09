@@ -1,6 +1,8 @@
 'use server';
 
 import {revalidatePath} from 'next/cache';
+import {createGoal, deleteGoal, ownGoal, reagieren, setGoalDone, setGoalRecurring, setGoalVisibility} from '@/lib/ziele';
+import {zielRegel, type GoalInput, type Wiederholung} from '@/lib/ziele-arten';
 import {redirect} from 'next/navigation';
 import {
   createSession,
@@ -180,6 +182,90 @@ import {ABWAEHLBARE_ARTEN, istMailArt, mailArtLabel, type MailArt} from '@/lib/m
 
 export interface ActionState {
   error: string | null;
+}
+
+function zielFehler(fehler: unknown): string {
+  if (fehler instanceof Error && fehler.name === 'Error') return fehler.message;
+  console.error('[MedArbeiter] Ziel konnte nicht gespeichert werden', fehler);
+  return 'Das Ziel konnte nicht gespeichert werden. Bitte versuche es erneut.';
+}
+
+function zielNachweis(ziel: NonNullable<ReturnType<typeof ownGoal>>) {
+  return {Ziel: ziel.titel, Regel: zielRegel(ziel), Messung: ziel.messung, Vergleich: ziel.vergleich, Je: ziel.je, Wert: ziel.wert,
+    Von: ziel.von, Bis: ziel.bis, Wiederholung: ziel.wiederholung, Teamziel: ziel.team ? 'ja' : 'nein', Rollen: ziel.rollen, Sichtbarkeit: ziel.oeffentlich ? 'Team' : 'Privat', Erreicht: ziel.done_at};
+}
+
+export async function zielAnlegenAction(input: GoalInput): Promise<ActionState> {
+  const user = await requireUser();
+  let error: string | null = null;
+  let id: number | null = null;
+  try {
+    if (!input || typeof input !== 'object') throw new Error('Bitte ein gültiges Ziel eingeben.');
+    id = createGoal(user.id, input);
+  } catch (fehler) {error = zielFehler(fehler);}
+  const ziel = id === null ? null : ownGoal(user.id, id);
+  protokolliere({akteur: user, aktion: 'ziel.anlegen', gegenstand: ziel ? `Ziel: ${ziel.titel}` : 'Ziel anlegen',
+    nachher: ziel ? zielNachweis(ziel) : null, fehler: error});
+  if (!error) {
+    revalidatePath('/timeline');
+    revalidatePath(`/profil/${user.id}`);
+  }
+  return {error};
+}
+
+async function zielAendern(
+  id: number,
+  aktion: 'ziel.erledigen' | 'ziel.oeffnen' | 'ziel.sichtbarkeit' | 'ziel.loeschen' | 'ziel.wiederholung',
+  wert?: boolean | Wiederholung,
+): Promise<ActionState> {
+  const user = await requireUser();
+  let error: string | null = null;
+  let vorher: ReturnType<typeof ownGoal> = null;
+  try {
+    if (!Number.isSafeInteger(id) || id < 1) throw new Error('Ungültiges Ziel.');
+    vorher = ownGoal(user.id, id);
+    if (aktion === 'ziel.loeschen') deleteGoal(user.id, id);
+    else if (aktion === 'ziel.sichtbarkeit') setGoalVisibility(user.id, id, wert as boolean);
+    else if (aktion === 'ziel.wiederholung') setGoalRecurring(user.id, id, wert as Wiederholung);
+    else setGoalDone(user.id, id, wert as boolean);
+  } catch (fehler) {error = zielFehler(fehler);}
+  const nachher = !error && aktion !== 'ziel.loeschen' ? ownGoal(user.id, id) : null;
+  protokolliere({akteur: user, aktion, gegenstand: vorher ? `Ziel: ${vorher.titel}` : 'Ziel ändern',
+    vorher: vorher ? zielNachweis(vorher) : null, nachher: nachher ? zielNachweis(nachher) : null, fehler: error});
+  if (!error) {
+    revalidatePath('/timeline');
+    revalidatePath(`/profil/${user.id}`);
+  }
+  return {error};
+}
+
+export async function zielErledigenAction(id: number, erledigt: boolean): Promise<ActionState> {
+  return zielAendern(id, erledigt ? 'ziel.erledigen' : 'ziel.oeffnen', erledigt);
+}
+
+export async function zielSichtbarkeitAction(id: number, oeffentlich: boolean): Promise<ActionState> {
+  return zielAendern(id, 'ziel.sichtbarkeit', oeffentlich);
+}
+
+export async function zielWiederholungAction(id: number, wiederholung: Wiederholung): Promise<ActionState> {
+  return zielAendern(id, 'ziel.wiederholung', wiederholung);
+}
+
+export async function zielLoeschenAction(id: number): Promise<ActionState> {
+  return zielAendern(id, 'ziel.loeschen');
+}
+
+export async function reaktionAction(ereignis: string, art: string): Promise<ActionState> {
+  const user = await requireUser();
+  let error: string | null = null;
+  let gesetzt: boolean | null = null;
+  try {
+    gesetzt = reagieren(user.id, ereignis, art);
+  } catch (fehler) {error = zielFehler(fehler);}
+  protokolliere({akteur: user, aktion: 'timeline.reaktion', gegenstand: `Ereignis: ${typeof ereignis === 'string' ? ereignis.slice(0, 64) : '?'}`,
+    nachher: gesetzt === null ? null : {Reaktion: String(art), Gesetzt: gesetzt ? 'ja' : 'nein'}, fehler: error});
+  if (!error) revalidatePath('/timeline');
+  return {error};
 }
 
 export interface LoginState extends ActionState {

@@ -1,5 +1,10 @@
 {
   "@astryx.dialog.close": {"defaultMessage": "Schließen"},
+  "@astryx.multiSelector.selectAll": {"defaultMessage": "Alle"},
+  "@astryx.multiSelector.searchPlaceholder": {"defaultMessage": "Suchen…"},
+  "@astryx.multiSelector.searchOptions": {"defaultMessage": "Optionen durchsuchen"},
+  "@astryx.multiSelector.selectPlaceholder": {"defaultMessage": "Auswählen…"},
+  "@astryx.multiSelector.clearAll": {"defaultMessage": "{label} leeren"},
   "@astryx.popover.close": {"defaultMessage": "Popover schließen"},
   "@astryx.banner.dismiss": {"defaultMessage": "Ausblenden"},
   "@astryx.banner.expand": {"defaultMessage": "Ausklappen"},

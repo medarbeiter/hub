@@ -13,7 +13,7 @@ import {
   TextInput,
   VStack,
 } from '@astryxdesign/core';
-import {useRouter} from 'next/navigation';
+import {useRouter, useSearchParams} from 'next/navigation';
 import {useActionState, useEffect, useRef, useState, useTransition} from 'react';
 import {
   einrichtungNeuStartenAction,
@@ -228,6 +228,19 @@ export function UserManager({users, selfId, rollen, vokabular, darfVollzugriff}:
   const melde = useMelde();
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+
+  // `/mitarbeiter?bearbeiten=<id>` öffnet den Editor dieser Person — der Weg
+  // aus der Personenkarte. Einmal beim Ankommen, danach gehört der Zustand
+  // wieder der Seite; ein unbekanntes Konto öffnet nichts.
+  const bearbeiten = useSearchParams().get('bearbeiten');
+  useEffect(() => {
+    const ziel = bearbeiten && users.find((u) => String(u.id) === bearbeiten);
+    if (!ziel) return;
+    setEditing(ziel);
+    setFormOpen(true);
+    router.replace('/mitarbeiter');
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- nur beim Ankommen
+  }, [bearbeiten]);
 
   const active = users.filter((u) => u.active === 1);
   const inactive = users.filter((u) => u.active !== 1);

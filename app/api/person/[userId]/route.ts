@@ -1,18 +1,17 @@
 import {getSessionUser} from '@/lib/auth';
-import {personAngabeById} from '@/lib/users';
+import {personenKarte} from '@/lib/personenkarte';
 
 /**
- * Die Angaben zu einer Person, für die Personenkarte nachgeladen.
+ * Die Personenkarte, in einer Antwort nachgeladen.
  *
  * Die Grenze ist dieselbe wie beim Profilbild (`api/avatar`) und aus demselben
  * Grund: **angemeldet** genügt. Name, Rolle und dienstliche Adresse stehen im
- * Haus auf jedem Verteiler, und sie in der Mitarbeiterliste zu zeigen und in
- * der Karte daneben zu verschweigen wäre keine Regel, sondern ein Widerspruch.
- * Vertragsdaten kommen hier nicht vor — `personAngabe()` trägt sie gar nicht
- * erst, und was diese Antwort nicht kennt, kann sie auch nicht ausplaudern.
+ * Haus auf jedem Verteiler. Was darüber hinausgeht — Zeitkonto, Resturlaub, die
+ * Wege in die Verwaltung — schneidet `personenKarte()` je Recht des Fragenden
+ * zu; der Browser bekommt nur, was er zeigen darf, und lernt kein Recht.
  *
- * Warum überhaupt ein Abruf: eine Zeile einer Liste schleppt Rolle und Adresse
- * sonst tausendfach mit, damit sie einmal gelesen werden.
+ * `no-store`, weil die Kommentare mitkommen: wer etwas abschickt und es nicht
+ * erscheinen sieht, schreibt es ein zweites Mal.
  */
 export async function GET(
   _request: Request,
@@ -22,12 +21,9 @@ export async function GET(
   if (!user) return new Response('Nicht berechtigt.', {status: 403});
 
   const {userId} = await params;
-  const person = personAngabeById(Number(userId));
-  if (!person) return new Response('Nicht gefunden.', {status: 404});
+  if (!/^\d{1,9}$/.test(userId)) return new Response('Nicht gefunden.', {status: 404});
+  const karte = personenKarte(user, Number(userId));
+  if (!karte) return new Response('Nicht gefunden.', {status: 404});
 
-  return Response.json(person, {
-    // Wie das Bild: privat, aber kurz zwischenspeicherbar — dieselbe Karte
-    // wird beim Durchsehen einer Liste mehrmals hintereinander geöffnet.
-    headers: {'Cache-Control': 'private, max-age=300, must-revalidate'},
-  });
+  return Response.json(karte, {headers: {'Cache-Control': 'no-store'}});
 }

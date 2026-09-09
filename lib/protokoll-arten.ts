@@ -10,6 +10,7 @@ export const PROTOKOLL_BEREICHE = [
   'abwesenheit',
   'spesen',
   'abschluss',
+  'ziele',
   'stammdaten',
   'einstellungen',
 ] as const;
@@ -22,6 +23,7 @@ export const BEREICH_LABEL: Record<ProtokollBereich, string> = {
   abwesenheit: 'Abwesenheit',
   spesen: 'Reisen & Spesen',
   abschluss: 'Monatsabschluss',
+  ziele: 'Ziele',
   stammdaten: 'Mitarbeiter',
   einstellungen: 'Einstellungen',
 };
@@ -219,6 +221,14 @@ export const AKTIONEN = {
      es danach wegwischt, hat es trotzdem geschrieben. */
   'profil.kommentar': {bereich: 'stammdaten', label: 'Profilkommentar geschrieben', eingriff: true},
   'profil.kommentar-loeschen': {bereich: 'stammdaten', label: 'Profilkommentar gelöscht', eingriff: true},
+
+  'ziel.anlegen': {bereich: 'ziele', label: 'Ziel angelegt', eingriff: true},
+  'ziel.erledigen': {bereich: 'ziele', label: 'Ziel erreicht', eingriff: true},
+  'ziel.oeffnen': {bereich: 'ziele', label: 'Ziel wieder geöffnet', eingriff: true},
+  'ziel.sichtbarkeit': {bereich: 'ziele', label: 'Sichtbarkeit des Ziels geändert', eingriff: true},
+  'ziel.wiederholung': {bereich: 'ziele', label: 'Wiederholung des Ziels geändert', eingriff: true},
+  'ziel.loeschen': {bereich: 'ziele', label: 'Ziel gelöscht', eingriff: true},
+  'timeline.reaktion': {bereich: 'ziele', label: 'Reaktion in der Timeline', eingriff: false},
 
   // ── Einstellungen ────────────────────────────────────────────────────────
   'einstellungen.aendern': {bereich: 'einstellungen', label: 'Einstellungen geändert', eingriff: true},

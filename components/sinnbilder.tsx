@@ -77,6 +77,7 @@ import {
   ClockIcon,
   CodeIcon,
   CoffeeIcon,
+  ConfettiIcon,
   CreditCardIcon,
   DownloadSimpleIcon,
   EnvelopeIcon,
@@ -115,11 +116,13 @@ import {
   StopIcon,
   SunIcon,
   TagIcon,
+  TargetIcon,
   ThermometerIcon,
   TicketIcon,
   TimerIcon,
   TrashIcon,
   TreeIcon,
+  TrophyIcon,
   UploadSimpleIcon,
   UserIcon,
   UserMinusIcon,
@@ -167,6 +170,13 @@ export type Zeichen = ComponentType<SVGProps<SVGSVGElement>>;
  *   erneut = reaktivieren – beide heißen „noch einmal".
  */
 export const SINNBILD = {
+  // ── Team und Ziele ───────────────────────────────────────────────────────
+  /** Die Seite „Timeline" und ihr Ereignisfeed: Eintritte, Jubiläen. */
+  teamleben: ConfettiIcon,
+  /** Ein Vorhaben, solange es läuft. */
+  ziele: TargetIcon,
+  /** Ein erreichtes Ziel und ein Jubiläum — dasselbe Anerkennen. */
+  erfolg: TrophyIcon,
   // ── Zeit und Stempeln ────────────────────────────────────────────────────
   arbeit: BriefcaseIcon,
   /* Die drei Stempelhandlungen als ein Dreiklang: starten, anhalten, beenden.
@@ -490,6 +500,7 @@ export const PROTOKOLL_BEREICH_SINN: Record<ProtokollBereich, Sinn> = {
   abwesenheit: 'abwesenheit',
   spesen: 'reise',
   abschluss: 'abschluss',
+  ziele: 'ziele',
   stammdaten: 'mitarbeiter',
   einstellungen: 'einstellungen',
 };

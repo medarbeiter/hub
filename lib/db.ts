@@ -53,7 +53,191 @@ const MIGRATIONS: Migration[] = [
   migration32EigeneRechte,
   migration33Eintritt,
   migration34ZugangscodeSeiten,
+  migration35Ziele,
+  migration36Reaktionen,
+  migration37ReaktionenEmoji,
+  migration38ZielBausteine,
+  migration39ZielWiederholung,
+  migration40ZielClickup,
+  migration41ZielAufgaben,
+  migration42ZielTeam,
+  migration43ZielRollen,
 ];
+
+function migration35Ziele(db: Database): void {
+  db.exec(`CREATE TABLE ziele (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    titel TEXT NOT NULL CHECK(length(titel) BETWEEN 1 AND 160),
+    art TEXT NOT NULL CHECK(art IN ('frei','tagesstunden','wochenstunden','erfassung','pausen')),
+    von TEXT NOT NULL,
+    bis TEXT NOT NULL CHECK(bis >= von),
+    ziel_minuten INTEGER,
+    oeffentlich INTEGER NOT NULL DEFAULT 0 CHECK(oeffentlich IN (0,1)),
+    created_at TEXT NOT NULL,
+    done_at TEXT
+  ); CREATE INDEX ziele_person ON ziele(user_id);`);
+}
+
+function migration36Reaktionen(db: Database): void {
+  db.exec(`CREATE TABLE reaktionen (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ereignis TEXT NOT NULL CHECK(length(ereignis) BETWEEN 1 AND 64),
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    art TEXT NOT NULL CHECK(art IN ('applaus','herz','funkeln')),
+    created_at TEXT NOT NULL,
+    UNIQUE(ereignis, user_id, art)
+  ); CREATE INDEX reaktionen_ereignis ON reaktionen(ereignis);`);
+}
+
+/* Die Reaktion ist ein Emoji aus lib/ziele-arten.ts, nicht mehr eines von drei
+   Wörtern. Die Liste gehört in den Code, nicht in ein CHECK — sonst hieße jedes
+   neue Emoji eine Migration. */
+function migration37ReaktionenEmoji(db: Database): void {
+  db.exec(`CREATE TABLE reaktionen_neu (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ereignis TEXT NOT NULL CHECK(length(ereignis) BETWEEN 1 AND 64),
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    art TEXT NOT NULL CHECK(length(art) BETWEEN 1 AND 16),
+    created_at TEXT NOT NULL,
+    UNIQUE(ereignis, user_id, art)
+  );
+  INSERT OR IGNORE INTO reaktionen_neu (id, ereignis, user_id, art, created_at)
+    SELECT id, ereignis, user_id,
+      CASE art WHEN 'applaus' THEN '👏' WHEN 'herz' THEN '❤️' WHEN 'funkeln' THEN '✨' ELSE art END,
+      created_at FROM reaktionen;
+  DROP TABLE reaktionen;
+  ALTER TABLE reaktionen_neu RENAME TO reaktionen;
+  CREATE INDEX reaktionen_ereignis ON reaktionen(ereignis);`);
+}
+
+/* Ein Ziel ist seit dem Baukasten ein Satz aus vier Bausteinen (Messung,
+   Vergleich, Häufigkeit, Wert) statt einer von fünf Arten. Die alten Arten
+   werden in die Bausteine übersetzt, die sie immer schon waren. */
+function migration38ZielBausteine(db: Database): void {
+  db.exec(`CREATE TABLE ziele_neu (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    titel TEXT NOT NULL CHECK(length(titel) BETWEEN 1 AND 160),
+    messung TEXT NOT NULL CHECK(messung IN ('frei','arbeitszeit','pausen','erfassung','anfang','feierabend')),
+    vergleich TEXT NOT NULL DEFAULT 'min' CHECK(vergleich IN ('min','max')),
+    je TEXT NOT NULL DEFAULT 'tag' CHECK(je IN ('tag','woche','zeitraum')),
+    wert INTEGER CHECK(wert IS NULL OR wert BETWEEN 0 AND 10080),
+    von TEXT NOT NULL,
+    bis TEXT NOT NULL CHECK(bis >= von),
+    oeffentlich INTEGER NOT NULL DEFAULT 0 CHECK(oeffentlich IN (0,1)),
+    created_at TEXT NOT NULL,
+    done_at TEXT
+  );
+  INSERT INTO ziele_neu (id, user_id, titel, messung, vergleich, je, wert, von, bis, oeffentlich, created_at, done_at)
+    SELECT id, user_id, titel,
+      CASE art WHEN 'tagesstunden' THEN 'arbeitszeit' WHEN 'wochenstunden' THEN 'arbeitszeit' ELSE art END,
+      'min',
+      CASE art WHEN 'wochenstunden' THEN 'zeitraum' ELSE 'tag' END,
+      ziel_minuten, von, bis, oeffentlich, created_at, done_at FROM ziele;
+  DROP TABLE ziele;
+  ALTER TABLE ziele_neu RENAME TO ziele;
+  CREATE INDEX ziele_person ON ziele(user_id);`);
+}
+
+/* Ein Ziel kann sich wiederholen: ist sein Zeitraum vorbei, wird es in den
+   nächsten fortgeschrieben (lib/ziele.ts zieleFortsetzen). Die Fahne wandert mit
+   auf die neue Zeile; `fortgesetzt` sagt, dass eine Zeile so entstand — die
+   Timeline meldet dann keinen neuen Vorsatz, nur den Erfolg. */
+function migration39ZielWiederholung(db: Database): void {
+  db.exec(`ALTER TABLE ziele ADD COLUMN wiederholung TEXT NOT NULL DEFAULT 'keine' CHECK(wiederholung IN ('keine','woche','monat'));
+  ALTER TABLE ziele ADD COLUMN fortgesetzt INTEGER NOT NULL DEFAULT 0 CHECK(fortgesetzt IN (0,1));`);
+}
+
+/* Ein Ziel kann an ein ClickUp-Ziel hängen (lib/clickup.ts): Messung
+   `clickup`, `extern` trägt die ClickUp-Kennung. Neubau, weil das CHECK auf
+   messung sonst nicht erweiterbar ist. */
+function migration40ZielClickup(db: Database): void {
+  db.exec(`CREATE TABLE ziele_neu (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    titel TEXT NOT NULL CHECK(length(titel) BETWEEN 1 AND 160),
+    messung TEXT NOT NULL CHECK(messung IN ('frei','arbeitszeit','pausen','erfassung','anfang','feierabend','clickup')),
+    vergleich TEXT NOT NULL DEFAULT 'min' CHECK(vergleich IN ('min','max')),
+    je TEXT NOT NULL DEFAULT 'tag' CHECK(je IN ('tag','woche','zeitraum')),
+    wert INTEGER CHECK(wert IS NULL OR wert BETWEEN 0 AND 10080),
+    extern TEXT CHECK(extern IS NULL OR length(extern) BETWEEN 1 AND 64),
+    von TEXT NOT NULL,
+    bis TEXT NOT NULL CHECK(bis >= von),
+    oeffentlich INTEGER NOT NULL DEFAULT 0 CHECK(oeffentlich IN (0,1)),
+    created_at TEXT NOT NULL,
+    done_at TEXT,
+    wiederholung TEXT NOT NULL DEFAULT 'keine' CHECK(wiederholung IN ('keine','woche','monat')),
+    fortgesetzt INTEGER NOT NULL DEFAULT 0 CHECK(fortgesetzt IN (0,1))
+  );
+  INSERT INTO ziele_neu (id, user_id, titel, messung, vergleich, je, wert, von, bis, oeffentlich, created_at, done_at, wiederholung, fortgesetzt)
+    SELECT id, user_id, titel, messung, vergleich, je, wert, von, bis, oeffentlich, created_at, done_at, wiederholung, fortgesetzt FROM ziele;
+  DROP TABLE ziele;
+  ALTER TABLE ziele_neu RENAME TO ziele;
+  CREATE INDEX ziele_person ON ziele(user_id);`);
+}
+
+/* Die ClickUp-Messung zählt erledigte Aufgaben (`aufgaben`) statt an ein
+   ClickUp-Ziel zu hängen; `extern` fällt weg. Zeilen der kurzlebigen Messung
+   `clickup` werden zu eigenen Vorhaben — es gab sie nur in der Entwicklung. */
+function migration41ZielAufgaben(db: Database): void {
+  db.exec(`CREATE TABLE ziele_neu (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    titel TEXT NOT NULL CHECK(length(titel) BETWEEN 1 AND 160),
+    messung TEXT NOT NULL CHECK(messung IN ('frei','arbeitszeit','pausen','erfassung','anfang','feierabend','aufgaben')),
+    vergleich TEXT NOT NULL DEFAULT 'min' CHECK(vergleich IN ('min','max')),
+    je TEXT NOT NULL DEFAULT 'tag' CHECK(je IN ('tag','woche','zeitraum')),
+    wert INTEGER CHECK(wert IS NULL OR wert BETWEEN 0 AND 10080),
+    von TEXT NOT NULL,
+    bis TEXT NOT NULL CHECK(bis >= von),
+    oeffentlich INTEGER NOT NULL DEFAULT 0 CHECK(oeffentlich IN (0,1)),
+    created_at TEXT NOT NULL,
+    done_at TEXT,
+    wiederholung TEXT NOT NULL DEFAULT 'keine' CHECK(wiederholung IN ('keine','woche','monat')),
+    fortgesetzt INTEGER NOT NULL DEFAULT 0 CHECK(fortgesetzt IN (0,1))
+  );
+  INSERT INTO ziele_neu (id, user_id, titel, messung, vergleich, je, wert, von, bis, oeffentlich, created_at, done_at, wiederholung, fortgesetzt)
+    SELECT id, user_id, titel, CASE messung WHEN 'clickup' THEN 'frei' ELSE messung END, vergleich, je, wert, von, bis, oeffentlich, created_at, done_at, wiederholung, fortgesetzt FROM ziele;
+  DROP TABLE ziele;
+  ALTER TABLE ziele_neu RENAME TO ziele;
+  CREATE INDEX ziele_person ON ziele(user_id);`);
+}
+
+/* Teamziele (`team = 1`, Fortschritt über alle Konten) und die Messung
+   `clickupzeit`. Das CHECK auf `messung` fällt: die Vokabel wohnt in
+   lib/ziele-arten.ts, und jede neue Messung hieße sonst ein Tabellenneubau —
+   dasselbe Argument wie bei den Emojis (Migration 37). */
+function migration42ZielTeam(db: Database): void {
+  db.exec(`CREATE TABLE ziele_neu (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    titel TEXT NOT NULL CHECK(length(titel) BETWEEN 1 AND 160),
+    messung TEXT NOT NULL CHECK(length(messung) BETWEEN 1 AND 32),
+    vergleich TEXT NOT NULL DEFAULT 'min' CHECK(vergleich IN ('min','max')),
+    je TEXT NOT NULL DEFAULT 'tag' CHECK(je IN ('tag','woche','zeitraum')),
+    wert INTEGER CHECK(wert IS NULL OR wert BETWEEN 0 AND 100000),
+    von TEXT NOT NULL,
+    bis TEXT NOT NULL CHECK(bis >= von),
+    oeffentlich INTEGER NOT NULL DEFAULT 0 CHECK(oeffentlich IN (0,1)),
+    team INTEGER NOT NULL DEFAULT 0 CHECK(team IN (0,1)),
+    created_at TEXT NOT NULL,
+    done_at TEXT,
+    wiederholung TEXT NOT NULL DEFAULT 'keine' CHECK(wiederholung IN ('keine','woche','monat')),
+    fortgesetzt INTEGER NOT NULL DEFAULT 0 CHECK(fortgesetzt IN (0,1))
+  );
+  INSERT INTO ziele_neu (id, user_id, titel, messung, vergleich, je, wert, von, bis, oeffentlich, created_at, done_at, wiederholung, fortgesetzt)
+    SELECT id, user_id, titel, messung, vergleich, je, wert, von, bis, oeffentlich, created_at, done_at, wiederholung, fortgesetzt FROM ziele;
+  DROP TABLE ziele;
+  ALTER TABLE ziele_neu RENAME TO ziele;
+  CREATE INDEX ziele_person ON ziele(user_id);`);
+}
+
+/* Ein Teamziel kann auf Rollen zugeschnitten sein: Rollenschlüssel durch
+   Leerzeichen, wie `totp_konten.seiten`; NULL heißt das ganze Haus. */
+function migration43ZielRollen(db: Database): void {
+  db.exec(`ALTER TABLE ziele ADD COLUMN rollen TEXT CHECK(rollen IS NULL OR length(rollen) BETWEEN 1 AND 400);`);
+}
 
 /** The `PRAGMA user_version` a fully migrated database carries. */
 export const SCHEMA_VERSION = MIGRATIONS.length;

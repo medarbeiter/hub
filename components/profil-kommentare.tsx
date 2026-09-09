@@ -1,7 +1,7 @@
 'use client';
 
 import {Banner, Button, HStack, StackItem, Text, TextArea, VStack} from '@astryxdesign/core';
-import {useCallback, useEffect, useState, useTransition} from 'react';
+import {useState, useTransition} from 'react';
 import {profilKommentarAction, profilKommentarLoeschenAction} from '@/app/actions';
 import {sicher} from '@/lib/aktion';
 import type {ProfilKommentar} from '@/lib/profil-kommentare';
@@ -12,12 +12,11 @@ import {Sinnbild} from './sinnbilder';
  * Die Kommentare unter einer Personenkarte — „schönes Bild!" und die Antwort
  * darauf, mehr ist hier nicht vorgesehen.
  *
- * ## Geholt, nicht mitgeschleppt
+ * ## Mit der Karte geholt
  *
- * Dieselbe Regel wie bei der Karte selbst: eine Liste, die Gesichter zeigt,
- * schickt keine Wortmeldungen mit, die niemand liest. Geladen wird beim
- * Öffnen — und danach nach jeder eigenen Handlung erneut, weil das Ergebnis
- * einer Handlung die einzige Stelle ist, an der die Liste veralten kann. Die
+ * Die Liste kommt in derselben Antwort wie die Karte (`lib/personenkarte.ts`)
+ * und wird nach jeder eigenen Handlung über `nachladen` erneut geholt, weil das
+ * Ergebnis einer Handlung die einzige Stelle ist, an der sie veralten kann. Die
  * Adresse gibt bewusst nichts zwischenzuspeichern (`no-store`), sonst stünde
  * der eigene, gerade abgeschickte Satz fünf Minuten lang nicht da.
  *
@@ -28,34 +27,24 @@ import {Sinnbild} from './sinnbilder';
  * Aktionen prüfen es ein zweites Mal — ein ausgeblendeter Knopf ist keine
  * Grenze.
  */
-interface Antwort {
+export interface KommentarStand {
   darfSchreiben: boolean;
   eintraege: ProfilKommentar[];
 }
 
-export function ProfilKommentare({personId, isOpen}: {personId: number; isOpen: boolean}) {
-  const [stand, setStand] = useState<Antwort | null>(null);
+export function ProfilKommentare({
+  personId,
+  stand,
+  nachladen,
+}: {
+  personId: number;
+  stand: KommentarStand;
+  /** Holt die Karte neu — nach dem eigenen Schreiben oder Löschen. */
+  nachladen: () => Promise<unknown>;
+}) {
   const [text, setText] = useState('');
   const [fehler, setFehler] = useState<string | null>(null);
   const [isPending, start] = useTransition();
-
-  const laden = useCallback(
-    (signal?: AbortSignal) =>
-      fetch(`/api/person/${personId}/kommentare`, {signal})
-        .then((antwort) => (antwort.ok ? antwort.json() : null))
-        .then((daten: Antwort | null) => daten && setStand(daten))
-        .catch(() => {}),
-    [personId],
-  );
-
-  useEffect(() => {
-    // Kein echtes Konto (die Anmeldeseite kennt eine Person mit der Kennung 0),
-    // also auch niemand, an dessen Karte etwas stehen könnte.
-    if (!isOpen || personId <= 0) return;
-    const abbruch = new AbortController();
-    laden(abbruch.signal);
-    return () => abbruch.abort();
-  }, [isOpen, personId, laden]);
 
   const handeln = (tun: () => Promise<{error: string | null}>) =>
     start(async () => {
@@ -65,7 +54,7 @@ export function ProfilKommentare({personId, isOpen}: {personId: number; isOpen: 
         setFehler(error);
         return;
       }
-      await laden();
+      await nachladen();
     });
 
   const senden = () =>
@@ -74,8 +63,6 @@ export function ProfilKommentare({personId, isOpen}: {personId: number; isOpen: 
       if (!ergebnis.error) setText('');
       return ergebnis;
     });
-
-  if (!stand) return null;
 
   return (
     <VStack gap={3} padding={4}>

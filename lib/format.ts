@@ -465,3 +465,14 @@ export function fmtGreeting(nowMin: number, firstName: string): string {
   const part = hour < 11 ? 'Guten Morgen' : hour < 18 ? 'Guten Tag' : 'Guten Abend';
   return `${part}, ${firstName}`;
 }
+
+/** „7 Jahre", „4 Monate", „neu im Team" — ganze Monate zwischen zwei Tagen. */
+export function dauerSeit(vonISO: string, bisISO: string): string {
+  const [y1, m1, d1] = vonISO.split('-').map(Number) as [number, number, number];
+  const [y2, m2, d2] = bisISO.split('-').map(Number) as [number, number, number];
+  const monate = (y2 - y1) * 12 + (m2 - m1) - (d2 < d1 ? 1 : 0);
+  if (monate < 1) return 'neu im Team';
+  if (monate < 12) return monate === 1 ? '1 Monat' : `${monate} Monate`;
+  const jahre = Math.floor(monate / 12);
+  return jahre === 1 ? '1 Jahr' : `${jahre} Jahre`;
+}

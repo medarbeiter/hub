@@ -6,6 +6,7 @@ import {personAngabe} from '@/lib/avatar';
 import {AppHinweis} from '@/components/app-hinweis';
 import {AppNav} from '@/components/app-nav';
 import {AttentionToast} from '@/components/attention-toast';
+import {TimelineWecker} from '@/components/timeline-wecker';
 import {ClockBar} from '@/components/clock-bar';
 import {ClockProvider} from '@/components/clock-provider';
 import {KopfSichtProvider} from '@/components/kopf-deckung';
@@ -109,6 +110,8 @@ export default async function AppLayout({children}: {children: ReactNode}) {
           <ZugangMerker person={personAngabe(user)} email={user.email} />
           <SprungmarkeDeutsch />
           <ClockBar />
+          {/* Neues in der Timeline als Meldung — siehe lib/timeline-wecker.ts. */}
+          <TimelineWecker start={Date.now()} />
           {/* Zeichnet nichts an dieser Stelle: die Aufmerksamkeitsmeldung
               erscheint als Meldung unten rechts und lässt den Platz zwischen
               Stempelleiste und Seitenkopf frei. Sie steht trotzdem hier, weil

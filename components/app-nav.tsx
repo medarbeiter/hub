@@ -284,8 +284,19 @@ export function AppNav({name, role, rechte, person, heute, zaehler}: AppNavProps
           </SideNavItem>
         </NavVerweilen>
 
+        {/* Timeline ist ein schlichter Verweis: sein Zähler wäre nur die
+            eigene Zielzahl, und die steht auf der Seite selbst. */}
+        <SideNavItem
+          label="Timeline"
+          href="/timeline"
+          as={NextLink}
+          size={dichte}
+          icon={umriss('teamleben')}
+          selectedIcon={gefuellt('teamleben')}
+          isSelected={pathname === '/timeline' || pathname.startsWith('/profil/')}
+        />
 
-        {/* Der Teamkalender steht in der persönlichen Reihe und nicht bei der
+          {/* Der Teamkalender steht in der persönlichen Reihe und nicht bei der
             Verwaltung: „wer ist nächste Woche da" ist die Frage eines
             Kollegen, nicht die einer Vorgesetzten. Was er zeigt, ist für alle
             dasselbe — nur der Grund einer Abwesenheit bleibt der Verwaltung

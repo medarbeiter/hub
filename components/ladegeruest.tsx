@@ -1,4 +1,4 @@
-import {Card, HStack, Skeleton, StackItem, VStack} from '@astryxdesign/core';
+import {Card, Divider, HStack, Skeleton, StackItem, VStack} from '@astryxdesign/core';
 import type {ReactNode} from 'react';
 
 /**
@@ -306,5 +306,41 @@ export function KontextGeruest({karten = [132, 96]}: {karten?: number[]}) {
         <Skeleton key={i} width="100%" height={h} index={i} />
       ))}
     </>
+  );
+}
+
+/**
+ * Die Personenkarte, solange ihre eine Antwort noch aussteht: Steckbrief
+ * (Bild, drei Zeilen), Ziele, Kommentare — dieselben Bänder wie der Inhalt,
+ * damit der Wechsel ein Wechsel ist und kein Umbau. Wie `TrefferGeruest`
+ * bewusst kein fünftes Seitengerüst: es füllt keine Route, nur den Dialog.
+ */
+export function KartenGeruest() {
+  return (
+    <VStack gap={0}>
+      <HStack gap={4} padding={4} vAlign="start" wrap="nowrap">
+        <Skeleton width={128} height={128} radius="rounded" index={0} />
+        <StackItem size="fill">
+          <VStack gap={3}>
+            {[0, 1, 2].map((z) => (
+              <VStack key={z} gap={1}>
+                <Skeleton width="28%" height={12} index={z + 1} />
+                <Skeleton width={z === 1 ? '70%' : '48%'} height={16} index={z + 1} />
+              </VStack>
+            ))}
+          </VStack>
+        </StackItem>
+      </HStack>
+      <Divider />
+      <VStack gap={3} padding={4}>
+        <Skeleton width={120} height={14} index={4} />
+        <Skeleton width="80%" height={16} index={5} />
+      </VStack>
+      <Divider />
+      <VStack gap={3} padding={4}>
+        <Skeleton width={110} height={14} index={5} />
+        <Skeleton width="100%" height={56} index={6} />
+      </VStack>
+    </VStack>
   );
 }
