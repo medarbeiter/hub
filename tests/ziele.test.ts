@@ -1,6 +1,6 @@
 import {afterEach, beforeEach, expect, test} from 'bun:test';
 import {createDb, setDbForTesting} from '../lib/db';
-import {createGoal, deleteGoal, ownGoals, setGoalRecurring, zieleFortsetzen, publicGoals, publicPerson, reagieren, reaktionenFuer, setGoalDone, setGoalVisibility, teamTimeline, timelineBesuch} from '../lib/ziele';
+import {createGoal, deleteGoal, kommendeJahrestage, ownGoals, setGoalRecurring, zieleFortsetzen, publicGoals, publicPerson, reagieren, reaktionenFuer, setGoalDone, setGoalVisibility, teamTimeline, timelineBesuch} from '../lib/ziele';
 import type {GoalInput} from '../lib/ziele-arten';
 import type {Database} from 'bun:sqlite';
 
@@ -82,6 +82,9 @@ test('history has real entry and anniversary dates, clamps month ends, never inv
   expect(geburtstage.map(e => [e.id, e.date])).toEqual([['geburtstag-1-2026','2026-02-28'],['geburtstag-1-2025','2025-02-28']]); // nicht vor dem Eintritt, kein Alter
   expect(geburtstage.every(e => !/\d/.test(e.beschreibung))).toBe(true);
   expect(events.every(e => e.date <= '2026-08-31')).toBe(true);
+  db.query("UPDATE users SET eintritt = '2025-11-15' WHERE id = 2").run();
+  expect(kommendeJahrestage('2026-08-31', 90).map(j => [j.art, j.person.id, j.date, j.titel])).toEqual([['jubilaeum', 2, '2026-11-15', '1 Jahr im Team']]);
+  expect(kommendeJahrestage('2027-02-01', 60).map(j => [j.art, j.date])).toEqual([['geburtstag', '2027-02-28']]); // heute selbst nie
 });
 
 test('range, type and threshold are validated at the write boundary', () => {

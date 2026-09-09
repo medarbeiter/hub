@@ -285,6 +285,37 @@ export function publicPerson(id: number): PublicPerson | null {
   return getDb().query<PublicPerson, [number]>('SELECT id,name,eintritt,avatar_key,avatar_datei FROM users WHERE id = ? AND active = 1').get(id);
 }
 
+export interface Jahrestag {
+  date: string;
+  art: 'jubilaeum' | 'geburtstag';
+  person: PublicPerson;
+  /** „3 Jahre im Team" / „Geburtstag" — nie ein Alter. */
+  titel: string;
+}
+
+/** Jubiläen und Geburtstage in den nächsten `tage` Tagen (heute ausgeschlossen: das steht schon im Strang), nach Datum. */
+export function kommendeJahrestage(today = todayISO(), tage = 60): Jahrestag[] {
+  const bis = addDays(today, tage);
+  const aus: Jahrestag[] = [];
+  const people = getDb().query<PublicPerson & {geburtstag: string | null}, []>('SELECT id,name,eintritt,geburtstag,avatar_key,avatar_datei FROM users WHERE active = 1').all();
+  for (const {geburtstag, ...person} of people) {
+    if (person.eintritt) {
+      // ponytail: Monate 6, 12, 24, … bis über das Fenster hinaus — so viele Jahre hat niemand, dass die Schleife zählt.
+      for (let monate = 6; anniversary(person.eintritt, monate) <= bis; monate = monate < 12 ? 12 : monate + 12) {
+        const date = anniversary(person.eintritt, monate);
+        if (date > today) aus.push({date, art: 'jubilaeum', person, titel: monate === 6 ? 'Ein halbes Jahr im Team' : `${monate / 12} ${monate === 12 ? 'Jahr' : 'Jahre'} im Team`});
+      }
+    }
+    if (geburtstag) {
+      for (let year = Number(today.slice(0, 4)); year <= Number(bis.slice(0, 4)); year++) {
+        const date = anniversary(geburtstag, (year - Number(geburtstag.slice(0, 4))) * 12);
+        if (date > today && date <= bis) aus.push({date, art: 'geburtstag', person, titel: 'Geburtstag'});
+      }
+    }
+  }
+  return aus.sort((a, b) => a.date.localeCompare(b.date) || a.person.name.localeCompare(b.person.name));
+}
+
 function anniversary(date: string, months: number): string {
   const [year, month, day] = date.split('-').map(Number);
   const first = new Date(Date.UTC(year!, month! - 1 + months, 1));

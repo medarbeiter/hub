@@ -3054,6 +3054,30 @@ a:has(.link-puls[data-laedt='true']) {
 .strang-gesehen .strang-ereignis::before {
   border-inline-start-color: var(--color-border);
 }
+.strang-titel-gesehen {
+  color: var(--color-text-secondary);
+}
+/* Beim Zeigen kehrt ein gesehener Beitrag in seine Farbe zurück — der Strang
+   ist gedämpft, nicht tot. Zwei Klassen gegen die eine von StyleX. */
+.strang-gesehen .strang-ereignis:hover .strang-punkt,
+.strang-gesehen .strang-ereignis:focus-within .strang-punkt {
+  filter: none;
+  opacity: 1;
+}
+.strang-gesehen .strang-ereignis:hover .strang-titel-gesehen,
+.strang-gesehen .strang-ereignis:focus-within .strang-titel-gesehen {
+  color: var(--color-text-primary);
+}
+.strang-gesehen .strang-punkt,
+.strang-titel-gesehen {
+  transition: filter var(--duration-medium) var(--ease-standard), opacity var(--duration-medium) var(--ease-standard), color var(--duration-medium) var(--ease-standard);
+}
+@media (prefers-reduced-motion: reduce) {
+  .strang-gesehen .strang-punkt,
+  .strang-titel-gesehen {
+    transition: none;
+  }
+}
 .strang-kopf {
   gap: var(--spacing-2);
 }

@@ -1,9 +1,13 @@
 import {Card, Heading, HStack, Text, VStack} from '@astryxdesign/core';
+import {Collapsible} from '@astryxdesign/core/Collapsible';
+import {PersonZeichen} from '@/components/person-zeichen';
+import {personAngabe} from '@/lib/avatar';
+import {fmtDate} from '@/lib/format';
 import {requireUser} from '@/lib/auth';
 import {todayISO} from '@/lib/format';
 import {clickupAktualisieren, clickupKonfiguriert} from '@/lib/clickup';
 import {alleRollen} from '@/lib/rollen';
-import {ownGoals, reaktionenFuer, teamGoals, teamTimeline, timelineBesuch} from '@/lib/ziele';
+import {kommendeJahrestage, ownGoals, reaktionenFuer, teamGoals, teamTimeline, timelineBesuch} from '@/lib/ziele';
 import {StatusLeiste} from '@/components/bereichs-leiste';
 import {Sinnbild} from '@/components/sinnbilder';
 import {TeamEreignisse} from '@/components/team-ereignisse';
@@ -29,6 +33,7 @@ export default async function TimelinePage({searchParams}: {searchParams: Promis
   const inArbeit = ziele.filter((z) => !z.erreicht && z.von <= heute && z.bis >= heute);
   const geteilt = ziele.filter((z) => z.oeffentlich).length;
   const naechstes = inArbeit[0] ?? ziele.find((z) => !z.erreicht && z.von > heute);
+  const demnaechst = kommendeJahrestage(heute);
 
   return (
     <>
@@ -39,7 +44,7 @@ export default async function TimelinePage({searchParams}: {searchParams: Promis
         figurEinheit={erreicht === 1 ? 'Ziel erreicht' : 'Ziele erreicht'}
         stand={
           ansicht === 'team'
-            ? 'Eintritte, Jubiläen und geteilte Ziele – neueste zuerst, aktualisiert sich alle 30 Sekunden.'
+            ? 'Eintritte, Jubiläen, Geburtstage und geteilte Ziele – neueste zuerst, aktualisiert sich alle 30 Sekunden.'
             : ansicht === 'teamziele'
               ? `${teamZiele.filter((z) => !z.erreicht && z.bis >= heute).length} in Arbeit · ${teamZiele.filter((z) => z.erreicht).length} erreicht`
               : `${inArbeit.length} in Arbeit · ${geteilt} mit dem Team geteilt`
@@ -113,13 +118,46 @@ export default async function TimelinePage({searchParams}: {searchParams: Promis
             </Card>
 
             <Card padding={4}>
+              <Collapsible
+                defaultIsOpen={false}
+                trigger={
+                  <HStack gap={2} vAlign="center">
+                    <Sinnbild sinn="geburtstag" groesse="gross" ton="sekundaer" />
+                    <Heading level={3}>Demnächst</Heading>
+                    <Text type="supporting" color="secondary" hasTabularNumbers>
+                      {demnaechst.length}
+                    </Text>
+                  </HStack>
+                }
+              >
+                {demnaechst.length ? (
+                  <VStack gap={2} paddingBlock={2}>
+                    {demnaechst.map((j) => (
+                      <PersonZeichen
+                        key={`${j.art}-${j.person.id}-${j.date}`}
+                        person={personAngabe(j.person)}
+                        groesse="zeile"
+                        mitName
+                        unterzeile={`${j.titel} · ${fmtDate(j.date)}`}
+                      />
+                    ))}
+                  </VStack>
+                ) : (
+                  <Text type="supporting" color="secondary">
+                    In den nächsten 60 Tagen steht kein Jubiläum und kein Geburtstag an.
+                  </Text>
+                )}
+              </Collapsible>
+            </Card>
+
+            <Card padding={4}>
               <VStack gap={2}>
                 <HStack gap={2} vAlign="center">
                   <Sinnbild sinn="herleitung" groesse="gross" ton="sekundaer" />
                   <Heading level={3}>Was hier steht</Heading>
                 </HStack>
                 <Text type="supporting" color="secondary">
-                  Eintritte und Jubiläen kommen aus dem Eintrittsdatum. Ein Ziel erscheint nur, wenn seine
+                  Eintritte und Jubiläen kommen aus dem Eintrittsdatum, Geburtstage aus dem Personalstamm – ohne Alter. Ein Ziel erscheint nur, wenn seine
                   Besitzerin es teilt – und nur mit Titel und Stand, nie mit Stunden.
                 </Text>
                 <Text type="supporting" size="sm" color="secondary">

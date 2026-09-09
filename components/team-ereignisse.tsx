@@ -62,7 +62,7 @@ export function TeamEreignisse({events, reaktionen}: TeamEreignisseProps) {
   // Beitrag seine Marke und braucht keine Kante.
   const neue = events.filter((e) => e.neu);
   const gesehene = events.filter((e) => !e.neu);
-  if (!neue.length || !gesehene.length) return <Strang events={events} reaktionen={reaktionen} gesehen={events.every((e) => e.neu === false)} />;
+  if (!neue.length || !gesehene.length) return <Strang events={events} reaktionen={reaktionen} />;
   return (
     <VStack gap={0}>
       <Strang events={neue} reaktionen={reaktionen} />
@@ -101,7 +101,7 @@ function Strang({events, reaktionen, gesehen = false}: TeamEreignisseProps & {ge
           </time>
           <ol className="strang-ereignisse">
             {tag.ereignisse.map((ereignis) => (
-              <Beitrag key={ereignis.id} ereignis={ereignis} reaktionen={reaktionen[ereignis.id] ?? []} />
+              <Beitrag key={ereignis.id} ereignis={ereignis} reaktionen={reaktionen[ereignis.id] ?? []} gesehen={gesehen} />
             ))}
           </ol>
         </li>
@@ -110,7 +110,7 @@ function Strang({events, reaktionen, gesehen = false}: TeamEreignisseProps & {ge
   );
 }
 
-function Beitrag({ereignis, reaktionen}: {ereignis: TimelineEvent; reaktionen: Reaktion[]}) {
+function Beitrag({ereignis, reaktionen, gesehen}: {ereignis: TimelineEvent; reaktionen: Reaktion[]; gesehen: boolean}) {
   const person = personAngabe(ereignis.person);
   const profil = `/profil/${ereignis.person.id}`;
   const [karte, setKarte] = useState(false);
@@ -136,7 +136,8 @@ function Beitrag({ereignis, reaktionen}: {ereignis: TimelineEvent; reaktionen: R
             </span>
             <HStack gap={2} vAlign="center" wrap="nowrap">
               <Sinnbild sinn={SINN[ereignis.art]} groesse="gross" ton="sekundaer" />
-              <Heading level={3} id={`${ereignis.id}-titel`} color={ereignis.neu === false ? 'secondary' : 'primary'}>
+              {/* Farbe über die Klasse, nicht die Prop: der gesehene Titel kehrt beim Zeigen zurück (globals.css). */}
+              <Heading level={3} id={`${ereignis.id}-titel`} className={gesehen ? 'strang-titel strang-titel-gesehen' : 'strang-titel'}>
                 {ereignis.titel}
               </Heading>
             </HStack>
