@@ -66,3 +66,18 @@ test('team goals add everyone up, count a shared task once, ignore strangers, ar
   const events = teamTimeline(1, '2026-09-08').events.filter(e => e.goalId === id);
   expect(events.map(e => e.beschreibung)).toEqual([expect.stringContaining('Das Team hat sein Ziel erreicht'), expect.stringContaining('für das ganze Team')]);
 });
+
+test('clickupAktualisieren returns at once while ClickUp is still answering; the stand counts as ready only after the first fetch lands', async () => {
+  setClickupForTesting({bereit: false});
+  const {clickupAktualisieren, clickupBereit} = await import('../lib/clickup');
+  const echt = globalThis.fetch;
+  globalThis.fetch = (() => new Promise(() => {})) as unknown as typeof fetch; // ClickUp antwortet nie
+  try {
+    const start = performance.now();
+    await clickupAktualisieren(Date.now());
+    expect(performance.now() - start).toBeLessThan(100);
+    expect(clickupBereit()).toBe(false);
+  } finally {
+    globalThis.fetch = echt;
+  }
+});

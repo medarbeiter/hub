@@ -18,13 +18,13 @@ export interface ClickupAufgabe {
 }
 /** Gebuchte Zeit einer Person an einem Haus-Tag, in Minuten. */
 export interface ClickupZeit { email: string; datum: string; minuten: number }
-interface Stand { aufgaben: ClickupAufgabe[]; zeit: ClickupZeit[]; geladen: number }
+interface Stand { aufgaben: ClickupAufgabe[]; zeit: ClickupZeit[]; geladen: number; bereit: boolean }
 
 const API = 'https://api.clickup.com/api/v2';
 const TAKT_MS = 5 * 60 * 1000;
 /** So weit reicht der Blick zurück — ein Ziel, das früher begann, zählt nur, was in dieser Spanne liegt. */
 export const RUECKBLICK_TAGE = 120;
-let stand: Stand = {aufgaben: [], zeit: [], geladen: 0};
+let stand: Stand = {aufgaben: [], zeit: [], geladen: 0, bereit: false};
 
 export function clickupKonfiguriert(): boolean {
   return Boolean(process.env.CLICKUP_API_KEY);
@@ -79,13 +79,26 @@ async function hole<T>(pfad: string): Promise<T> {
 }
 
 /**
- * Holt die erledigten Aufgaben, höchstens alle fünf Minuten. Wirft nie —
- * ein alter Stand ist besser als eine kaputte Seite, und ein Fehler bremst
- * genauso wie ein Erfolg, damit ein toter Dienst nicht jede Anfrage aufhält.
+ * Stößt das Holen der erledigten Aufgaben an, höchstens alle fünf Minuten —
+ * und **wartet nicht darauf**. Das Holen sind bis zu 22 Anfragen hintereinander
+ * (gemessen 2026-09-09: 46 s), und eine Seite, die darauf wartet, steht solange
+ * leer; der Leser bekommt den letzten Stand, der nächste `router.refresh()`
+ * den neuen. Wirft nie — ein alter Stand ist besser als eine kaputte Seite,
+ * und ein Fehler bremst genauso wie ein Erfolg, damit ein toter Dienst nicht
+ * jede Anfrage aufhält.
  */
 export async function clickupAktualisieren(jetzt = Date.now()): Promise<void> {
   if (!clickupKonfiguriert() || jetzt - stand.geladen < TAKT_MS) return;
   stand.geladen = jetzt;
+  void laden(jetzt);
+}
+
+/** Ob schon ein Stand da ist — ohne ClickUp immer, sonst nach dem ersten gelungenen Holen. */
+export function clickupBereit(): boolean {
+  return !clickupKonfiguriert() || stand.bereit;
+}
+
+async function laden(jetzt: number): Promise<void> {
   try {
     const teams = (await hole<{teams?: {id: string; members?: {user?: {id?: number}}[]}[]}>('/team')).teams ?? [];
     const team = process.env.CLICKUP_TEAM_ID ? teams.find((t) => t.id === process.env.CLICKUP_TEAM_ID) : teams[0];
@@ -101,7 +114,7 @@ export async function clickupAktualisieren(jetzt = Date.now()): Promise<void> {
     // Ohne `assignee` liefert ClickUp nur die Zeit des Schlüsselinhabers — also alle Mitglieder benennen.
     const mitglieder = (team.members ?? []).map((m) => m.user?.id).filter((id): id is number => Number.isInteger(id));
     const zeit = zeitAus(await hole(`/team/${teamId}/time_entries?start_date=${jetzt - RUECKBLICK_TAGE * 86_400_000}&end_date=${jetzt}&assignee=${mitglieder.join(',')}`));
-    stand = {aufgaben, zeit, geladen: jetzt};
+    stand = {aufgaben, zeit, geladen: jetzt, bereit: true};
   } catch (fehler) {
     console.error('[MedArbeiter] ClickUp nicht erreichbar:', fehler);
   }
@@ -137,5 +150,5 @@ export function teamJeTag(was: 'aufgaben' | 'zeit', rollen: string[] = []): Map<
 }
 
 export function setClickupForTesting(neu?: Partial<Stand>): void {
-  stand = {aufgaben: [], zeit: [], geladen: 0, ...neu};
+  stand = {aufgaben: [], zeit: [], geladen: 0, bereit: true, ...neu};
 }

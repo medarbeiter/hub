@@ -1,4 +1,4 @@
-import {clickupAktualisieren} from './clickup';
+import {clickupAktualisieren, clickupBereit} from './clickup';
 import {teamTimeline, type TimelineEvent} from './ziele';
 
 /**
@@ -37,7 +37,8 @@ export async function neueEreignisse(seit: number, jetzt = Date.now()): Promise<
     if (!erstmals.has(e.id)) erstmals.set(e.id, gefuellt ? letzte.zeit : 0);
     if (erstmals.get(e.id)! > seit) neu.push({id: e.id, art: e.art, titel: e.titel, beschreibung: e.beschreibung, goalId: e.goalId, person: {id: e.person.id, name: e.person.name}});
   }
-  gefuellt = true;
+  // Erst ein Stand *mit* ClickUp zählt als erste Füllung — sonst meldete der Tick nach dem ersten Holen jedes alte ClickUp-Ziel als neu.
+  gefuellt = clickupBereit();
   // ponytail: nur die erste Seite (30) wird beobachtet — ein Schwall darüber hinaus kommt mit der Seite, nicht als Meldung.
   return {jetzt, ereignisse: neu.slice(0, 5)};
 }
