@@ -393,6 +393,25 @@ export function teamTimeline(page = 1, today = todayISO(), besuch?: {viewerId: n
   return {events: events.slice(offset,offset + 30),hasMore: events.length > offset + 30};
 }
 
+/** Wem ein Ereignis gehört und wie es heißt — für die Resonanz (lib/resonanz.ts). Null, wenn die Kennung nichts benennt. */
+export function ereignisInfo(ereignis: string): {besitzer: number; titel: string} | null {
+  let m: RegExpMatchArray | null;
+  if ((m = /^person-(\d{1,9})$/.exec(ereignis))) {
+    const p = publicPerson(Number(m[1]));
+    return p ? {besitzer: p.id, titel: p.eintritt ? 'Neu im Team' : 'Neu im Hub'} : null;
+  }
+  if ((m = /^jubilaeum-(\d{1,9})-(\d{1,4})$/.exec(ereignis))) {
+    const monate = Number(m[2]);
+    return {besitzer: Number(m[1]), titel: monate === 6 ? 'Ein halbes Jahr im Team' : `${monate / 12} ${monate === 12 ? 'Jahr' : 'Jahre'} im Team`};
+  }
+  if ((m = /^geburtstag-(\d{1,9})-(\d{4})$/.exec(ereignis))) return {besitzer: Number(m[1]), titel: 'Geburtstag'};
+  if ((m = /^ziel-(\d{1,9})-(erstellt|erreicht)$/.exec(ereignis))) {
+    const z = getDb().query<{user_id: number; titel: string}, [number]>('SELECT user_id, titel FROM ziele WHERE id = ?').get(Number(m[1]));
+    return z ? {besitzer: z.user_id, titel: z.titel} : null;
+  }
+  return null;
+}
+
 /** Ob hinter einer Ereigniskennung etwas steht, worauf man reagieren kann. */
 function ereignisGueltig(ereignis: string): boolean {
   const db = getDb();

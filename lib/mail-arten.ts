@@ -40,6 +40,7 @@ export type MailArt =
   | 'monat.abgeschlossen'
   | 'team.jubilaeum'
   | 'team.geburtstag'
+  | 'team.resonanz'
   | 'zugang.willkommen'
   | 'zugang.passwort'
   | 'zugang.zugangscode-loeschen';
@@ -101,6 +102,12 @@ export const MAIL_ARTEN = {
     label: 'Geburtstag im Team',
     beschreibung: 'Jemand aus dem Team hat heute Geburtstag.',
     empfaenger: 'alle',
+    abwaehlbar: true,
+  },
+  'team.resonanz': {
+    label: 'Reaktionen und Kommentare',
+    beschreibung: 'Jemand hat auf ein Ereignis von dir reagiert oder auf deine Karte geschrieben – gesammelt, höchstens eine Mail am Tag.',
+    empfaenger: 'person',
     abwaehlbar: true,
   },
   'zugang.willkommen': {

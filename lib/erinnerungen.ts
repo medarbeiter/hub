@@ -39,7 +39,8 @@ import {getDb, type Abwesenheit, type Reise, type User} from './db';
 import {istAntrag} from './abwesenheit-arten';
 import {mitTagen} from './abwesenheit';
 import {mitRechnung} from './spesen';
-import {erinnereAnAbwesenheit, erinnereAnReise, meldeGeburtstag, meldeJubilaeum} from './benachrichtigungen';
+import {erinnereAnAbwesenheit, erinnereAnReise, meldeGeburtstag, meldeJubilaeum, meldeResonanz} from './benachrichtigungen';
+import {resonanzFuer} from './resonanz';
 import {hausZeit} from './format';
 import {zieleFortsetzen} from './ziele';
 import {clickupAktualisieren} from './clickup';
@@ -50,7 +51,10 @@ export const ERINNERUNG_AB = 3;
 /** Und in welchem Abstand sie sich danach wiederholt, solange nichts geschieht. */
 export const WIEDERVORLAGE = 3;
 
-export type ErinnerungsBereich = 'abwesenheit' | 'reise' | 'jubilaeum' | 'geburtstag';
+export type ErinnerungsBereich = 'abwesenheit' | 'reise' | 'jubilaeum' | 'geburtstag' | 'resonanz';
+
+/** Höchstens eine Resonanz-Sammelmail je Konto in diesem Abstand. */
+export const RESONANZ_ABSTAND_MS = 24 * 3_600_000;
 
 /**
  * Wie viele volle Jahre jemand heute im Haus ist — oder null, wenn heute kein
@@ -94,14 +98,15 @@ function gedaechtnis(bereich: ErinnerungsBereich, id: number): ErinnerungsZeile 
     .get(bereich, id);
 }
 
-function merke(bereich: ErinnerungsBereich, id: number): void {
+function merke(bereich: ErinnerungsBereich, id: number, jetzt = new Date()): void {
+  const stempel = jetzt.toISOString().slice(0, 19).replace('T', ' ');
   getDb()
     .query(
-      `INSERT INTO erinnerungen (bereich, gegenstand_id) VALUES (?, ?)
+      `INSERT INTO erinnerungen (bereich, gegenstand_id, zuletzt_am) VALUES (?, ?, ?)
        ON CONFLICT(bereich, gegenstand_id)
-       DO UPDATE SET zuletzt_am = datetime('now'), anzahl = anzahl + 1`,
+       DO UPDATE SET zuletzt_am = excluded.zuletzt_am, anzahl = anzahl + 1`,
     )
-    .run(bereich, id);
+    .run(bereich, id, stempel);
 }
 
 /** Ein Vorgang ist entschieden oder zurückgezogen — sein Gedächtnis darf weg. */
@@ -147,6 +152,7 @@ export async function erinnerungslauf(jetzt: Date = new Date()): Promise<number>
     versendet += await reisenMahnen(jetzt);
     versendet += await jahrestageFeiern(jetzt, 'jubilaeum');
     versendet += await jahrestageFeiern(jetzt, 'geburtstag');
+    versendet += await resonanzSammeln(jetzt);
     zieleFortsetzen(hausZeit(jetzt).datum);
     await clickupAktualisieren(jetzt.getTime());
     feger();
@@ -237,8 +243,39 @@ async function jahrestageFeiern(jetzt: Date, bereich: 'jubilaeum' | 'geburtstag'
       ? await meldeJubilaeum(person.id, person.name, person.datum, jahre)
       : await meldeGeburtstag(person.id, person.name);
     if (erreicht === 0) continue;
-    merke(bereich, person.id);
+    merke(bereich, person.id, jetzt);
     versendet++;
+  }
+  return versendet;
+}
+
+/**
+ * Reaktionen und Kommentare als **eine** Sammelmail je Konto und Tag: kein
+ * Postfach voller Einzelmeldungen. Das Gedächtnis (Bereich `resonanz`,
+ * Gegenstand = Konto) sagt, wann die letzte hinausging; sie deckt alles seit
+ * dann ab, und die nächste gibt es frühestens 24 Stunden später. Ohne
+ * Gedächtnis zählt nur der letzte Tag — was davor lag, gab es hier noch nicht.
+ * Sofort erfährt es die Person ohnehin als Meldung im Hub (lib/resonanz.ts).
+ */
+async function resonanzSammeln(jetzt: Date): Promise<number> {
+  const leute = getDb().query<{id: number; name: string}, []>('SELECT id, name FROM users WHERE active = 1').all();
+  let versendet = 0;
+  for (const person of leute) {
+    const zeile = gedaechtnis('resonanz', person.id);
+    const zuletzt = zeile ? Date.parse(`${zeile.zuletzt_am.replace(' ', 'T')}Z`) : Number.NaN;
+    if (Number.isFinite(zuletzt) && jetzt.getTime() - zuletzt < RESONANZ_ABSTAND_MS) continue;
+    // Die Sekunde des letzten Versands zählt nicht mehr: das Gedächtnis ist sekundengenau, die Zeilen nicht — sonst käme die letzte Zeile zweimal.
+    const seit = new Date(Number.isFinite(zuletzt) ? zuletzt + 1_000 : jetzt.getTime() - RESONANZ_ABSTAND_MS);
+    const neu = resonanzFuer(person.id, seit);
+    if (!neu.length) continue;
+    const erreicht = await meldeResonanz(person.id, {
+      person: person.name,
+      kommentare: neu.filter((r) => r.art === 'kommentar'),
+      reaktionen: neu.filter((r) => r.art === 'reaktion'),
+    });
+    // Auch abbestellt wird gemerkt: sonst liefe die Frage jede Stunde über dieselben Zeilen.
+    merke('resonanz', person.id, jetzt);
+    if (erreicht) versendet++;
   }
   return versendet;
 }

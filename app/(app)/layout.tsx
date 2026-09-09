@@ -110,7 +110,7 @@ export default async function AppLayout({children}: {children: ReactNode}) {
           <SprungmarkeDeutsch />
           <ClockBar />
           {/* Neues in der Timeline als Meldung — siehe lib/timeline-wecker.ts. */}
-          <TimelineWecker start={Date.now()} />
+          <TimelineWecker start={Date.now()} ich={personAngabe(user)} />
           {/* Der Installationshinweis bleibt ein Band im Fluss — er ist ein
               Angebot, keine Meldung, und darf die eine Stelle für Meldungen
               nicht besetzen. */}

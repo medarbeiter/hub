@@ -159,6 +159,28 @@ export function inhaltGeburtstag(d: {person: string}): MailInhalt {
   };
 }
 
+/** Die Sammelmail: was seit der letzten an die Person gesagt wurde — Kommentare im Wortlaut, Reaktionen je Ereignis. */
+export function inhaltResonanz(d: {person: string; kommentare: Array<{von: string; text: string}>; reaktionen: Array<{von: string; text: string; ereignis?: string}>}): MailInhalt {
+  const teile = [
+    d.kommentare.length ? `${d.kommentare.length} ${d.kommentare.length === 1 ? 'Kommentar' : 'Kommentare'}` : '',
+    d.reaktionen.length ? `${d.reaktionen.length} ${d.reaktionen.length === 1 ? 'Reaktion' : 'Reaktionen'}` : '',
+  ].filter(Boolean);
+  const jeEreignis = new Map<string, string[]>();
+  for (const r of d.reaktionen) (jeEreignis.get(r.ereignis ?? 'Ereignis') ?? jeEreignis.set(r.ereignis ?? 'Ereignis', []).get(r.ereignis ?? 'Ereignis')!).push(`${r.text} ${r.von}`);
+  return {
+    betreff: `${teile.join(' und ')} für dich`,
+    titel: 'Neues für dich',
+    vorspann: 'Seit der letzten Nachricht haben Kolleginnen und Kollegen dir etwas hinterlassen.',
+    ton: 'hinweis',
+    angaben: [
+      ...d.kommentare.map((k) => ({label: `Kommentar von ${k.von}`, wert: k.text})),
+      ...[...jeEreignis].map(([ereignis, stimmen]) => ({label: `Reaktionen auf „${ereignis}“`, wert: stimmen.join(', ')})),
+    ],
+    ziel: {label: 'Zur Timeline', pfad: '/timeline'},
+    nachsatz: 'Diese Nachricht kommt höchstens einmal am Tag und fasst alles seit der letzten zusammen. Falls du sie nicht mehr erhalten möchtest, kannst du sie in deinem Hub-Profil deaktivieren.',
+  };
+}
+
 export interface SpanneAngaben {
   /**
    * Wessen Abwesenheit. Nur für die Post an den Prüfkreis — in der Nachricht an
@@ -559,6 +581,14 @@ export async function meldeGeburtstag(userId: number, person: string): Promise<n
   const inhalt = inhaltGeburtstag({person});
   await sendeAnAlle(kreis.map((e) => ({art, an: e.email, anrede: anrede(e.name), betrifftId: userId, inhalt})));
   return kreis.length;
+}
+
+/** Die Sammelmail an die Person. Gibt zurück, ob sie ein Postfach erreicht hat (abbestellt/inaktiv: nein). */
+export async function meldeResonanz(userId: number, d: Parameters<typeof inhaltResonanz>[0]): Promise<boolean> {
+  const empfaenger = konto(userId);
+  if (!empfaenger || !willEmpfangen(empfaenger, 'team.resonanz')) return false;
+  await sendeMail({art: 'team.resonanz', an: empfaenger.email, anrede: anrede(empfaenger.name), betrifftId: userId, inhalt: inhaltResonanz(d)});
+  return true;
 }
 
 export async function meldeMonatAbgeschlossen(userId: number, d: AbschlussAngaben): Promise<void> {
