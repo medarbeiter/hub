@@ -117,11 +117,11 @@ function Beitrag({ereignis, reaktionen, gesehen}: {ereignis: TimelineEvent; reak
 
   return (
     <li className="strang-ereignis">
-      {/* Das Gesicht auf der Linie und der Name daneben sind **ein** Knopf:
-          beide öffnen die Personenkarte. Das Zeichen zeichnet darum nur
-          (`karte={false}`) — sonst stünde ein Knopf im Knopf. */}
+      {/* Gesicht und Name öffnen dieselbe Karte — die eine, die unten am
+          Beitrag hängt: `oeffneKarte` lenkt den Klick dorthin, statt dass das
+          Zeichen eine zweite aufmacht. */}
       <span className="strang-punkt">
-        <PersonZeichen person={person} groesse="karte" karte={false} ohneBlase />
+        <PersonZeichen person={person} groesse="karte" oeffneKarte={() => setKarte(true)} />
       </span>
       <article className="strang-beitrag" aria-labelledby={`${ereignis.id}-titel`}>
         <VStack gap={3}>
