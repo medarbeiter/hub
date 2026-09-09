@@ -21,6 +21,7 @@ const SINN: Record<TimelineEvent['art'], Sinn> = {
   eintritt: 'teamleben',
   registrierung: 'teamleben',
   jubilaeum: 'erfolg',
+  geburtstag: 'geburtstag',
   ziel_erstellt: 'ziele',
   ziel_erreicht: 'erfolg',
 };

@@ -77,6 +77,10 @@ test('history has real entry and anniversary dates, clamps month ends, never inv
   expect(events.find(e => e.id === 'jubilaeum-1-6')?.date).toBe('2025-02-28');
   expect(events.find(e => e.id === 'jubilaeum-1-24')?.date).toBe('2026-08-31');
   expect(events.some(e => e.person.id === 2 && e.art === 'jubilaeum')).toBe(false);
+  db.query("UPDATE users SET geburtstag = '1990-02-29' WHERE id = 1").run();
+  const geburtstage = teamTimeline(1,'2026-08-31').events.filter(e => e.art === 'geburtstag');
+  expect(geburtstage.map(e => [e.id, e.date])).toEqual([['geburtstag-1-2026','2026-02-28'],['geburtstag-1-2025','2025-02-28']]); // nicht vor dem Eintritt, kein Alter
+  expect(geburtstage.every(e => !/\d/.test(e.beschreibung))).toBe(true);
   expect(events.every(e => e.date <= '2026-08-31')).toBe(true);
 });
 

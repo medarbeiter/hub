@@ -19,6 +19,8 @@ export interface UserInput {
   urlaubstageJahr: number;
   /** Eintrittsdatum (ISO) oder '' — dann gilt in jedem Jahr der volle Anspruch. */
   eintritt?: string;
+  /** Geburtstag (ISO) oder ''. */
+  geburtstag?: string;
   /** Zusatzrechte über das Rollenbündel hinaus. */
   extraRechte: Recht[];
 }
@@ -123,6 +125,7 @@ function validateUserInput(actor: User, input: UserInput, excludeId?: number): s
     return 'Die Urlaubstage müssen zwischen 0 und 365 liegen.';
   }
   if (input.eintritt && !/^\d{4}-\d{2}-\d{2}$/.test(input.eintritt)) return 'Das Eintrittsdatum ist ungültig.';
+  if (input.geburtstag && !/^\d{4}-\d{2}-\d{2}$/.test(input.geburtstag)) return 'Der Geburtstag ist ungültig.';
   const existing = getDb()
     .query<{id: number}, [string]>('SELECT id FROM users WHERE email = ?')
     .get(input.email.trim());
@@ -153,8 +156,8 @@ export async function createUser(
     .query(
       `INSERT INTO users (
          email, password_hash, name, role, weekly_minutes, bundesland,
-         urlaubstage_jahr, eintritt, must_change_password, google_einrichtung_abgeschlossen
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 0)`,
+         urlaubstage_jahr, eintritt, geburtstag, must_change_password, google_einrichtung_abgeschlossen
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0)`,
     )
     .run(
       input.email.trim(),
@@ -165,6 +168,7 @@ export async function createUser(
       input.bundesland || null,
       input.urlaubstageJahr,
       input.eintritt || null,
+      input.geburtstag || null,
     );
   const neu = db.query<{id: number}, [string]>('SELECT id FROM users WHERE email = ?').get(input.email.trim());
   if (neu) schreibeZusatzRechte(neu.id, input.role, input.extraRechte);
@@ -219,7 +223,7 @@ export function updateUser(actor: User, userId: number, input: UserInput): strin
   db
     .query(
       `UPDATE users SET name = ?, email = ?, role = ?, weekly_minutes = ?, bundesland = ?,
-       urlaubstage_jahr = ?, eintritt = ?, profile_version = profile_version + ? WHERE id = ?`,
+       urlaubstage_jahr = ?, eintritt = ?, geburtstag = ?, profile_version = profile_version + ? WHERE id = ?`,
     )
     .run(
       name,
@@ -229,6 +233,7 @@ export function updateUser(actor: User, userId: number, input: UserInput): strin
       bundesland,
       input.urlaubstageJahr,
       eintritt,
+      input.geburtstag || null,
       geaendert ? 1 : 0,
       userId,
     );

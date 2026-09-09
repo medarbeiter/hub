@@ -77,6 +77,7 @@ import {
   ClockIcon,
   CodeIcon,
   CoffeeIcon,
+  CakeIcon,
   ConfettiIcon,
   CreditCardIcon,
   DownloadSimpleIcon,
@@ -174,6 +175,8 @@ export const SINNBILD = {
   // ── Team und Ziele ───────────────────────────────────────────────────────
   /** Die Seite „Timeline" und ihr Ereignisfeed: Eintritte, Jubiläen. */
   teamleben: ConfettiIcon,
+  /** Ein Geburtstag im Team — Timeline und Mail, nie das Alter. */
+  geburtstag: CakeIcon,
   /** Ein Vorhaben, solange es läuft. */
   ziele: TargetIcon,
   /** Ein erreichtes Ziel und ein Jubiläum — dasselbe Anerkennen. */

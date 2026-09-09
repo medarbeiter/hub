@@ -63,6 +63,7 @@ const MIGRATIONS: Migration[] = [
   migration42ZielTeam,
   migration43ZielRollen,
   migration44TimelineBesuch,
+  migration45Geburtstag,
 ];
 
 function migration35Ziele(db: Database): void {
@@ -247,6 +248,13 @@ function migration43ZielRollen(db: Database): void {
 function migration44TimelineBesuch(db: Database): void {
   db.exec(`ALTER TABLE users ADD COLUMN timeline_gesehen_at TEXT;
   ALTER TABLE users ADD COLUMN timeline_besuch_at TEXT;`);
+}
+
+/* Geburtstag (ISO, freiwillig) — gefeiert wie das Dienstjubiläum: Timeline
+   und Mail an alle anderen. Das Jahr wird gespeichert, aber nie ausgegeben:
+   „hat heute Geburtstag", nicht „wird 47". */
+function migration45Geburtstag(db: Database): void {
+  db.exec('ALTER TABLE users ADD COLUMN geburtstag TEXT');
 }
 
 /** The `PRAGMA user_version` a fully migrated database carries. */
@@ -1321,6 +1329,8 @@ export interface User {
   urlaubstage_jahr: number;
   /** Eintrittsdatum (ISO); NULL = vor Beginn der Erfassung, voller Anspruch in jedem Jahr. */
   eintritt?: string | null;
+  /** Geburtstag (ISO), freiwillig; das Jahr wird nie angezeigt. */
+  geburtstag?: string | null;
   /** Lokale, nicht-biometrische Profilfigur — der Rückfall, wenn kein Foto liegt. */
   avatar_key?: import('./avatar').AvatarKey;
   /** Pfad unterhalb von data/avatare; gesetzt, wenn ein eigenes Foto hochgeladen wurde. */

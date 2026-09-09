@@ -36,7 +36,7 @@ export function TimelineWecker({start}: {start: number}) {
         const daten: {jetzt: number; ereignisse: NeuesEreignis[]} = await antwort.json();
         seit.current = daten.jetzt;
         for (const e of daten.ereignisse) {
-          const erfolg = e.art === 'ziel_erreicht' || e.art === 'jubilaeum' || e.art === 'eintritt';
+          const erfolg = e.art === 'ziel_erreicht' || e.art === 'jubilaeum' || e.art === 'geburtstag' || e.art === 'eintritt';
           const ziel = e.art.startsWith('ziel_');
           melde({
             ton: erfolg ? 'erfolg' : 'hinweis',

@@ -26,7 +26,7 @@ export type PublicGoal = Pick<GoalView, 'id' | 'titel' | 'regel' | 'von' | 'bis'
 export type PublicPerson = Pick<User, 'id' | 'name' | 'eintritt' | 'avatar_key' | 'avatar_datei'>;
 export interface TimelineEvent {
   id: string; date: string;
-  art: 'eintritt' | 'registrierung' | 'jubilaeum' | 'ziel_erstellt' | 'ziel_erreicht';
+  art: 'eintritt' | 'registrierung' | 'jubilaeum' | 'geburtstag' | 'ziel_erstellt' | 'ziel_erreicht';
   person: PublicPerson;
   /** Die Überschrift des Ereignisses — bei einem Ziel dessen Titel. */
   titel: string;
@@ -307,8 +307,9 @@ const BESUCH_ABSTAND_MS = 5 * 60_000;
 export function teamTimeline(page = 1, today = todayISO(), besuch?: {viewerId: number; gesehenBis: string | null}): {events: TimelineEvent[]; hasMore: boolean} {
   const events: TimelineEvent[] = [];
   const moments = new Map<string,string>();
-  const people = getDb().query<PublicPerson & {created_at: string}, []>('SELECT id,name,eintritt,avatar_key,avatar_datei,created_at FROM users WHERE active = 1').all();
-  for (const {created_at, ...person} of people) {
+  // geburtstag bleibt hier: es verlässt das Haus nur als Ereignis ohne Jahr, nie als Teil von PublicPerson.
+  const people = getDb().query<PublicPerson & {created_at: string; geburtstag: string | null}, []>('SELECT id,name,eintritt,geburtstag,avatar_key,avatar_datei,created_at FROM users WHERE active = 1').all();
+  for (const {created_at, geburtstag, ...person} of people) {
     const start = person.eintritt ?? houseDate(created_at);
     const add = (id: string,date: string,art: TimelineEvent['art'],titel: string,beschreibung: string,goalId?: number,moment = houseMoment(date)) => {
       if (date <= today) {
@@ -321,6 +322,13 @@ export function teamTimeline(page = 1, today = todayISO(), besuch?: {viewerId: n
     if (person.eintritt) {
       add(`jubilaeum-${person.id}-6`,anniversary(start,6),'jubilaeum','Ein halbes Jahr im Team',`${person.name} ist seit sechs Monaten dabei – danke für die gemeinsame Zeit.`);
       for (let year = 1; anniversary(start,year * 12) <= today; year++) add(`jubilaeum-${person.id}-${year * 12}`,anniversary(start,year * 12),'jubilaeum',`${year} ${year === 1 ? 'Jahr' : 'Jahre'} im Team`,`${person.name} ist seit ${year === 1 ? 'einem Jahr' : `${year} Jahren`} dabei – angefangen am ${fmtDate(person.eintritt)}.`);
+    }
+    if (geburtstag) {
+      // Erst ab dem Start im Haus, sonst stünden vierzig Geburtstage im Strang; ohne Alter, das Jahr bleibt im Datensatz.
+      for (let year = Number(start.slice(0, 4)); year <= Number(today.slice(0, 4)); year++) {
+        const tag = anniversary(geburtstag,(year - Number(geburtstag.slice(0, 4))) * 12);
+        if (tag >= start) add(`geburtstag-${person.id}-${year}`,tag,'geburtstag','Geburtstag',`${person.name} hat Geburtstag – herzlichen Glückwunsch!`);
+      }
     }
     const user = getUser(person.id)!;
     for (const goal of getDb().query<GoalRow, [number]>('SELECT * FROM ziele WHERE user_id = ? AND oeffentlich = 1').all(person.id)) {
@@ -362,6 +370,9 @@ function ereignisGueltig(ereignis: string): boolean {
   if ((m = /^jubilaeum-(\d{1,9})-(\d{1,4})$/.exec(ereignis))) {
     const monate = Number(m[2]);
     return (monate === 6 || (monate > 0 && monate % 12 === 0)) && publicPerson(Number(m[1]))?.eintritt != null;
+  }
+  if ((m = /^geburtstag-(\d{1,9})-(\d{4})$/.exec(ereignis))) {
+    return db.query<{n: number}, [number]>('SELECT COUNT(*) n FROM users WHERE id = ? AND active = 1 AND geburtstag IS NOT NULL').get(Number(m[1]))!.n > 0;
   }
   if ((m = /^ziel-(\d{1,9})-(erstellt|erreicht)$/.exec(ereignis))) {
     return db.query<{n: number}, [number]>('SELECT COUNT(*) n FROM ziele z JOIN users u ON u.id = z.user_id WHERE z.id = ? AND z.oeffentlich = 1 AND u.active = 1').get(Number(m[1]))!.n > 0;

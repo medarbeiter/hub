@@ -959,6 +959,7 @@ function userInputFromForm(formData: FormData): UserInput {
     // (§ 3 BUrlG), üblich sind 30 — die Zahl steht im Formular und ist änderbar.
     urlaubstageJahr: Math.round(Number(formData.get('urlaubstage') ?? 30)),
     eintritt: String(formData.get('eintritt') ?? '').trim(),
+    geburtstag: String(formData.get('geburtstag') ?? '').trim(),
   };
 }
 
@@ -977,6 +978,7 @@ function userWerte(input: UserInput) {
     Bundesland: input.bundesland || null,
     Urlaubstage: input.urlaubstageJahr,
     Eintritt: input.eintritt ? fmtDate(input.eintritt) : null,
+    Geburtstag: input.geburtstag ? fmtDate(input.geburtstag) : null,
   };
 }
 
@@ -1035,6 +1037,7 @@ export async function userUpdateAction(_prev: UserActionState, formData: FormDat
           Bundesland: vorher.bundesland ?? null,
           Urlaubstage: vorher.urlaubstage_jahr,
           Eintritt: vorher.eintritt ? fmtDate(vorher.eintritt) : null,
+          Geburtstag: vorher.geburtstag ? fmtDate(vorher.geburtstag) : null,
         }
       : null,
     nachher: userWerte(input),

@@ -39,6 +39,7 @@ export type MailArt =
   | 'reise.entschieden'
   | 'monat.abgeschlossen'
   | 'team.jubilaeum'
+  | 'team.geburtstag'
   | 'zugang.willkommen'
   | 'zugang.passwort'
   | 'zugang.zugangscode-loeschen';
@@ -93,6 +94,12 @@ export const MAIL_ARTEN = {
   'team.jubilaeum': {
     label: 'Dienstjubiläum im Team',
     beschreibung: 'Jemand aus dem Team ist heute seit einem oder mehreren Jahren im Haus.',
+    empfaenger: 'alle',
+    abwaehlbar: true,
+  },
+  'team.geburtstag': {
+    label: 'Geburtstag im Team',
+    beschreibung: 'Jemand aus dem Team hat heute Geburtstag.',
     empfaenger: 'alle',
     abwaehlbar: true,
   },

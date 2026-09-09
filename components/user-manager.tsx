@@ -45,6 +45,7 @@ export interface ManagedUser {
   bundesland?: string | null;
   urlaubstage_jahr: number;
   eintritt?: string | null;
+  geburtstag?: string | null;
   /** Zusatzrechte über das Rollenbündel hinaus. */
   extra_rechte: Recht[];
 }
@@ -87,6 +88,7 @@ function UserForm({
   const [urlaubstage, setUrlaubstage] = useState(String(user?.urlaubstage_jahr ?? 30));
   const [land, setLand] = useState(user?.bundesland ?? '');
   const [eintritt, setEintritt] = useState(user?.eintritt ?? '');
+  const [geburtstag, setGeburtstag] = useState(user?.geburtstag ?? '');
   // Vorgabe an: der übliche Weg, und ein Startpasswort, das beim ersten
   // Anmelden ohnehin ersetzt werden muss, ist vertretbar im Postfach. Wer das
   // nicht will, nimmt den Haken heraus und bekommt es nur angezeigt.
@@ -170,6 +172,14 @@ function UserForm({
           description="Im Eintrittsjahr zählt ein Zwölftel des Urlaubs je vollen Monat (§ 5 BUrlG). Wer vor der Zeiterfassung im Haus war, braucht keins."
         />
         <input type="hidden" name="eintritt" value={eintritt} />
+        <DatumFeld
+          label="Geburtstag"
+          value={geburtstag}
+          onChange={setGeburtstag}
+          placeholder="Leer: wird nicht gefeiert"
+          description="Freiwillig. Am Geburtstag erfährt es das Team in der Timeline und per Mail – ohne das Alter."
+        />
+        <input type="hidden" name="geburtstag" value={geburtstag} />
         <Selector
           label="Bundesland (Feiertage)"
           options={LAND_OPTIONS}

@@ -146,6 +146,19 @@ export function inhaltJubilaeum(d: {person: string; eintritt: string; jahre: num
   };
 }
 
+/** Ein Geburtstag — an alle anderen, ohne Alter: das Jahr bleibt im Datensatz. */
+export function inhaltGeburtstag(d: {person: string}): MailInhalt {
+  return {
+    betreff: `${d.person} hat heute Geburtstag`,
+    titel: `Alles Gute, ${d.person}!`,
+    vorspann: `${d.person} hat heute Geburtstag. Ein guter Anlass, kurz vorbeizuschauen.`,
+    ton: 'erfolg',
+    angaben: [{label: 'Geburtstag', wert: 'heute', betont: true}],
+    ziel: {label: 'Zur Timeline', pfad: '/timeline'},
+    nachsatz: 'Diese Nachricht erhält jeder im Team außer der Person selbst. Falls du diese Nachrichten nicht mehr erhalten möchtest, kannst du sie in deinem Hub-Profil deaktivieren.',
+  };
+}
+
 export interface SpanneAngaben {
   /**
    * Wessen Abwesenheit. Nur für die Post an den Prüfkreis — in der Nachricht an
@@ -536,6 +549,14 @@ export async function meldeJubilaeum(userId: number, person: string, eintritt: s
   const art: MailArt = 'team.jubilaeum';
   const kreis = alleEmpfaenger(userId).filter((e) => willEmpfangen(e, art));
   const inhalt = inhaltJubilaeum({person, eintritt, jahre});
+  await sendeAnAlle(kreis.map((e) => ({art, an: e.email, anrede: anrede(e.name), betrifftId: userId, inhalt})));
+  return kreis.length;
+}
+
+export async function meldeGeburtstag(userId: number, person: string): Promise<number> {
+  const art: MailArt = 'team.geburtstag';
+  const kreis = alleEmpfaenger(userId).filter((e) => willEmpfangen(e, art));
+  const inhalt = inhaltGeburtstag({person});
   await sendeAnAlle(kreis.map((e) => ({art, an: e.email, anrede: anrede(e.name), betrifftId: userId, inhalt})));
   return kreis.length;
 }

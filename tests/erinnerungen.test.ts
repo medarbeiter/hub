@@ -202,4 +202,19 @@ describe('Dienstjubiläum', () => {
 
     expect(await erinnerungslauf(jetzt)).toBe(0); // schon gefeiert
   });
+
+  test('Geburtstag: dieselbe Feier, eigenes Gedächtnis, ohne Alter', async () => {
+    const jetzt = new Date();
+    const heute = hausZeit(jetzt).datum;
+    const kind = person('Geburtstagskind', 'g@t.de');
+    person('Kollegin', 'k@t.de');
+    db.query('UPDATE users SET geburtstag = ? WHERE id = ?').run(`1990${heute.slice(4)}`, kind);
+
+    expect(await erinnerungslauf(jetzt)).toBe(1);
+    expect(gedaechtnis('geburtstag', kind)?.anzahl).toBe(1);
+    const post = db.query<{empfaenger: string; betreff: string}, []>("SELECT empfaenger, betreff FROM mail_versand WHERE art = 'team.geburtstag'").all();
+    expect(post.map((p) => p.empfaenger)).toEqual(['k@t.de']);
+    expect(post[0]!.betreff).not.toMatch(/\d/);
+    expect(await erinnerungslauf(jetzt)).toBe(0);
+  });
 });

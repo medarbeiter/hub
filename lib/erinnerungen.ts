@@ -39,7 +39,7 @@ import {getDb, type Abwesenheit, type Reise, type User} from './db';
 import {istAntrag} from './abwesenheit-arten';
 import {mitTagen} from './abwesenheit';
 import {mitRechnung} from './spesen';
-import {erinnereAnAbwesenheit, erinnereAnReise, meldeJubilaeum} from './benachrichtigungen';
+import {erinnereAnAbwesenheit, erinnereAnReise, meldeGeburtstag, meldeJubilaeum} from './benachrichtigungen';
 import {hausZeit} from './format';
 import {zieleFortsetzen} from './ziele';
 import {clickupAktualisieren} from './clickup';
@@ -50,7 +50,7 @@ export const ERINNERUNG_AB = 3;
 /** Und in welchem Abstand sie sich danach wiederholt, solange nichts geschieht. */
 export const WIEDERVORLAGE = 3;
 
-export type ErinnerungsBereich = 'abwesenheit' | 'reise' | 'jubilaeum';
+export type ErinnerungsBereich = 'abwesenheit' | 'reise' | 'jubilaeum' | 'geburtstag';
 
 /**
  * Wie viele volle Jahre jemand heute im Haus ist — oder null, wenn heute kein
@@ -145,7 +145,8 @@ export async function erinnerungslauf(jetzt: Date = new Date()): Promise<number>
   try {
     versendet += await antraegeMahnen(jetzt);
     versendet += await reisenMahnen(jetzt);
-    versendet += await jubilaeenFeiern(jetzt);
+    versendet += await jahrestageFeiern(jetzt, 'jubilaeum');
+    versendet += await jahrestageFeiern(jetzt, 'geburtstag');
     zieleFortsetzen(hausZeit(jetzt).datum);
     await clickupAktualisieren(jetzt.getTime());
     feger();
@@ -213,27 +214,30 @@ async function reisenMahnen(jetzt: Date): Promise<number> {
 }
 
 /**
- * Dienstjubiläen: wer heute seit vollen Jahren im Haus ist, wird dem Team
- * gemeldet — einmal, das Gedächtnis ist dieselbe Tabelle (Bereich
- * `jubilaeum`, Gegenstand = Konto), und ein Eintrag jünger als ein Jahr
- * heißt: dieses Jubiläum ist schon gefeiert.
+ * Jahrestage: wer heute seit vollen Jahren im Haus ist (`jubilaeum`, Spalte
+ * `eintritt`) oder Geburtstag hat (`geburtstag`), wird dem Team gemeldet —
+ * einmal, das Gedächtnis ist dieselbe Tabelle (Gegenstand = Konto), und ein
+ * Eintrag jünger als ein Jahr heißt: dieses Mal ist schon gefeiert.
  */
-async function jubilaeenFeiern(jetzt: Date): Promise<number> {
+async function jahrestageFeiern(jetzt: Date, bereich: 'jubilaeum' | 'geburtstag'): Promise<number> {
   const heute = hausZeit(jetzt).datum;
+  const spalte = bereich === 'jubilaeum' ? 'eintritt' : 'geburtstag';
   const leute = getDb()
-    .query<{id: number; name: string; eintritt: string}, []>(
-      'SELECT id, name, eintritt FROM users WHERE active = 1 AND eintritt IS NOT NULL',
+    .query<{id: number; name: string; datum: string}, []>(
+      `SELECT id, name, ${spalte} AS datum FROM users WHERE active = 1 AND ${spalte} IS NOT NULL`,
     )
     .all();
   let versendet = 0;
   for (const person of leute) {
-    const jahre = jubilaeumJahre(person.eintritt, heute);
+    const jahre = jubilaeumJahre(person.datum, heute);
     if (jahre === null) continue;
-    const zeile = gedaechtnis('jubilaeum', person.id);
+    const zeile = gedaechtnis(bereich, person.id);
     if (zeile && tageSeit(zeile.zuletzt_am, jetzt) < 300) continue;
-    const erreicht = await meldeJubilaeum(person.id, person.name, person.eintritt, jahre);
+    const erreicht = bereich === 'jubilaeum'
+      ? await meldeJubilaeum(person.id, person.name, person.datum, jahre)
+      : await meldeGeburtstag(person.id, person.name);
     if (erreicht === 0) continue;
-    merke('jubilaeum', person.id);
+    merke(bereich, person.id);
     versendet++;
   }
   return versendet;
