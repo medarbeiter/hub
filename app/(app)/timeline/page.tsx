@@ -3,7 +3,7 @@ import {requireUser} from '@/lib/auth';
 import {todayISO} from '@/lib/format';
 import {clickupAktualisieren, clickupKonfiguriert} from '@/lib/clickup';
 import {alleRollen} from '@/lib/rollen';
-import {ownGoals, reaktionenFuer, teamGoals, teamTimeline} from '@/lib/ziele';
+import {ownGoals, reaktionenFuer, teamGoals, teamTimeline, timelineBesuch} from '@/lib/ziele';
 import {StatusLeiste} from '@/components/bereichs-leiste';
 import {Sinnbild} from '@/components/sinnbilder';
 import {TeamEreignisse} from '@/components/team-ereignisse';
@@ -23,7 +23,7 @@ export default async function TimelinePage({searchParams}: {searchParams: Promis
   const ziele = ownGoals(user.id, heute);
   const teamZiele = ansicht === 'teamziele' ? teamGoals(heute) : [];
   const rollen = alleRollen().map(({schluessel, label}) => ({schluessel, label}));
-  const feed = ansicht === 'team' ? teamTimeline(seite, heute) : null;
+  const feed = ansicht === 'team' ? teamTimeline(seite, heute, {viewerId: user.id, gesehenBis: timelineBesuch(user.id)}) : null;
   const reaktionen = feed ? reaktionenFuer(feed.events.map((e) => e.id), user.id) : {};
   const erreicht = ziele.filter((z) => z.erreicht).length;
   const inArbeit = ziele.filter((z) => !z.erreicht && z.von <= heute && z.bis >= heute);

@@ -62,6 +62,7 @@ const MIGRATIONS: Migration[] = [
   migration41ZielAufgaben,
   migration42ZielTeam,
   migration43ZielRollen,
+  migration44TimelineBesuch,
 ];
 
 function migration35Ziele(db: Database): void {
@@ -237,6 +238,15 @@ function migration42ZielTeam(db: Database): void {
    Leerzeichen, wie `totp_konten.seiten`; NULL heißt das ganze Haus. */
 function migration43ZielRollen(db: Database): void {
   db.exec(`ALTER TABLE ziele ADD COLUMN rollen TEXT CHECK(rollen IS NULL OR length(rollen) BETWEEN 1 AND 400);`);
+}
+
+/* Wann jemand die Timeline zuletzt besucht hat: `besuch_at` wird bei jedem
+   Aufbau der Seite nachgeführt, `gesehen_at` rückt erst beim nächsten
+   *Besuch* (fünf Minuten Abstand) darauf vor. Was jünger ist als
+   `gesehen_at`, ist „Neu". */
+function migration44TimelineBesuch(db: Database): void {
+  db.exec(`ALTER TABLE users ADD COLUMN timeline_gesehen_at TEXT;
+  ALTER TABLE users ADD COLUMN timeline_besuch_at TEXT;`);
 }
 
 /** The `PRAGMA user_version` a fully migrated database carries. */

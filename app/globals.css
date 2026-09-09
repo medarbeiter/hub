@@ -3039,6 +3039,25 @@ a:has(.link-puls[data-laedt='true']) {
   outline: 2px solid var(--color-icon-accent);
   outline-offset: 2px;
 }
+/* Die Schnittkante zwischen Neu und Gesehen, und darunter der gesehene Teil
+   in gedämpfter Zeichnung: Gesicht entsättigt und Linie leiser. Der Text
+   selbst bleibt in seiner Farbe (Überschrift in Sekundärton per Prop) — ein
+   Deckkraft-Grau auf Sekundärtext fiele unter 4,5:1. */
+.strang-kante {
+  padding-block: var(--spacing-3);
+  border-block-start: var(--border-width) solid var(--color-border-emphasized);
+}
+.strang-gesehen .strang-punkt {
+  filter: grayscale(1);
+  opacity: 0.7;
+}
+.strang-gesehen .strang-ereignis::before {
+  border-inline-start-color: var(--color-border);
+}
+.strang-kopf {
+  gap: var(--spacing-2);
+}
+
 /* Ein Emoji trägt seine Farbe selbst und steht in Textgröße. */
 .reaktion-emoji {
   font-size: var(--font-size-base);

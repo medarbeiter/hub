@@ -6,11 +6,12 @@ import type {NeuesEreignis} from '@/lib/timeline-wecker';
 import {useMelde} from './melde';
 
 const TAKT_MS = 60_000;
-const STEHT_MS = 10_000;
+const STEHT_MS = 5_000;
 
 /**
- * Meldet, was in der Timeline neu ist — als Meldung unten rechts, zehn
- * Sekunden lang. Fragt einmal je Minute, und nur solange das Fenster
+ * Meldet, was in der Timeline neu ist — als Meldung unten rechts, fünf
+ * Sekunden lang mit schwindendem Ring. Bei einem Ziel steht die Person im
+ * Titel („… hat sich ein neues Ziel gesetzt“) und das Ziel darunter. Fragt einmal je Minute, und nur solange das Fenster
  * sichtbar ist: ein verdecktes Fenster fragt nichts und holt beim Wiederkommen
  * sofort nach. Zeichnet selbst nichts.
  */
@@ -36,13 +37,13 @@ export function TimelineWecker({start}: {start: number}) {
         seit.current = daten.jetzt;
         for (const e of daten.ereignisse) {
           const erfolg = e.art === 'ziel_erreicht' || e.art === 'jubilaeum' || e.art === 'eintritt';
+          const ziel = e.art.startsWith('ziel_');
           melde({
             ton: erfolg ? 'erfolg' : 'hinweis',
-            dauerhaft: false,
-            autoHideDuration: STEHT_MS,
+            ablauf: STEHT_MS,
             uniqueID: `timeline-${e.id}`,
-            titel: e.titel,
-            text: e.beschreibung,
+            titel: ziel ? e.beschreibung.split(/ [·–] /)[0]! : e.titel,
+            text: ziel ? e.titel : e.beschreibung,
             aktionen: [{label: 'Zur Timeline', onClick: () => router.push('/timeline')}],
           });
         }

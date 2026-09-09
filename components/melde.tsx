@@ -2,6 +2,7 @@
 
 import {Button, HStack, Text, VStack, useToast} from '@astryxdesign/core';
 import {useCallback, type ReactNode} from 'react';
+import {AblaufRing} from './takt-ring';
 import {Sinnbild, type Sinn} from './sinnbilder';
 
 /**
@@ -25,8 +26,7 @@ import {Sinnbild, type Sinn} from './sinnbilder';
  *
  * Was frei bleibt: der Inhalt. Eine einfache Meldung bekommt Titel, Text und
  * bis zu einer Handlungsreihe aus dem Baukasten unten (`MeldeInhalt`); eine
- * so eigene wie die Korrekturliste (`attention-toast.tsx`, mit ihrer
- * Tagesliste) reicht ihren eigenen `body` durch und bekommt trotzdem
+ * eigene reicht ihren eigenen `body` durch und bekommt trotzdem
  * denselben Ton, dieselbe Voreinstellung fürs Stehenbleiben, denselben Ort.
  */
 export type MeldeTon = 'fehler' | 'warnung' | 'erfolg' | 'hinweis';
@@ -54,6 +54,9 @@ export interface MeldeOptions {
    */
   dauerhaft?: boolean;
   autoHideDuration?: number;
+  /** Geht nach so vielen Millisekunden von selbst — und sagt das mit einem
+   *  schwindenden Ring im Titel (`AblaufRing`). Setzt `dauerhaft` außer Kraft. */
+  ablauf?: number;
   /** Dieselbe ID ersetzt eine stehende Meldung an Ort und Stelle statt eine
    *  zweite zu stapeln — für Meldungen, die einen fortlaufenden Zustand
    *  begleiten (den ArbZG-Hinweis der Stempelleiste). */
@@ -93,19 +96,22 @@ function MeldeInhalt({
   titel,
   text,
   aktionen,
+  ablauf,
 }: {
   ton: MeldeTon;
   titel: string;
   text?: ReactNode;
   aktionen?: MeldeAktion[];
+  ablauf?: number;
 }) {
   return (
     <VStack gap={2}>
       <HStack gap={2} vAlign="start" wrap="nowrap">
         <Sinnbild sinn={SINN[ton]} groesse="zeile" ton={ICON_TON[ton]} />
-        <Text type="label" weight="medium">
+        <Text type="label" weight="medium" style={{flex: 1}}>
           {titel}
         </Text>
+        {ablauf !== undefined && <AblaufRing ms={ablauf} />}
       </HStack>
       {text && (
         <Text type="supporting" color="secondary">
@@ -138,14 +144,14 @@ export function useMelde(): MeldeFn {
 
   return useCallback(
     (options: MeldeOptions) => {
-      const {ton, titel, text, aktionen, body, dauerhaft, autoHideDuration, uniqueID, onHide} = options;
+      const {ton, titel, text, aktionen, body, dauerhaft, autoHideDuration, ablauf, uniqueID, onHide} = options;
       return showToast({
         type: TOAST_TYP[ton],
-        isAutoHide: dauerhaft === undefined ? ton === 'erfolg' : !dauerhaft,
-        autoHideDuration,
+        isAutoHide: ablauf !== undefined ? true : dauerhaft === undefined ? ton === 'erfolg' : !dauerhaft,
+        autoHideDuration: ablauf ?? autoHideDuration,
         uniqueID,
         onHide,
-        body: body ?? <MeldeInhalt ton={ton} titel={titel ?? ''} text={text} aktionen={aktionen} />,
+        body: body ?? <MeldeInhalt ton={ton} titel={titel ?? ''} text={text} aktionen={aktionen} ablauf={ablauf} />,
       });
     },
     [showToast],

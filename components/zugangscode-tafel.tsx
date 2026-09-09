@@ -38,6 +38,7 @@ import type {PersonAngabe} from '@/lib/avatar';
 import {PersonenReihe} from './person-zeichen';
 import {Sinnbild, umriss} from './sinnbilder';
 import {TafelDialog} from './tafel-dialog';
+import {TaktRing} from './takt-ring';
 
 /**
  * Was der Server der Seite gibt: der fertige Code samt Ablauf — nie das
@@ -85,47 +86,6 @@ const INITIAL: ActionState = {error: null};
 function gruppiert(code: string): string {
   const mitte = Math.ceil(code.length / 2);
   return `${code.slice(0, mitte)} ${code.slice(mitte)}`;
-}
-
-const RING_RADIUS = 7;
-const RING_UMFANG = 2 * Math.PI * RING_RADIUS;
-
-/**
- * Die Restzeit eines Codes als schwindender Bogen — wann er wechselt, nicht
- * als tickende Zahl. Der Bogen beginnt oben und nimmt im Uhrzeigersinn ab;
- * die letzten fünf Sekunden warnt Orange davor, jetzt noch abzutippen. Die
- * Geometrie ist SVG-eigenes Maß (keine Gestaltungsgröße, die ein Token sagen
- * könnte); die Farben sind Tokens und kontrastgeprüft.
- */
-function CodeRing({restMs, periode}: {restMs: number; periode: number}) {
-  const restS = Math.max(0, Math.ceil(restMs / 1000));
-  const anteil = Math.max(0, Math.min(1, restMs / (periode * 1000)));
-  const knapp = restMs <= 5000;
-  return (
-    <svg
-      width={18}
-      height={18}
-      viewBox="0 0 18 18"
-      role="img"
-      aria-label={restS === 0 ? 'Der Code wird gerade erneuert' : `Der Code wechselt in ${restS} Sekunden`}
-      style={{flexShrink: 0}}
-    >
-      <circle cx={9} cy={9} r={RING_RADIUS} fill="none" stroke="var(--color-border)" strokeWidth={2} />
-      <circle
-        className="code-ring-bogen"
-        cx={9}
-        cy={9}
-        r={RING_RADIUS}
-        fill="none"
-        stroke={knapp ? 'var(--color-warning)' : 'var(--color-icon-secondary)'}
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeDasharray={RING_UMFANG}
-        strokeDashoffset={RING_UMFANG * (1 - anteil)}
-        transform="rotate(-90 9 9)"
-      />
-    </svg>
-  );
 }
 
 /**
@@ -872,7 +832,15 @@ export function ZugangscodeTafel({
                 />
               ) : (
                 <HStack gap={2} vAlign="center" wrap="nowrap">
-                  <CodeRing restMs={zeile.gueltigBisMs - jetztMs} periode={zeile.periode} />
+                  <TaktRing
+                    restMs={zeile.gueltigBisMs - jetztMs}
+                    gesamtMs={zeile.periode * 1000}
+                    label={
+                      zeile.gueltigBisMs - jetztMs <= 0
+                        ? 'Der Code wird gerade erneuert'
+                        : `Der Code wechselt in ${Math.ceil((zeile.gueltigBisMs - jetztMs) / 1000)} Sekunden`
+                    }
+                  />
                   <Text type="code" size="xl" hasTabularNumbers>
                     {/* Auf den Code geschlüsselt: ein neuer Wert ist ein neues
                         Element, und .code-wechsel (globals.css) lässt ihn das

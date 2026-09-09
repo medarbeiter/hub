@@ -1,6 +1,6 @@
 'use client';
 
-import {Button, Heading, HStack, Text, VStack} from '@astryxdesign/core';
+import {Badge, Button, Heading, HStack, Text, VStack} from '@astryxdesign/core';
 import {Popover} from '@astryxdesign/core/Popover';
 import {useRouter} from 'next/navigation';
 import {useState, useTransition} from 'react';
@@ -56,6 +56,27 @@ export function TeamEreignisse({events, reaktionen}: TeamEreignisseProps) {
     );
   }
 
+  // Neu über gesehen, mit einer Schnittkante dazwischen — nur wenn es beides
+  // gibt. Ohne Neues steht der Strang wie immer, ohne Gesehenes trägt jeder
+  // Beitrag seine Marke und braucht keine Kante.
+  const neue = events.filter((e) => e.neu);
+  const gesehene = events.filter((e) => !e.neu);
+  if (!neue.length || !gesehene.length) return <Strang events={events} reaktionen={reaktionen} gesehen={events.every((e) => e.neu === false)} />;
+  return (
+    <VStack gap={0}>
+      <Strang events={neue} reaktionen={reaktionen} />
+      <HStack gap={2} vAlign="center" wrap="nowrap" className="strang-kante" role="separator" aria-label="Bereits gesehen">
+        <Sinnbild sinn="gesehen" groesse="zeile" ton="sekundaer" />
+        <Text type="supporting" color="secondary" weight="medium">
+          Bereits gesehen
+        </Text>
+      </HStack>
+      <Strang events={gesehene} reaktionen={reaktionen} gesehen />
+    </VStack>
+  );
+}
+
+function Strang({events, reaktionen, gesehen = false}: TeamEreignisseProps & {gesehen?: boolean}) {
   const tage: Array<{datum: string; ereignisse: TimelineEvent[]}> = [];
   for (const ereignis of events) {
     const letzter = tage[tage.length - 1];
@@ -64,7 +85,7 @@ export function TeamEreignisse({events, reaktionen}: TeamEreignisseProps) {
   }
 
   return (
-    <ol className="strang" aria-label="Ereignisse im Team, neueste zuerst">
+    <ol className={gesehen ? 'strang strang-gesehen' : 'strang'} aria-label={gesehen ? 'Bereits gesehene Ereignisse' : 'Ereignisse im Team, neueste zuerst'}>
       {tage.map((tag) => (
         <li key={tag.datum} className="strang-tag">
           <time dateTime={tag.datum} className="strang-datum">
@@ -110,10 +131,11 @@ function Beitrag({ereignis, reaktionen}: {ereignis: TimelineEvent; reaktionen: R
                   {ereignis.person.name}
                 </Text>
               </button>
+              {ereignis.neu && <Badge variant="info" label="Neu" />}
             </span>
             <HStack gap={2} vAlign="center" wrap="nowrap">
               <Sinnbild sinn={SINN[ereignis.art]} groesse="gross" ton="sekundaer" />
-              <Heading level={3} id={`${ereignis.id}-titel`}>
+              <Heading level={3} id={`${ereignis.id}-titel`} color={ereignis.neu === false ? 'secondary' : 'primary'}>
                 {ereignis.titel}
               </Heading>
             </HStack>

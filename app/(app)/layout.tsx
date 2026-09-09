@@ -5,7 +5,6 @@ import {requireUser} from '@/lib/auth';
 import {personAngabe} from '@/lib/avatar';
 import {AppHinweis} from '@/components/app-hinweis';
 import {AppNav} from '@/components/app-nav';
-import {AttentionToast} from '@/components/attention-toast';
 import {TimelineWecker} from '@/components/timeline-wecker';
 import {ClockBar} from '@/components/clock-bar';
 import {ClockProvider} from '@/components/clock-provider';
@@ -112,13 +111,6 @@ export default async function AppLayout({children}: {children: ReactNode}) {
           <ClockBar />
           {/* Neues in der Timeline als Meldung — siehe lib/timeline-wecker.ts. */}
           <TimelineWecker start={Date.now()} />
-          {/* Zeichnet nichts an dieser Stelle: die Aufmerksamkeitsmeldung
-              erscheint als Meldung unten rechts und lässt den Platz zwischen
-              Stempelleiste und Seitenkopf frei. Sie steht trotzdem hier, weil
-              hier die Daten liegen, aus denen sie sich stellt. */}
-          {persoenlich.hinweiseZuOffenenTagen && issues.length > 0 && (
-            <AttentionToast issues={issues} queue={queue} />
-          )}
           {/* Der Installationshinweis bleibt ein Band im Fluss — er ist ein
               Angebot, keine Meldung, und darf die eine Stelle für Meldungen
               nicht besetzen. */}

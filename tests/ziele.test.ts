@@ -1,6 +1,6 @@
 import {afterEach, beforeEach, expect, test} from 'bun:test';
 import {createDb, setDbForTesting} from '../lib/db';
-import {createGoal, deleteGoal, ownGoals, setGoalRecurring, zieleFortsetzen, publicGoals, publicPerson, reagieren, reaktionenFuer, setGoalDone, setGoalVisibility, teamTimeline} from '../lib/ziele';
+import {createGoal, deleteGoal, ownGoals, setGoalRecurring, zieleFortsetzen, publicGoals, publicPerson, reagieren, reaktionenFuer, setGoalDone, setGoalVisibility, teamTimeline, timelineBesuch} from '../lib/ziele';
 import type {GoalInput} from '../lib/ziele-arten';
 import type {Database} from 'bun:sqlite';
 
@@ -167,4 +167,17 @@ test('recurring goals roll into the next period, keep history, and post no new "
   const monat = goal({wiederholung: 'monat',von: '2026-08-01',bis: '2026-08-31'});
   expect(zieleFortsetzen('2026-10-02')).toBe(2);
   expect(ownGoals(1,'2026-10-02').filter(z => z.id > monat).map(z => [z.von,z.bis])).toEqual([['2026-10-01','2026-10-31'],['2026-09-01','2026-09-30']]);
+});
+
+test('a visit marks what is younger than the previous visit as new, never the viewer\'s own', () => {
+  const id = goal({oeffentlich: true});
+  db.query("UPDATE ziele SET created_at = '2026-08-05T10:00:00.000Z' WHERE id = ?").run(id);
+  expect(timelineBesuch(2, new Date('2026-08-04T08:00:00Z'))).toBeNull();
+  const ereignis = () => teamTimeline(1,'2026-08-31',{viewerId: 2, gesehenBis: timelineBesuch(2, new Date('2026-08-06T08:00:00Z'))}).events.find(e => e.id === `ziel-${id}-erstellt`)!;
+  expect(ereignis().neu).toBe(true);
+  // Innerhalb desselben Besuchs (Aktualisierung nach 30 s) bleibt es neu …
+  expect(ereignis().neu).toBe(true);
+  // … beim nächsten Besuch ist es gesehen, und die eigene Setzerin sah es nie als neu.
+  expect(teamTimeline(1,'2026-08-31',{viewerId: 2, gesehenBis: timelineBesuch(2, new Date('2026-08-06T09:00:00Z'))}).events.find(e => e.id === `ziel-${id}-erstellt`)!.neu).toBe(false);
+  expect(teamTimeline(1,'2026-08-31',{viewerId: 1, gesehenBis: '2026-08-01T00:00:00Z'}).events.find(e => e.id === `ziel-${id}-erstellt`)!.neu).toBe(false);
 });

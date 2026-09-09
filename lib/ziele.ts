@@ -33,6 +33,8 @@ export interface TimelineEvent {
   /** Der Satz darunter: wer, seit wann, welcher Zeitraum. */
   beschreibung: string;
   goalId?: number;
+  /** Jünger als der letzte Besuch der Betrachterin — nur gesetzt, wenn `teamTimeline` einen Besuch kennt. */
+  neu?: boolean;
 }
 export interface Reaktion {
   /** Das Emoji. */
@@ -291,7 +293,18 @@ function anniversary(date: string, months: number): string {
   return first.toISOString().slice(0, 10);
 }
 
-export function teamTimeline(page = 1, today = todayISO()): {events: TimelineEvent[]; hasMore: boolean} {
+/** Ein Besuch der Timeline: führt `timeline_besuch_at` nach und gibt zurück, bis wann alles als gesehen gilt (null: erster Besuch). */
+export function timelineBesuch(userId: number, jetzt = new Date()): string | null {
+  const db = getDb();
+  const row = db.query<{gesehen: string | null; besuch: string | null}, [number]>('SELECT timeline_gesehen_at AS gesehen, timeline_besuch_at AS besuch FROM users WHERE id = ?').get(userId);
+  const neuerBesuch = !row?.besuch || jetzt.getTime() - new Date(row.besuch).getTime() > BESUCH_ABSTAND_MS;
+  const gesehen = neuerBesuch ? (row?.besuch ?? null) : (row?.gesehen ?? null);
+  db.query('UPDATE users SET timeline_gesehen_at = ?, timeline_besuch_at = ? WHERE id = ?').run(gesehen, jetzt.toISOString(), userId);
+  return gesehen;
+}
+const BESUCH_ABSTAND_MS = 5 * 60_000;
+
+export function teamTimeline(page = 1, today = todayISO(), besuch?: {viewerId: number; gesehenBis: string | null}): {events: TimelineEvent[]; hasMore: boolean} {
   const events: TimelineEvent[] = [];
   const moments = new Map<string,string>();
   const people = getDb().query<PublicPerson & {created_at: string}, []>('SELECT id,name,eintritt,avatar_key,avatar_datei,created_at FROM users WHERE active = 1').all();
@@ -328,6 +341,14 @@ export function teamTimeline(page = 1, today = todayISO()): {events: TimelineEve
     }
   }
   events.sort((a,b) => moments.get(b.id)!.localeCompare(moments.get(a.id)!) || (b.goalId ?? 0) - (a.goalId ?? 0) || b.id.localeCompare(a.id));
+  if (besuch) {
+    // ponytail: „neu" heißt jünger als der letzte Besuch; ein durch eine Korrektur nachträglich erreichtes Ziel trägt den Tag des Eintrags und fällt darunter durch.
+    // Erster Besuch (nichts gesehen): keine Marken, kein Grau — es gibt nichts zu unterscheiden.
+    if (besuch.gesehenBis !== null) {
+      const grenze = houseMoment(besuch.gesehenBis);
+      for (const e of events) e.neu = e.person.id !== besuch.viewerId && moments.get(e.id)! > grenze;
+    }
+  }
   const offset = (Math.max(1,Number.isSafeInteger(page) ? page : 1) - 1) * 30;
   // ponytail: the internal team's feed is derived in memory; query a materialized feed if team size makes this slow.
   return {events: events.slice(offset,offset + 30),hasMore: events.length > offset + 30};

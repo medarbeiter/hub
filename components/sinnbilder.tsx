@@ -82,6 +82,7 @@ import {
   DownloadSimpleIcon,
   EnvelopeIcon,
   EqualsIcon,
+  EyeIcon,
   FileCsvIcon,
   FlagIcon,
   GearIcon,
@@ -319,6 +320,8 @@ export const SINNBILD = {
 
   // ── Zustände und Hinweise ────────────────────────────────────────────────
   hinweis: InfoIcon,
+  /** Bereits gesehen — die Kante in der Timeline, unter der das Alte steht. */
+  gesehen: EyeIcon,
   warnung: WarningIcon,
   fehler: XCircleIcon,
   gesperrt: LockIcon,
