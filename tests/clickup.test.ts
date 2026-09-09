@@ -36,13 +36,9 @@ test('task goals count ClickUp tasks done by the person in the period — total,
   expect(() => createGoal(1, input({}))).toThrow('ClickUp');
 });
 
-test('timeline shows done ClickUp tasks for people matched by email, without exposing e-mail, and accepts reactions on them', () => {
-  const events = teamTimeline(1, '2026-09-09').events.filter(e => e.art === 'clickup_aufgabe');
-  expect(events.map(e => [e.id, e.person.id, e.date])).toEqual([['clickup-aufgabe-d', 2, '2026-09-08'], ['clickup-aufgabe-c', 1, '2026-09-08'], ['clickup-aufgabe-b', 1, '2026-09-07'], ['clickup-aufgabe-a', 1, '2026-09-07']]);
-  expect(events[1]!.url).toBe('https://app.clickup.com/t/c');
-  expect(events[0]!.person).not.toHaveProperty('email');
-  expect(reagieren(2, 'clickup-aufgabe-c', '👏')).toBe(true);
-  expect(() => reagieren(2, 'clickup-aufgabe-nope', '👏')).toThrow();
+test('done ClickUp tasks never appear in the timeline themselves and take no reactions', () => {
+  expect(teamTimeline(1, '2026-09-09').events.every(e => !e.id.startsWith('clickup-'))).toBe(true);
+  expect(() => reagieren(2, 'clickup-aufgabe-c', '👏')).toThrow();
 });
 
 test('ClickUp time goals sum booked minutes per person; running entries do not count', () => {

@@ -23,7 +23,6 @@ const SINN: Record<TimelineEvent['art'], Sinn> = {
   jubilaeum: 'erfolg',
   ziel_erstellt: 'ziele',
   ziel_erreicht: 'erfolg',
-  clickup_aufgabe: 'erfolg',
 };
 
 interface TeamEreignisseProps {
@@ -127,13 +126,6 @@ function Beitrag({ereignis, reaktionen}: {ereignis: TimelineEvent; reaktionen: R
                   Ziel ansehen →
                 </Text>
               </Verweis>
-            )}
-            {ereignis.url && (
-              <a className="tafel-verweis" href={ereignis.url} target="_blank" rel="noopener noreferrer">
-                <Text type="supporting" weight="semibold">
-                  In ClickUp öffnen ↗
-                </Text>
-              </a>
             )}
           </VStack>
           <ReaktionsLeiste ereignis={ereignis.id} reaktionen={reaktionen} />

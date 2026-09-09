@@ -3,7 +3,7 @@ import {addDays, addMonths, daysInMonth, fmtDate, fmtDateRange, hausZeit, monday
 import {countablePauseMin, requiredBreakMin} from './arbzg';
 import {dayRecord, getUser} from './time';
 import {istRolle, rolleLabel} from './rollen';
-import {aufgabenJeTag, clickupAufgaben, clickupKonfiguriert, teamJeTag, zeitJeTag} from './clickup';
+import {aufgabenJeTag, clickupKonfiguriert, teamJeTag, zeitJeTag} from './clickup';
 import {istEmoji, MESSUNGEN, TEAM_MESSUNGEN, zielRegel, zielSatz, type GoalInput, type Je, type Messung, type Vergleich, type Wiederholung} from './ziele-arten';
 
 interface GoalRow {
@@ -26,10 +26,8 @@ export type PublicGoal = Pick<GoalView, 'id' | 'titel' | 'regel' | 'von' | 'bis'
 export type PublicPerson = Pick<User, 'id' | 'name' | 'eintritt' | 'avatar_key' | 'avatar_datei'>;
 export interface TimelineEvent {
   id: string; date: string;
-  art: 'eintritt' | 'registrierung' | 'jubilaeum' | 'ziel_erstellt' | 'ziel_erreicht' | 'clickup_aufgabe';
+  art: 'eintritt' | 'registrierung' | 'jubilaeum' | 'ziel_erstellt' | 'ziel_erreicht';
   person: PublicPerson;
-  /** Ein Ereignis aus ClickUp verweist dorthin. */
-  url?: string;
   /** Die Überschrift des Ereignisses — bei einem Ziel dessen Titel. */
   titel: string;
   /** Der Satz darunter: wer, seit wann, welcher Zeitraum. */
@@ -329,20 +327,6 @@ export function teamTimeline(page = 1, today = todayISO()): {events: TimelineEve
       }
     }
   }
-  // ClickUp: erledigte Aufgaben und dort angelegte Ziele, je der ersten Person mit Hub-Konto.
-  const personNachEmail = new Map<string, PublicPerson>();
-  for (const {id, email} of getDb().query<{id: number; email: string}, []>('SELECT id, lower(email) email FROM users WHERE active = 1').all()) {
-    const person = people.find(p => p.id === id);
-    if (person) { const {created_at: _c, ...rest} = person; personNachEmail.set(email, rest); }
-  }
-  const zuordnen = (emails: string[]) => emails.map(e => personNachEmail.get(e)).find(Boolean) ?? null;
-  for (const aufgabe of clickupAufgaben()) {
-    const person = zuordnen(aufgabe.emails);
-    if (!person || aufgabe.erledigt > today) continue;
-    events.push({id: `clickup-aufgabe-${aufgabe.id}`, date: aufgabe.erledigt, art: 'clickup_aufgabe', person, titel: aufgabe.name,
-      beschreibung: `${person.name} hat in ClickUp eine Aufgabe erledigt${aufgabe.liste ? ` · ${aufgabe.liste}` : ''}`, url: aufgabe.url});
-    moments.set(`clickup-aufgabe-${aufgabe.id}`, aufgabe.erledigtMoment);
-  }
   events.sort((a,b) => moments.get(b.id)!.localeCompare(moments.get(a.id)!) || (b.goalId ?? 0) - (a.goalId ?? 0) || b.id.localeCompare(a.id));
   const offset = (Math.max(1,Number.isSafeInteger(page) ? page : 1) - 1) * 30;
   // ponytail: the internal team's feed is derived in memory; query a materialized feed if team size makes this slow.
@@ -358,7 +342,6 @@ function ereignisGueltig(ereignis: string): boolean {
     const monate = Number(m[2]);
     return (monate === 6 || (monate > 0 && monate % 12 === 0)) && publicPerson(Number(m[1]))?.eintritt != null;
   }
-  if ((m = /^clickup-aufgabe-([\w-]{1,40})$/.exec(ereignis))) return clickupAufgaben().some(a => a.id === m![1]);
   if ((m = /^ziel-(\d{1,9})-(erstellt|erreicht)$/.exec(ereignis))) {
     return db.query<{n: number}, [number]>('SELECT COUNT(*) n FROM ziele z JOIN users u ON u.id = z.user_id WHERE z.id = ? AND z.oeffentlich = 1 AND u.active = 1').get(Number(m[1]))!.n > 0;
   }

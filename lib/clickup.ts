@@ -107,8 +107,6 @@ export async function clickupAktualisieren(jetzt = Date.now()): Promise<void> {
   }
 }
 
-export function clickupAufgaben(): ClickupAufgabe[] { return stand.aufgaben; }
-
 /** Erledigte Aufgaben einer Person je Tag (Hauszeit), über die E-Mail zugeordnet. */
 export function aufgabenJeTag(email: string): Map<string, number> {
   const mail = email.toLowerCase();
