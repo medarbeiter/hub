@@ -65,6 +65,7 @@ const MIGRATIONS: Migration[] = [
   migration44TimelineBesuch,
   migration45Geburtstag,
   migration46Fahrzeug,
+  migration47FahrzeugBelegeOhneFall,
 ];
 
 function migration35Ziele(db: Database): void {
@@ -291,6 +292,38 @@ function migration46Fahrzeug(db: Database): void {
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
   CREATE INDEX idx_fahrzeug_belege_fall ON fahrzeug_belege(fall_id);`);
+}
+
+/* Tank- und Ladebelege brauchen keinen Fall — sie werden einzeln hochgeladen
+   und einzeln abgerechnet. Nur ein Servicefall (Reparatur, Inspektion) bündelt
+   Belege. Deshalb trägt jeder Beleg jetzt selbst seine Person, `fall_id` ist
+   nur beim Service gesetzt, und ein Beleg ohne Fall trägt sein eigenes
+   „abgerechnet". Das Kennzeichen entfällt — ein Wagen je Person genügt. */
+function migration47FahrzeugBelegeOhneFall(db: Database): void {
+  db.exec(`CREATE TABLE fahrzeug_belege_neu (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    fall_id INTEGER REFERENCES fahrzeug_faelle(id) ON DELETE CASCADE,
+    art TEXT NOT NULL CHECK(art IN ('tanken','laden','service')),
+    datum TEXT NOT NULL,
+    betrag_cent INTEGER NOT NULL CHECK(betrag_cent > 0),
+    beschreibung TEXT,
+    datei TEXT,
+    datei_name TEXT,
+    datei_typ TEXT,
+    abgerechnet_von INTEGER REFERENCES users(id),
+    abgerechnet_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    CHECK ((art = 'service') = (fall_id IS NOT NULL))
+  );
+  INSERT INTO fahrzeug_belege_neu (id, user_id, fall_id, art, datum, betrag_cent, beschreibung, datei, datei_name, datei_typ, created_at)
+    SELECT b.id, f.user_id, CASE WHEN b.art = 'service' THEN b.fall_id END, b.art, b.datum, b.betrag_cent, b.beschreibung, b.datei, b.datei_name, b.datei_typ, b.created_at
+    FROM fahrzeug_belege b JOIN fahrzeug_faelle f ON f.id = b.fall_id;
+  DROP TABLE fahrzeug_belege;
+  ALTER TABLE fahrzeug_belege_neu RENAME TO fahrzeug_belege;
+  CREATE INDEX idx_fahrzeug_belege_fall ON fahrzeug_belege(fall_id);
+  CREATE INDEX idx_fahrzeug_belege_user ON fahrzeug_belege(user_id, datum);
+  ALTER TABLE fahrzeug_faelle DROP COLUMN kennzeichen;`);
 }
 
 /** The `PRAGMA user_version` a fully migrated database carries. */
@@ -1583,7 +1616,6 @@ export interface FahrzeugFall {
   id: number;
   user_id: number;
   titel: string;
-  kennzeichen: string | null;
   von: string;
   /** Der Tag, an dem der Fall geschlossen wurde; null = offen. */
   bis: string | null;
@@ -1596,7 +1628,9 @@ export interface FahrzeugFall {
 
 export interface FahrzeugBeleg {
   id: number;
-  fall_id: number;
+  user_id: number;
+  /** Nur beim Service gesetzt — Tanken und Laden stehen für sich. */
+  fall_id: number | null;
   art: FahrzeugBelegArt;
   datum: string;
   betrag_cent: number;
@@ -1604,5 +1638,7 @@ export interface FahrzeugBeleg {
   datei: string | null;
   datei_name: string | null;
   datei_typ: string | null;
+  abgerechnet_von: number | null;
+  abgerechnet_at: string | null;
   created_at: string;
 }

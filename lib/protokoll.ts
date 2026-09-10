@@ -563,24 +563,23 @@ export function beschreibeReise(id: number): Gegenstand | null {
 
 export function beschreibeFall(id: number): Gegenstand | null {
   const row = getDb()
-    .query<{user_id: number; titel: string; kennzeichen: string | null; von: string; bis: string | null; status: string}, [number]>(
-      'SELECT user_id, titel, kennzeichen, von, bis, status FROM fahrzeug_faelle WHERE id = ?',
+    .query<{user_id: number; titel: string; von: string; bis: string | null; status: string}, [number]>(
+      'SELECT user_id, titel, von, bis, status FROM fahrzeug_faelle WHERE id = ?',
     )
     .get(id);
   if (!row) return null;
   return {
-    text: `Fahrzeugfall „${row.titel}“${row.kennzeichen ? ` (${row.kennzeichen})` : ''}`,
+    text: `Servicefall „${row.titel}“`,
     betroffen: person(row.user_id),
     datum: row.von,
-    werte: {Titel: row.titel, Kennzeichen: row.kennzeichen, Von: fmtDate(row.von), Bis: row.bis ? fmtDate(row.bis) : null, Status: row.status},
+    werte: {Titel: row.titel, Von: fmtDate(row.von), Bis: row.bis ? fmtDate(row.bis) : null, Status: row.status},
   };
 }
 
 export function beschreibeFahrzeugBeleg(belegId: number): Gegenstand | null {
   const row = getDb()
     .query<{art: string; datum: string; betrag_cent: number; beschreibung: string | null; datei_name: string | null; user_id: number}, [number]>(
-      `SELECT b.art, b.datum, b.betrag_cent, b.beschreibung, b.datei_name, f.user_id
-       FROM fahrzeug_belege b JOIN fahrzeug_faelle f ON f.id = b.fall_id WHERE b.id = ?`,
+      'SELECT art, datum, betrag_cent, beschreibung, datei_name, user_id FROM fahrzeug_belege WHERE id = ?',
     )
     .get(belegId);
   if (!row) return null;

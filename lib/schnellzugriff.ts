@@ -3,6 +3,7 @@ import {addDays, addMonths, monthOf, todayISO} from './format';
 import {hatRecht} from './rechte';
 import {activeUsers, clockState, isMonthLocked, zeitkontoBalance} from './time';
 import {reisenZurPruefung} from './spesen';
+import {abzurechnen} from './fahrzeug';
 import {AU_AB_TAGEN} from './abwesenheit-arten';
 
 /**
@@ -119,9 +120,7 @@ export function navZaehler(user: User, korrekturen: number): NavZaehler {
     abwesendDemnaechst,
     kontoSaldoMin,
     zuPruefen: hatRecht(user, 'spesen.pruefen') ? reisenZurPruefung('eingereicht').length : 0,
-    fahrzeugAbzurechnen: hatRecht(user, 'spesen.pruefen')
-      ? getDb().query<{c: number}, []>("SELECT count(*) AS c FROM fahrzeug_faelle WHERE status = 'geschlossen'").get()!.c
-      : 0,
+    fahrzeugAbzurechnen: hatRecht(user, 'fahrzeug.abrechnen') ? abzurechnen() : 0,
     abwesenheitZuPruefen: hatRecht(user, 'abwesenheit.pruefen')
       ? getDb()
           .query<{c: number}, []>("SELECT count(*) AS c FROM abwesenheiten WHERE status = 'eingereicht'")

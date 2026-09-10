@@ -24,6 +24,8 @@ export type Recht =
   | 'abwesenheit.pruefen'
   | 'spesen.erfassen'
   | 'spesen.pruefen'
+  | 'fahrzeug.erfassen'
+  | 'fahrzeug.abrechnen'
   | 'profil.kommentieren'
   | 'kalender.sehen'
   | 'kalender.gruende'
@@ -123,6 +125,20 @@ export const RECHTE: Record<Recht, RechtBedeutung> = {
     beschreibung: 'Eingereichte Reisen aller Mitarbeitenden prüfen und entscheiden.',
     stufe: 'weitreichend',
     bereich: 'Reisen & Spesen',
+  },
+  /* Bewusst in keinem Grundbündel: das privat genutzte Dienstfahrzeug hat
+     nicht jede Person, und wer keins hat, soll die Seite gar nicht sehen. */
+  'fahrzeug.erfassen': {
+    label: 'Dienstfahrzeug',
+    beschreibung: 'Tank- und Ladebelege des privat genutzten Dienstfahrzeugs hochladen und Servicefälle anlegen.',
+    stufe: 'grundlegend',
+    bereich: 'Dienstfahrzeug',
+  },
+  'fahrzeug.abrechnen': {
+    label: 'Fahrzeugbelege abrechnen',
+    beschreibung: 'Tankbelege und geschlossene Servicefälle aller Mitarbeitenden in die Abrechnung übernehmen.',
+    stufe: 'weitreichend',
+    bereich: 'Dienstfahrzeug',
   },
   'profil.kommentieren': {
     label: 'Profile kommentieren',

@@ -345,10 +345,10 @@ export function AppNav({name, role, rechte, person, heute, zaehler}: AppNavProps
           </SideNavItem>
         </NavVerweilen>
 
-        {/* Das privat genutzte Dienstfahrzeug: Tank-, Lade- und Servicebelege,
-            gesammelt in Fällen. Ein schlichter Verweis — ein offener Fall
-            fordert nichts, er wartet auf den nächsten Beleg. */}
-        {darf('spesen.erfassen') && (
+        {/* Das privat genutzte Dienstfahrzeug: Tank- und Ladebelege einzeln,
+            Servicefälle gesammelt. Nur wer das Recht trägt, hat einen Wagen —
+            alle anderen sehen den Eintrag nicht. */}
+        {darf('fahrzeug.erfassen') && (
         <SideNavItem
           label="Dienstfahrzeug"
           href="/fahrzeug"
@@ -424,7 +424,7 @@ export function AppNav({name, role, rechte, person, heute, zaehler}: AppNavProps
             </NavEintrag>
             )}
 
-            {darf('spesen.pruefen') && (
+            {darf('fahrzeug.abrechnen') && (
             <NavEintrag ruft={zaehler.fahrzeugAbzurechnen > 0}>
               <SideNavItem
                 label="Fahrzeugbelege"

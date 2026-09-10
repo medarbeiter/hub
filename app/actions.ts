@@ -86,8 +86,11 @@ import {
   createFall,
   deleteFahrzeugBeleg,
   deleteFall,
+  FAHRZEUG_BELEG_ART_LABEL,
   FAHRZEUG_BELEG_ARTEN,
   schliessen as fallSchliessen,
+  tankbelegAbrechnen,
+  tankbelegeZurAbrechnung,
   updateFall,
   wiedereroeffnen as fallWiedereroeffnen,
 } from '@/lib/fahrzeug';
@@ -127,6 +130,7 @@ import {
   reiseById,
   reisenZurPruefung,
   speichereBelegDatei,
+  loescheBelegDatei,
   updateReise,
   zurueckweisen,
   zurueckziehen,
@@ -1594,25 +1598,70 @@ export async function belegDeleteAction(belegId: number): Promise<ActionState> {
 // Dienstfahrzeug
 // ---------------------------------------------------------------------------
 
+/** Die Datei eines Fahrzeugbelegs ablegen — Pflicht, denn der Beleg *ist* die Datei. */
+async function fahrzeugDatei(formData: FormData, datum: string): Promise<{datei: string; dateiTyp: string; dateiName: string} | string> {
+  const eingang = formData.get('datei');
+  if (!(eingang instanceof File) || eingang.size === 0) return 'Bitte den Beleg als Foto oder PDF anhängen.';
+  const gespeichert = await speichereBelegDatei(eingang, datum.slice(0, 4));
+  if (typeof gespeichert === 'string') return gespeichert;
+  return {datei: gespeichert.datei, dateiTyp: gespeichert.typ, dateiName: eingang.name};
+}
+
+function fahrzeugBelegAusForm(formData: FormData): {art: string; datum: string; betragCent: number; beschreibung: string} | string {
+  const art = String(formData.get('art') ?? '');
+  if (!(FAHRZEUG_BELEG_ARTEN as string[]).includes(art)) return 'Bitte eine Belegart wählen.';
+  const datum = String(formData.get('datum') ?? '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(datum)) return 'Bitte ein Belegdatum angeben.';
+  const betragCent = parseEuro(String(formData.get('betrag') ?? ''));
+  if (betragCent === null) return 'Bitte einen Betrag wie 12,50 angeben.';
+  return {art, datum, betragCent, beschreibung: String(formData.get('beschreibung') ?? '')};
+}
+
+function belegWerte(b: {art: string; datum: string; betragCent: number}, dateiName: string): Record<string, string> {
+  return {Art: b.art, Datum: fmtDate(b.datum), Betrag: `${(b.betragCent / 100).toFixed(2).replace('.', ',')} €`, Datei: dateiName};
+}
+
+/**
+ * Ein Servicefall entsteht mit seiner ersten Rechnung: Anlegen trägt Titel,
+ * Beginn und den ersten Beleg in einem Formular. Bearbeiten ändert nur Titel
+ * und Beginn — weitere Belege kommen über fahrzeugBelegAddAction dazu.
+ */
 export async function fahrzeugFallSaveAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const actor = await requireRecht('spesen.erfassen');
+  const actor = await requireRecht('fahrzeug.erfassen');
   const fallId = Number(formData.get('fallId') ?? 0);
-  const userId = Number(formData.get('userId') ?? actor.id);
-  const input = {
-    titel: String(formData.get('titel') ?? ''),
-    kennzeichen: String(formData.get('kennzeichen') ?? ''),
-    von: String(formData.get('von') ?? '').trim(),
-  };
-  const vorher = fallId ? beschreibeFall(fallId) : null;
-  const error = fallId ? updateFall(actor, fallId, input) : createFall(actor, userId, input);
+  const input = {titel: String(formData.get('titel') ?? ''), von: String(formData.get('von') ?? '').trim()};
+
+  if (fallId) {
+    const vorher = beschreibeFall(fallId);
+    const error = updateFall(actor, fallId, input);
+    protokolliere({
+      akteur: actor,
+      aktion: 'fahrzeug.aendern',
+      gegenstand: vorher?.text ?? `Servicefall ${fallId}`,
+      betroffen: vorher?.betroffen ?? null,
+      datum: input.von || null,
+      vorher: vorher?.werte ?? null,
+      nachher: {Titel: input.titel.trim(), Von: input.von ? fmtDate(input.von) : null},
+      fehler: error,
+    });
+    if (error) return {error};
+    revalidatePath('/', 'layout');
+    return OK;
+  }
+
+  const beleg = fahrzeugBelegAusForm(formData);
+  if (typeof beleg === 'string') return {error: beleg};
+  const datei = await fahrzeugDatei(formData, beleg.datum);
+  if (typeof datei === 'string') return {error: datei};
+  const error = createFall(actor, actor.id, input, {...beleg, art: 'service', ...datei});
+  if (error) loescheBelegDatei(datei.datei);
   protokolliere({
     akteur: actor,
-    aktion: fallId ? 'fahrzeug.aendern' : 'fahrzeug.anlegen',
-    gegenstand: vorher?.text ?? `Fahrzeugfall „${input.titel.trim()}“`,
-    betroffen: vorher?.betroffen ?? beschreibePerson(userId),
+    aktion: 'fahrzeug.anlegen',
+    gegenstand: `Servicefall „${input.titel.trim()}“`,
+    betroffen: beschreibePerson(actor.id),
     datum: input.von || null,
-    vorher: vorher?.werte ?? null,
-    nachher: {Titel: input.titel.trim(), Kennzeichen: input.kennzeichen.trim() || null, Von: input.von ? fmtDate(input.von) : null},
+    nachher: {Titel: input.titel.trim(), Von: input.von ? fmtDate(input.von) : null, ...belegWerte(beleg, datei.dateiName)},
     fehler: error,
   });
   if (error) return {error};
@@ -1631,7 +1680,7 @@ async function fallVorgang(
   protokolliere({
     akteur: actor,
     aktion,
-    gegenstand: fall?.text ?? `Fahrzeugfall ${fallId}`,
+    gegenstand: fall?.text ?? `Servicefall ${fallId}`,
     betroffen: fall?.betroffen ?? null,
     datum: fall?.datum ?? null,
     vorher: aktion === 'fahrzeug.loeschen' ? fall?.werte ?? null : null,
@@ -1642,70 +1691,44 @@ async function fallVorgang(
 }
 
 export async function fahrzeugFallSchliessenAction(fallId: number): Promise<ActionState> {
-  const actor = await requireRecht('spesen.erfassen');
+  const actor = await requireRecht('fahrzeug.erfassen');
   return fallVorgang(fallId, 'fahrzeug.schliessen', actor, () => fallSchliessen(actor, fallId));
 }
 
 export async function fahrzeugFallWiedereroeffnenAction(fallId: number): Promise<ActionState> {
-  const actor = await requireRecht('spesen.erfassen');
+  const actor = await requireRecht('fahrzeug.erfassen');
   return fallVorgang(fallId, 'fahrzeug.wiedereroeffnen', actor, () => fallWiedereroeffnen(actor, fallId));
 }
 
 export async function fahrzeugFallAbrechnenAction(fallId: number): Promise<ActionState> {
-  const actor = await requireRecht('spesen.pruefen');
+  const actor = await requireRecht('fahrzeug.abrechnen');
   return fallVorgang(fallId, 'fahrzeug.abrechnen', actor, () => fallAbrechnen(actor, fallId));
 }
 
 export async function fahrzeugFallDeleteAction(fallId: number): Promise<ActionState> {
-  const actor = await requireRecht('spesen.erfassen');
+  const actor = await requireRecht('fahrzeug.erfassen');
   return fallVorgang(fallId, 'fahrzeug.loeschen', actor, () => deleteFall(actor, fallId));
 }
 
+/** Ein Tank-/Ladebeleg für sich (ohne `fallId`) oder ein Servicebeleg in einen offenen Fall. */
 export async function fahrzeugBelegAddAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const actor = await requireRecht('spesen.erfassen');
-  const fallId = Number(formData.get('fallId') ?? 0);
-  const art = String(formData.get('art') ?? '');
-  if (!(FAHRZEUG_BELEG_ARTEN as string[]).includes(art)) return {error: 'Bitte eine Belegart wählen.'};
-  const datum = String(formData.get('datum') ?? '').trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(datum)) return {error: 'Bitte ein Belegdatum angeben.'};
-  const betragCent = parseEuro(String(formData.get('betrag') ?? ''));
-  if (betragCent === null) return {error: 'Bitte einen Betrag wie 12,50 angeben.'};
+  const actor = await requireRecht('fahrzeug.erfassen');
+  const fallId = Number(formData.get('fallId') ?? 0) || null;
+  const beleg = fahrzeugBelegAusForm(formData);
+  if (typeof beleg === 'string') return {error: beleg};
+  const datei = await fahrzeugDatei(formData, beleg.datum);
+  if (typeof datei === 'string') return {error: datei};
 
-  // Wie beim Reisebeleg: die Datei wird erst abgelegt, wenn alles andere gültig ist.
-  const eingang = formData.get('datei');
-  let datei: string | undefined;
-  let dateiTyp: string | undefined;
-  let dateiName: string | undefined;
-  if (eingang instanceof File && eingang.size > 0) {
-    const gespeichert = await speichereBelegDatei(eingang, datum.slice(0, 4));
-    if (typeof gespeichert === 'string') return {error: gespeichert};
-    datei = gespeichert.datei;
-    dateiTyp = gespeichert.typ;
-    dateiName = eingang.name;
-  }
-
-  const error = addFahrzeugBeleg(actor, fallId, {
-    art: art as FahrzeugBelegArt,
-    datum,
-    betragCent,
-    beschreibung: String(formData.get('beschreibung') ?? ''),
-    datei,
-    dateiName,
-    dateiTyp,
-  });
-  const fall = beschreibeFall(fallId);
+  const error = addFahrzeugBeleg(actor, actor.id, fallId, {...beleg, art: beleg.art as FahrzeugBelegArt, ...datei});
+  if (error) loescheBelegDatei(datei.datei);
+  const fall = fallId ? beschreibeFall(fallId) : null;
   protokolliere({
     akteur: actor,
     aktion: 'fahrzeugbeleg.anlegen',
-    gegenstand: `Beleg zu ${fall?.text ?? `Fahrzeugfall ${fallId}`}`,
-    betroffen: fall?.betroffen ?? null,
-    datum,
-    nachher: {
-      Art: art,
-      Datum: fmtDate(datum),
-      Betrag: `${(betragCent / 100).toFixed(2).replace('.', ',')} €`,
-      Datei: dateiName ?? null,
-    },
+    gegenstand: fall ? `Beleg zu ${fall.text}` : `Fahrzeugbeleg ${FAHRZEUG_BELEG_ART_LABEL[beleg.art as FahrzeugBelegArt]}`,
+    betroffen: beschreibePerson(actor.id),
+    datum: beleg.datum,
+    nachher: belegWerte(beleg, datei.dateiName),
     fehler: error,
   });
   if (error) return {error};
@@ -1714,7 +1737,7 @@ export async function fahrzeugBelegAddAction(_prev: ActionState, formData: FormD
 }
 
 export async function fahrzeugBelegDeleteAction(belegId: number): Promise<ActionState> {
-  const actor = await requireRecht('spesen.erfassen');
+  const actor = await requireRecht('fahrzeug.erfassen');
   const beleg = beschreibeFahrzeugBeleg(belegId);
   const error = deleteFahrzeugBeleg(actor, belegId);
   protokolliere({
@@ -1728,6 +1751,43 @@ export async function fahrzeugBelegDeleteAction(belegId: number): Promise<Action
   });
   revalidatePath('/', 'layout');
   return {error};
+}
+
+export async function fahrzeugBelegAbrechnenAction(belegId: number): Promise<ActionState> {
+  const actor = await requireRecht('fahrzeug.abrechnen');
+  const beleg = beschreibeFahrzeugBeleg(belegId);
+  const error = tankbelegAbrechnen(actor, belegId);
+  protokolliere({
+    akteur: actor,
+    aktion: 'fahrzeugbeleg.abrechnen',
+    gegenstand: beleg?.text ?? `Fahrzeugbeleg ${belegId}`,
+    betroffen: beleg?.betroffen ?? null,
+    datum: beleg?.datum ?? null,
+    fehler: error,
+  });
+  revalidatePath('/', 'layout');
+  return {error};
+}
+
+/** Alle wartenden Tank-/Ladebelege auf einmal — eine Protokollzeile je Beleg, wie bei der Sammelgenehmigung. */
+export async function fahrzeugBelegeAlleAbrechnenAction(): Promise<{abgerechnet: number; error: string | null}> {
+  const actor = await requireRecht('fahrzeug.abrechnen');
+  let abgerechnet = 0;
+  for (const {beleg} of tankbelegeZurAbrechnung('offen')) {
+    const beschreibung = beschreibeFahrzeugBeleg(beleg.id);
+    const error = tankbelegAbrechnen(actor, beleg.id);
+    protokolliere({
+      akteur: actor,
+      aktion: 'fahrzeugbeleg.abrechnen',
+      gegenstand: `${beschreibung?.text ?? `Fahrzeugbeleg ${beleg.id}`} (Sammelabrechnung)`,
+      betroffen: beschreibung?.betroffen ?? null,
+      datum: beleg.datum,
+      fehler: error,
+    });
+    if (!error) abgerechnet += 1;
+  }
+  revalidatePath('/', 'layout');
+  return {abgerechnet, error: null};
 }
 
 export async function unlockMonthAction(userId: number, month: string): Promise<ActionState> {

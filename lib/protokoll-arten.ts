@@ -195,6 +195,7 @@ export const AKTIONEN = {
   'fahrzeug.loeschen': {bereich: 'spesen', label: 'Fahrzeugfall gelöscht', eingriff: true},
   'fahrzeugbeleg.anlegen': {bereich: 'spesen', label: 'Fahrzeugbeleg hinzugefügt', eingriff: true},
   'fahrzeugbeleg.loeschen': {bereich: 'spesen', label: 'Fahrzeugbeleg gelöscht', eingriff: true},
+  'fahrzeugbeleg.abrechnen': {bereich: 'spesen', label: 'Fahrzeugbeleg abgerechnet', eingriff: true},
 
   // ── Monatsabschluss ──────────────────────────────────────────────────────
   'monat.abschliessen': {bereich: 'abschluss', label: 'Monat abgeschlossen', eingriff: true},

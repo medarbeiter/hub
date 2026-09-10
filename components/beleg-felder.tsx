@@ -53,6 +53,8 @@ interface BelegDialogProps {
   action?: (prev: ActionState, fd: FormData) => Promise<ActionState>;
   felder?: Record<string, string>;
   untertitel?: string;
+  /** Der Fahrzeugbeleg *ist* die Datei — ohne sie kein Speichern. */
+  dateiPflicht?: boolean;
 }
 
 /**
@@ -71,6 +73,7 @@ export function BelegDialog({
   action = belegAddAction,
   felder = {reiseId: String(reiseId ?? 0)},
   untertitel,
+  dateiPflicht = false,
 }: BelegDialogProps) {
   const router = useRouter();
   const [isPending, start] = useTransition();
@@ -151,7 +154,7 @@ export function BelegDialog({
 
         <FileInput
           label="Beleg als Datei"
-          description={`JPG, PNG, WEBP oder PDF, höchstens ${MAX_MB} MB. Ohne Datei geht es auch.`}
+          description={`JPG, PNG, WEBP oder PDF, höchstens ${MAX_MB} MB.${dateiPflicht ? ' Ein Foto vom Handy genügt.' : ' Ohne Datei geht es auch.'}`}
           placeholder="Datei wählen"
           mode="dropzone"
           accept="image/jpeg,image/png,image/webp,application/pdf"
@@ -169,7 +172,7 @@ export function BelegDialog({
             variant="primary"
             isLoading={isPending}
             icon={<Sinnbild sinn="beleg" />}
-            isDisabled={betragCent === null || hinweis !== null}
+            isDisabled={betragCent === null || hinweis !== null || (dateiPflicht && datei === null)}
             onClick={speichern}
           />
         </HStack>
