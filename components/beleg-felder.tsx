@@ -14,19 +14,25 @@ import {
 } from '@astryxdesign/core';
 import {useRouter} from 'next/navigation';
 import {useState, useTransition} from 'react';
-import {belegAddAction} from '@/app/actions';
+import {belegAddAction, type ActionState} from '@/app/actions';
 import {sicher} from '@/lib/aktion';
 import {fmtDateLong, fmtDateRange, parseEuro} from '@/lib/format';
 import {DatumFeld} from './datum-feld';
-import {Sinnbild, umriss} from './sinnbilder';
+import {Sinnbild, umriss, type Sinn} from './sinnbilder';
 import {TafelDialog} from './tafel-dialog';
 
-const ARTEN = [
-  {value: 'uebernachtung', label: 'Übernachtung', icon: umriss('uebernachtung')},
-  {value: 'fahrt', label: 'Fahrt', icon: umriss('fahrt')},
-  {value: 'parken', label: 'Parken', icon: umriss('parken')},
-  {value: 'ticket', label: 'Ticket', icon: umriss('ticket')},
-  {value: 'sonstiges', label: 'Sonstiges', icon: umriss('sonstiges')},
+export interface BelegArtWahl {
+  value: string;
+  label: string;
+  sinn: Sinn;
+}
+
+const ARTEN: BelegArtWahl[] = [
+  {value: 'uebernachtung', label: 'Übernachtung', sinn: 'uebernachtung'},
+  {value: 'fahrt', label: 'Fahrt', sinn: 'fahrt'},
+  {value: 'parken', label: 'Parken', sinn: 'parken'},
+  {value: 'ticket', label: 'Ticket', sinn: 'ticket'},
+  {value: 'sonstiges', label: 'Sonstiges', sinn: 'sonstiges'},
 ];
 
 const MAX_MB = 10;
@@ -34,10 +40,19 @@ const MAX_MB = 10;
 interface BelegDialogProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
-  reiseId: number;
+  reiseId?: number;
   /** Der Reisezeitraum begrenzt das Belegdatum — der Server prüft es noch einmal. */
   vonISO: string;
   bisISO: string;
+  /**
+   * Derselbe Dialog für den Fahrzeugfall: andere Arten, andere Action, ein
+   * anderes Feld, das den Beleg an seinen Gegenstand bindet. Ohne Angabe ist
+   * es der Reisebeleg.
+   */
+  arten?: BelegArtWahl[];
+  action?: (prev: ActionState, fd: FormData) => Promise<ActionState>;
+  felder?: Record<string, string>;
+  untertitel?: string;
 }
 
 /**
@@ -46,13 +61,24 @@ interface BelegDialogProps {
  * FormData hier gebaut und die Action wie jede andere imperative Mutation über
  * useTransition aufgerufen.
  */
-export function BelegDialog({isOpen, onOpenChange, reiseId, vonISO, bisISO}: BelegDialogProps) {
+export function BelegDialog({
+  isOpen,
+  onOpenChange,
+  reiseId,
+  vonISO,
+  bisISO,
+  arten = ARTEN,
+  action = belegAddAction,
+  felder = {reiseId: String(reiseId ?? 0)},
+  untertitel,
+}: BelegDialogProps) {
   const router = useRouter();
   const [isPending, start] = useTransition();
   const [fehler, setFehler] = useState<string | null>(null);
 
-  const [art, setArt] = useState('uebernachtung');
-  const [datum, setDatum] = useState(vonISO);
+  const [art, setArt] = useState(arten[0]!.value);
+  // Ein Tankbeleg ist meist von heute; ein Reisebeleg aus dem Reisezeitraum.
+  const [datum, setDatum] = useState(reiseId === undefined ? bisISO : vonISO);
   const [betrag, setBetrag] = useState('');
   const [beschreibung, setBeschreibung] = useState('');
   const [datei, setDatei] = useState<File | null>(null);
@@ -69,13 +95,13 @@ export function BelegDialog({isOpen, onOpenChange, reiseId, vonISO, bisISO}: Bel
     start(async () => {
       setFehler(null);
       const fd = new FormData();
-      fd.set('reiseId', String(reiseId));
+      for (const [name, wert] of Object.entries(felder)) fd.set(name, wert);
       fd.set('art', art);
       fd.set('datum', datum);
       fd.set('betrag', betrag);
       fd.set('beschreibung', beschreibung);
       if (datei) fd.set('datei', datei);
-      const {error} = await sicher(belegAddAction)({error: null}, fd);
+      const {error} = await sicher(action)({error: null}, fd);
       if (error) {
         setFehler(error);
         return;
@@ -89,15 +115,15 @@ export function BelegDialog({isOpen, onOpenChange, reiseId, vonISO, bisISO}: Bel
 
   return (
     <TafelDialog isOpen={isOpen} onOpenChange={onOpenChange} purpose="form" width={440}>
-      <DialogHeader title="Beleg hinzufügen" subtitle={fmtDateRange(vonISO, bisISO)} />
+      <DialogHeader title="Beleg hinzufügen" subtitle={untertitel ?? fmtDateRange(vonISO, bisISO)} />
       <VStack gap={4} padding={4}>
         {fehler && <Banner status="error" title={fehler} />}
 
         <Selector
           label="Art des Belegs"
-          options={ARTEN}
+          options={arten.map((a) => ({value: a.value, label: a.label, icon: umriss(a.sinn)}))}
           value={art}
-          onChange={(value) => setArt(value ?? 'sonstiges')}
+          onChange={(value) => setArt(value ?? arten[0]!.value)}
         />
 
         <HStack gap={3} vAlign="start">
@@ -120,7 +146,7 @@ export function BelegDialog({isOpen, onOpenChange, reiseId, vonISO, bisISO}: Bel
           label="Beschreibung"
           value={beschreibung}
           onChange={setBeschreibung}
-          placeholder="z. B. Hotel Nord, zwei Nächte"
+          placeholder={reiseId === undefined ? 'z. B. Aral Wandsbek, 42 l' : 'z. B. Hotel Nord, zwei Nächte'}
         />
 
         <FileInput

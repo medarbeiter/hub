@@ -434,7 +434,7 @@ export async function speichereBelegDatei(
   return {datei, typ};
 }
 
-function loescheBelegDatei(datei: string | null): void {
+export function loescheBelegDatei(datei: string | null): void {
   if (!datei) return;
   // Best effort: eine fehlende Datei darf das Löschen des Datensatzes nicht aufhalten.
   try {

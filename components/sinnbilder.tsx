@@ -62,6 +62,11 @@ import {
   CalendarIcon,
   CameraIcon,
   CarIcon,
+  CarProfileIcon,
+  ChargingStationIcon,
+  GasPumpIcon,
+  InvoiceIcon,
+  WrenchIcon,
   CaretDownIcon,
   CaretLeftIcon,
   CaretRightIcon,
@@ -255,6 +260,16 @@ export const SINNBILD = {
   zurueckweisen: ProhibitIcon,
   zurueckziehen: ArrowUUpLeftIcon,
   pruefen: ListChecksIcon,
+
+  // ── Dienstfahrzeug ───────────────────────────────────────────────────────
+  /* Der Wagen im Profil ist der Bereich; `fahrt` bleibt die Fahrtkostenzeile
+     einer Reise. Zapfsäule, Ladesäule, Schraubenschlüssel sind die drei
+     Belegarten; die Rechnung sagt „in die Abrechnung übernommen". */
+  fahrzeug: CarProfileIcon,
+  tanken: GasPumpIcon,
+  laden: ChargingStationIcon,
+  service: WrenchIcon,
+  abrechnen: InvoiceIcon,
 
   // ── Verwaltung ───────────────────────────────────────────────────────────
   team: UsersThreeIcon,

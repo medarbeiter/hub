@@ -345,6 +345,21 @@ export function AppNav({name, role, rechte, person, heute, zaehler}: AppNavProps
           </SideNavItem>
         </NavVerweilen>
 
+        {/* Das privat genutzte Dienstfahrzeug: Tank-, Lade- und Servicebelege,
+            gesammelt in Fällen. Ein schlichter Verweis — ein offener Fall
+            fordert nichts, er wartet auf den nächsten Beleg. */}
+        {darf('spesen.erfassen') && (
+        <SideNavItem
+          label="Dienstfahrzeug"
+          href="/fahrzeug"
+          as={NextLink}
+          size={dichte}
+          icon={umriss('fahrzeug')}
+          selectedIcon={gefuellt('fahrzeug')}
+          isSelected={pathname === '/fahrzeug'}
+        />
+        )}
+
         {/* Die Einmalcodes der gemeinsamen Firmenkonten — für alle, denn sie
             ersetzen das Handy, das dafür durchs Büro gereicht wurde. Ein
             schlichter Verweis ohne Zahl und ohne Zweig: wie viele Zugänge es
@@ -405,6 +420,21 @@ export function AppNav({name, role, rechte, person, heute, zaehler}: AppNavProps
                 selectedIcon={gefuellt('pruefen')}
                 isSelected={pathname.startsWith('/spesen/pruefen')}
                 endContent={<NavZahl wert={zaehler.zuPruefen} />}
+              />
+            </NavEintrag>
+            )}
+
+            {darf('spesen.pruefen') && (
+            <NavEintrag ruft={zaehler.fahrzeugAbzurechnen > 0}>
+              <SideNavItem
+                label="Fahrzeugbelege"
+                href="/fahrzeug/pruefen"
+                as={NextLink}
+                size={dichte}
+                icon={umriss('abrechnen')}
+                selectedIcon={gefuellt('abrechnen')}
+                isSelected={pathname.startsWith('/fahrzeug/pruefen')}
+                endContent={<NavZahl wert={zaehler.fahrzeugAbzurechnen} />}
               />
             </NavEintrag>
             )}

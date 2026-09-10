@@ -64,6 +64,7 @@ const MIGRATIONS: Migration[] = [
   migration43ZielRollen,
   migration44TimelineBesuch,
   migration45Geburtstag,
+  migration46Fahrzeug,
 ];
 
 function migration35Ziele(db: Database): void {
@@ -255,6 +256,41 @@ function migration44TimelineBesuch(db: Database): void {
    „hat heute Geburtstag", nicht „wird 47". */
 function migration45Geburtstag(db: Database): void {
   db.exec('ALTER TABLE users ADD COLUMN geburtstag TEXT');
+}
+
+/* Das privat genutzte Dienstfahrzeug: ein Fall sammelt über seinen Zeitraum
+   Tank-, Lade- und Servicebelege, bis er geschlossen wird; die Verwaltung
+   nimmt ihn danach in die Abrechnung („abgerechnet"). Dateien liegen wie die
+   Reisebelege unter data/belege/<Jahr>/. */
+function migration46Fahrzeug(db: Database): void {
+  db.exec(`CREATE TABLE fahrzeug_faelle (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    titel TEXT NOT NULL,
+    kennzeichen TEXT,
+    von TEXT NOT NULL,
+    bis TEXT,
+    status TEXT NOT NULL DEFAULT 'offen' CHECK(status IN ('offen','geschlossen','abgerechnet')),
+    abgerechnet_von INTEGER REFERENCES users(id),
+    abgerechnet_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    CHECK (bis IS NULL OR bis >= von)
+  );
+  CREATE INDEX idx_fahrzeug_faelle_user ON fahrzeug_faelle(user_id, von);
+  CREATE TABLE fahrzeug_belege (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    fall_id INTEGER NOT NULL REFERENCES fahrzeug_faelle(id) ON DELETE CASCADE,
+    art TEXT NOT NULL CHECK(art IN ('tanken','laden','service')),
+    datum TEXT NOT NULL,
+    betrag_cent INTEGER NOT NULL CHECK(betrag_cent > 0),
+    beschreibung TEXT,
+    datei TEXT,
+    datei_name TEXT,
+    datei_typ TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX idx_fahrzeug_belege_fall ON fahrzeug_belege(fall_id);`);
 }
 
 /** The `PRAGMA user_version` a fully migrated database carries. */
@@ -1534,6 +1570,37 @@ export interface ReiseBeleg {
   betrag_cent: number;
   beschreibung: string | null;
   /** Pfad unterhalb von data/belege; null = Auslage ohne Datei. */
+  datei: string | null;
+  datei_name: string | null;
+  datei_typ: string | null;
+  created_at: string;
+}
+
+export type FahrzeugFallStatus = 'offen' | 'geschlossen' | 'abgerechnet';
+export type FahrzeugBelegArt = 'tanken' | 'laden' | 'service';
+
+export interface FahrzeugFall {
+  id: number;
+  user_id: number;
+  titel: string;
+  kennzeichen: string | null;
+  von: string;
+  /** Der Tag, an dem der Fall geschlossen wurde; null = offen. */
+  bis: string | null;
+  status: FahrzeugFallStatus;
+  abgerechnet_von: number | null;
+  abgerechnet_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FahrzeugBeleg {
+  id: number;
+  fall_id: number;
+  art: FahrzeugBelegArt;
+  datum: string;
+  betrag_cent: number;
+  beschreibung: string | null;
   datei: string | null;
   datei_name: string | null;
   datei_typ: string | null;

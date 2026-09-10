@@ -25,6 +25,8 @@ export interface NavZaehler {
   entwuerfe: number;
   /** Verwaltung: eingereichte Reisen, die auf eine Entscheidung warten. */
   zuPruefen: number;
+  /** Verwaltung: geschlossene Fahrzeugfälle, die auf die Abrechnung warten. */
+  fahrzeugAbzurechnen: number;
   /** Eigene Abwesenheitsanträge im Entwurf — gestellt, aber nicht abgeschickt. */
   abwesenheitEntwuerfe: number;
   /** Eigene Krankmeldungen ab drei Tagen ohne Bescheinigung (§ 5 EFZG). */
@@ -117,6 +119,9 @@ export function navZaehler(user: User, korrekturen: number): NavZaehler {
     abwesendDemnaechst,
     kontoSaldoMin,
     zuPruefen: hatRecht(user, 'spesen.pruefen') ? reisenZurPruefung('eingereicht').length : 0,
+    fahrzeugAbzurechnen: hatRecht(user, 'spesen.pruefen')
+      ? getDb().query<{c: number}, []>("SELECT count(*) AS c FROM fahrzeug_faelle WHERE status = 'geschlossen'").get()!.c
+      : 0,
     abwesenheitZuPruefen: hatRecht(user, 'abwesenheit.pruefen')
       ? getDb()
           .query<{c: number}, []>("SELECT count(*) AS c FROM abwesenheiten WHERE status = 'eingereicht'")

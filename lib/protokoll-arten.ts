@@ -187,6 +187,14 @@ export const AKTIONEN = {
   'reise.zurueckweisen': {bereich: 'spesen', label: 'Reise zurückgewiesen', eingriff: true},
   'beleg.anlegen': {bereich: 'spesen', label: 'Beleg hinzugefügt', eingriff: true},
   'beleg.loeschen': {bereich: 'spesen', label: 'Beleg gelöscht', eingriff: true},
+  'fahrzeug.anlegen': {bereich: 'spesen', label: 'Fahrzeugfall angelegt', eingriff: true},
+  'fahrzeug.aendern': {bereich: 'spesen', label: 'Fahrzeugfall geändert', eingriff: true},
+  'fahrzeug.schliessen': {bereich: 'spesen', label: 'Fahrzeugfall geschlossen', eingriff: true},
+  'fahrzeug.wiedereroeffnen': {bereich: 'spesen', label: 'Fahrzeugfall wieder geöffnet', eingriff: true},
+  'fahrzeug.abrechnen': {bereich: 'spesen', label: 'Fahrzeugfall abgerechnet', eingriff: true},
+  'fahrzeug.loeschen': {bereich: 'spesen', label: 'Fahrzeugfall gelöscht', eingriff: true},
+  'fahrzeugbeleg.anlegen': {bereich: 'spesen', label: 'Fahrzeugbeleg hinzugefügt', eingriff: true},
+  'fahrzeugbeleg.loeschen': {bereich: 'spesen', label: 'Fahrzeugbeleg gelöscht', eingriff: true},
 
   // ── Monatsabschluss ──────────────────────────────────────────────────────
   'monat.abschliessen': {bereich: 'abschluss', label: 'Monat abgeschlossen', eingriff: true},
