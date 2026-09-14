@@ -3,8 +3,10 @@ import type {Database} from 'bun:sqlite';
 import {createDb, setDbForTesting} from '../lib/db';
 import {
   anrede,
+  alleEmpfaenger,
   empfaengerMitRecht,
   inhaltAbwesenheitEntschieden,
+  verteilerFuer,
   inhaltAbwesenheitErinnerung,
   inhaltAbwesenheitGemeldet,
   inhaltJubilaeum,
@@ -20,6 +22,7 @@ import {
   ABWAEHLBARE_ARTEN,
   ALLE_MAIL_ARTEN,
   MAIL_ARTEN,
+  VERTEILBARE_ARTEN,
   istMailArt,
   mailArtLabel,
 } from '../lib/mail-arten';
@@ -118,10 +121,39 @@ describe('wer eine Nachricht bekommt', () => {
   });
 
   test('abbestellt heißt: bekommt sie nicht — außer bei Zugangspost', () => {
-    const empfaenger = {id: 1, name: 'Anna', email: 'anna@t.de', abbestellt: ['monat.abgeschlossen' as const]};
+    const empfaenger = {id: 1, name: 'Anna', email: 'anna@t.de', role: 'mitarbeiter', abbestellt: ['monat.abgeschlossen' as const]};
     expect(willEmpfangen(empfaenger, 'monat.abgeschlossen')).toBe(false);
     expect(willEmpfangen(empfaenger, 'abwesenheit.entschieden')).toBe(true);
     expect(willEmpfangen({...empfaenger, abbestellt: []}, 'zugang.passwort')).toBe(true);
+  });
+
+  test('der Verteiler schneidet den Prüfkreis zu, erweitert ihn aber nie', () => {
+    const chef = anlegen('Jessica Peneva', 'chef@t.de', 'verwaltung');
+    const anna = anlegen('Anna Berger', 'anna@t.de', 'mitarbeiter');
+    const ben = anlegen('Ben Kraus', 'ben@t.de', 'fulfillment', ['abwesenheit.pruefen']);
+    const cara = anlegen('Cara Lenz', 'cara@t.de', 'vertrieb', ['abwesenheit.pruefen']);
+    const art = 'abwesenheit.erinnerung';
+    const kreis = () => verteilerFuer(art, empfaengerMitRecht('abwesenheit.pruefen')).map((e) => e.id);
+    // Ohne Eintrag: alle Prüfenden.
+    expect(kreis()).toEqual([ben, cara, chef]);
+    setSetting('mail_verteiler', JSON.stringify({[art]: ['rolle:verwaltung', `person:${ben}`]}));
+    expect(kreis()).toEqual([ben, chef]);
+    // Eine andere Art bleibt unberührt.
+    expect(verteilerFuer('reise.erinnerung', empfaengerMitRecht('abwesenheit.pruefen'))).toHaveLength(3);
+    // Ein Verteiler erweitert nie: Anna prüft nichts, also erreicht sie auch mit Eintrag keine Erinnerung.
+    setSetting('mail_verteiler', JSON.stringify({[art]: [`person:${anna}`]}));
+    expect(kreis()).toHaveLength(0);
+    // Die Abbestellung gilt weiterhin.
+    setSetting('mail_verteiler', '');
+    setzeAbbestellteArten(ben, [art]);
+    expect(kreis()).toEqual([cara, chef]);
+    // Unsinn im Feld heißt: keine Einschränkung, nie „niemand".
+    setSetting('mail_verteiler', '{nicht json');
+    expect(kreis()).toHaveLength(2);
+    // Jubiläum und Geburtstag kennen keinen Verteiler — sie gehen an alle anderen.
+    expect(VERTEILBARE_ARTEN).not.toContain('team.jubilaeum');
+    expect(VERTEILBARE_ARTEN).not.toContain('team.geburtstag');
+    expect(alleEmpfaenger(anna)).toHaveLength(3);
   });
 
   test('gespeichert wird die Abwahl — eine neue Art erreicht darum alle', () => {
@@ -130,7 +162,7 @@ describe('wer eine Nachricht bekommt', () => {
     // was es zum Zeitpunkt seiner Anlage noch gar nicht gab.
     expect(abbestellteArten(id)).toEqual([]);
     for (const art of ALLE_MAIL_ARTEN) {
-      expect(willEmpfangen({id, name: 'Anna', email: 'anna@t.de', abbestellt: []}, art)).toBe(true);
+      expect(willEmpfangen({id, name: 'Anna', email: 'anna@t.de', role: 'mitarbeiter', abbestellt: []}, art)).toBe(true);
     }
   });
 

@@ -1,5 +1,6 @@
 import {getDb} from './db';
 import {STANDARD_SAETZE, type SatzStufe} from './pauschale';
+import {istVerteilerEintrag, type MailArt} from './mail-arten';
 
 // Defaults apply when no row exists — a fresh install needs no seeding.
 const DEFAULTS = {
@@ -31,6 +32,10 @@ const DEFAULTS = {
   // Absichtlich die Subdomain und nicht med-arbeiter.de: die Zustellbarkeit
   // der Hauspost hängt so nicht daran, wie diese Anwendung sich verhält.
   mail_absender: 'MedArbeiter Hub <zeit@hub.med-arbeiter.de>',
+  // Verteiler je Prüfkreis-Nachricht (JSON: Art → ["rolle:…", "person:…"]).
+  // Ohne Eintrag geht sie an alle Prüfenden; mit Eintrag nur an die gewählten
+  // Rollen und Personen. Leer = keine Einschränkung.
+  mail_verteiler: '',
   // Verpflegungspauschale als datierte Satztabelle (JSON), in Cent. Datiert,
   // weil die Sätze sich bereits einmal geändert haben: bis 30.09.2025 galten
   // 14/28 €, ab 01.10.2025 gelten 10/20 €. Leer = die eingebaute Tabelle.
@@ -92,6 +97,26 @@ export function mailAktiv(): boolean {
 export function absenderAdresse(): string {
   const roh = getSetting('mail_absender').trim();
   return roh.includes('@') ? roh : DEFAULTS.mail_absender;
+}
+
+/** Alle Verteiler, wie gespeichert. Unlesbares fällt auf „keine Einschränkung" zurück. */
+export function alleVerteiler(): Partial<Record<MailArt, string[]>> {
+  try {
+    const roh: unknown = JSON.parse(getSetting('mail_verteiler') || '{}');
+    if (typeof roh !== 'object' || roh === null || Array.isArray(roh)) return {};
+    const sauber: Partial<Record<MailArt, string[]>> = {};
+    for (const [art, wahl] of Object.entries(roh as Record<string, unknown>)) {
+      if (Array.isArray(wahl)) sauber[art as MailArt] = wahl.filter((w) => typeof w === 'string' && istVerteilerEintrag(w));
+    }
+    return sauber;
+  } catch {
+    return {};
+  }
+}
+
+/** Der Verteiler einer Art; leer = alle, die es betrifft. */
+export function mailVerteiler(art: MailArt): string[] {
+  return alleVerteiler()[art] ?? [];
 }
 
 /**

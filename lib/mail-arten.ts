@@ -135,6 +135,27 @@ export const ALLE_MAIL_ARTEN = Object.keys(MAIL_ARTEN) as MailArt[];
 /** Die Arten, die ein Konto abbestellen darf — die Liste der persönlichen Einstellungen. */
 export const ABWAEHLBARE_ARTEN: MailArt[] = ALLE_MAIL_ARTEN.filter((art) => MAIL_ARTEN[art].abwaehlbar);
 
+/**
+ * Die Arten, die an den Prüfkreis gehen — nur für sie gibt es in den
+ * Einstellungen einen Verteiler. Post an die betroffene Person selbst lässt
+ * sich nicht umlenken, und Jubiläum/Geburtstag gehen bewusst an alle: das ist
+ * eine Nachricht des Hauses, kein Vorgang.
+ */
+export const VERTEILBARE_ARTEN: MailArt[] = ALLE_MAIL_ARTEN.filter((art) => MAIL_ARTEN[art].empfaenger === 'pruefende');
+
+/**
+ * Ein Verteiler-Eintrag: `rolle:<schluessel>` oder `person:<id>`. Ein leerer
+ * Verteiler heißt „alle, die es betrifft" — der Zuschnitt schneidet den Kreis
+ * nur zu, er erweitert ihn nie.
+ */
+export function istVerteilerEintrag(value: string): boolean {
+  return /^rolle:\S+$/.test(value) || /^person:\d+$/.test(value);
+}
+
+export function imVerteiler(verteiler: string[], e: {id: number; role: string}): boolean {
+  return verteiler.length === 0 || verteiler.includes(`rolle:${e.role}`) || verteiler.includes(`person:${e.id}`);
+}
+
 export function istMailArt(value: string | undefined): value is MailArt {
   return value !== undefined && value in MAIL_ARTEN;
 }

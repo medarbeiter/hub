@@ -40,7 +40,8 @@
 import {getDb, type Abwesenheit, type Reise, type User} from './db';
 import {ausserHausLabel, fmtTage, istAntrag, laengeInTagen} from './abwesenheit-arten';
 import {fmtDate, fmtDateRange, fmtDuration, fmtDurationSigned, fmtEuro, fmtMonth} from './format';
-import {MAIL_ARTEN, type MailArt, type MailInhalt} from './mail-arten';
+import {MAIL_ARTEN, imVerteiler, type MailArt, type MailInhalt} from './mail-arten';
+import {mailVerteiler} from './settings';
 import {sendeAnAlle, sendeMail, type VersandErgebnis} from './mail';
 import {hatRecht, type Recht} from './rechte';
 import {rolleLabel, wirksameRechte} from './rollen';
@@ -57,6 +58,7 @@ export interface Empfaenger {
   id: number;
   name: string;
   email: string;
+  role: string;
   abbestellt: MailArt[];
 }
 
@@ -69,6 +71,19 @@ export function anrede(name: string): string {
 export function willEmpfangen(empfaenger: Empfaenger, art: MailArt): boolean {
   if (!MAIL_ARTEN[art].abwaehlbar) return true;
   return !empfaenger.abbestellt.includes(art);
+}
+
+/**
+ * Der Prüfkreis, der eine Nachricht wirklich bekommt: alle mit dem Recht,
+ * abzüglich Abbestellungen, zugeschnitten auf den Verteiler aus den
+ * Einstellungen. Jubiläum und Geburtstag laufen nicht hierdurch — sie gehen
+ * an alle anderen im Haus. Der Verteiler erweitert nie — wer das Recht
+ * nicht trägt, bekommt auch mit Eintrag keine Erinnerung an eine Prüfliste,
+ * die er nicht öffnen kann.
+ */
+export function verteilerFuer(art: MailArt, basis: Empfaenger[]): Empfaenger[] {
+  const wahl = mailVerteiler(art);
+  return basis.filter((e) => willEmpfangen(e, art) && imVerteiler(wahl, e));
 }
 
 interface KontoZeile {
@@ -85,7 +100,7 @@ function konto(userId: number): Empfaenger | null {
       'SELECT id, name, email, role, mail_abbestellt FROM users WHERE id = ? AND active = 1',
     )
     .get(userId);
-  return row ? {id: row.id, name: row.name, email: row.email, abbestellt: abbestellteAus(row.mail_abbestellt)} : null;
+  return row ? {id: row.id, name: row.name, email: row.email, role: row.role, abbestellt: abbestellteAus(row.mail_abbestellt)} : null;
 }
 
 /**
@@ -111,6 +126,7 @@ export function empfaengerMitRecht(recht: Recht, ausserId?: number): Empfaenger[
       id: row.id,
       name: row.name,
       email: row.email,
+      role: row.role,
       abbestellt: abbestellteAus(row.mail_abbestellt),
     }));
 }
@@ -122,7 +138,7 @@ export function alleEmpfaenger(ausserId: number): Empfaenger[] {
       'SELECT id, name, email, role, mail_abbestellt FROM users WHERE active = 1 AND id <> ? ORDER BY name',
     )
     .all(ausserId)
-    .map((row) => ({id: row.id, name: row.name, email: row.email, abbestellt: abbestellteAus(row.mail_abbestellt)}));
+    .map((row) => ({id: row.id, name: row.name, email: row.email, role: row.role, abbestellt: abbestellteAus(row.mail_abbestellt)}));
 }
 
 // ---------------------------------------------------------------------------
@@ -434,7 +450,7 @@ export function inhaltPasswortZurueckgesetzt(d: {passwort: string; zurueckgesetz
  * als der Posteingang.
  */
 async function anKreis(recht: Recht, art: MailArt, betrifftId: number, inhalt: MailInhalt): Promise<number> {
-  const kreis = empfaengerMitRecht(recht, betrifftId).filter((e) => willEmpfangen(e, art));
+  const kreis = verteilerFuer(art, empfaengerMitRecht(recht, betrifftId));
   await sendeAnAlle(
     kreis.map((e) => ({art, an: e.email, anrede: anrede(e.name), betrifftId, inhalt})),
   );

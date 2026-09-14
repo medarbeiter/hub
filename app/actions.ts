@@ -70,6 +70,7 @@ import {
 } from '@/lib/users';
 import {
   absenderAdresse,
+  alleVerteiler,
   autoCloseCutoffMin,
   belegungGrenze,
   getSetting,
@@ -195,7 +196,7 @@ import {
 // lib/erinnerungen.ts an. Von dort braucht eine Aktion nur das Vergessen:
 // wer seinen Antrag zurückzieht, fängt beim erneuten Einreichen von vorn an.
 import {vergiss} from '@/lib/erinnerungen';
-import {ABWAEHLBARE_ARTEN, istMailArt, mailArtLabel, type MailArt} from '@/lib/mail-arten';
+import {ABWAEHLBARE_ARTEN, VERTEILBARE_ARTEN, istMailArt, istVerteilerEintrag, mailArtLabel, type MailArt} from '@/lib/mail-arten';
 
 export interface ActionState {
   error: string | null;
@@ -1296,6 +1297,28 @@ export async function settingsSaveAction(_prev: ActionState, formData: FormData)
     }
   }
 
+  // Der Verteiler kommt als JSON: Art → Einträge. Nur bekannte Kreis-Arten,
+  // nur bekannte Rollen, nur Zahlen als Personen — alles andere wird benannt.
+  let verteilerRoh: unknown;
+  try {
+    verteilerRoh = JSON.parse(String(formData.get('mailVerteiler') ?? '{}'));
+  } catch {
+    return {error: 'Der Verteiler konnte nicht gelesen werden.'};
+  }
+  const verteiler: Partial<Record<MailArt, string[]>> = {};
+  if (typeof verteilerRoh !== 'object' || verteilerRoh === null || Array.isArray(verteilerRoh)) {
+    return {error: 'Der Verteiler konnte nicht gelesen werden.'};
+  }
+  for (const [art, wahl] of Object.entries(verteilerRoh as Record<string, unknown>)) {
+    if (!istMailArt(art) || !VERTEILBARE_ARTEN.includes(art)) continue;
+    if (!Array.isArray(wahl) || !wahl.every((w) => typeof w === 'string' && istVerteilerEintrag(w))) {
+      return {error: `Der Verteiler für „${mailArtLabel(art)}" enthält einen ungültigen Eintrag.`};
+    }
+    const unbekannt = wahl.find((w: string) => w.startsWith('rolle:') && !rolleByKey(w.slice(6)));
+    if (unbekannt) return {error: `Die Rolle „${unbekannt.slice(6)}" gibt es nicht.`};
+    if (wahl.length > 0) verteiler[art] = wahl;
+  }
+
   // Die Satztabelle kommt als JSON aus dem Formular; jede Stufe wird einzeln
   // geprüft, damit ein Tippfehler benannt wird statt still zu verschwinden.
   let stufenRoh: unknown;
@@ -1334,6 +1357,7 @@ export async function settingsSaveAction(_prev: ActionState, formData: FormData)
   setSetting('belegung_grenze', grenzeRaw);
   setSetting('mail_aktiv', formData.get('mailAktiv') === 'ja' ? 'ja' : 'nein');
   setSetting('mail_absender', absender);
+  setSetting('mail_verteiler', Object.keys(verteiler).length ? JSON.stringify(verteiler) : '');
   setSpesenSaetze(stufen.sort((a, b) => a.ab.localeCompare(b.ab)));
   protokolliere({
     akteur: actor,
@@ -1347,6 +1371,19 @@ export async function settingsSaveAction(_prev: ActionState, formData: FormData)
   return OK;
 }
 
+/** Der Verteiler lesbar: „Dienstjubiläum im Team: Rolle Verwaltung, Anna Berger". Leer = alle. */
+function verteilerText(): string {
+  const zeilen = Object.entries(alleVerteiler()).map(([art, wahl]) => {
+    const namen = wahl.map((w) =>
+      w.startsWith('rolle:')
+        ? `Rolle ${rolleLabel(w.slice(6))}`
+        : (getDb().query<{name: string}, [number]>('SELECT name FROM users WHERE id = ?').get(Number(w.slice(7)))?.name ?? w),
+    );
+    return `${mailArtLabel(art)}: ${namen.join(', ')}`;
+  });
+  return zeilen.length ? zeilen.join('; ') : 'alle Prüfenden';
+}
+
 /** Die Einstellungen als lesbare Wertepaare — einmal vor und einmal nach dem Speichern. */
 function einstellungenWerte() {
   const cutoff = autoCloseCutoffMin();
@@ -1357,6 +1394,7 @@ function einstellungenWerte() {
     Belastungsgrenze: belegungGrenze() === null ? 'nicht gesetzt' : `${belegungGrenze()} gleichzeitig`,
     'E-Mail-Versand': mailAktiv() ? 'an' : 'aus',
     'E-Mail-Absender': absenderAdresse(),
+    'E-Mail-Verteiler': verteilerText(),
     Verpflegungssätze: spesenSaetze()
       .map((s) => `ab ${fmtDate(s.ab)}: ${(s.halbCent / 100).toFixed(2)}/${(s.vollCent / 100).toFixed(2)} €`)
       .join(' · '),

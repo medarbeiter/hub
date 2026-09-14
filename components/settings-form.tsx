@@ -1,11 +1,11 @@
 'use client';
 
-import {Badge, Banner, Button, Card, Heading, HStack, Selector, Switch, Text, TextInput, VStack} from '@astryxdesign/core';
+import {Badge, Banner, Button, Card, Heading, HStack, MultiSelector, Selector, Switch, Text, TextInput, VStack} from '@astryxdesign/core';
 import {useActionState, useEffect, useRef, useState} from 'react';
 import {settingsSaveAction, type ActionState} from '@/app/actions';
 import {sicheresFormular} from '@/lib/aktion';
 import {BUNDESLAENDER} from '@/lib/feiertage';
-import {mailArtLabel} from '@/lib/mail-arten';
+import {MAIL_ARTEN, VERTEILBARE_ARTEN, mailArtLabel, type MailArt} from '@/lib/mail-arten';
 import type {VersandZeile} from '@/lib/mail-buch';
 import {Sinnbild, type Sinn} from './sinnbilder';
 
@@ -42,6 +42,10 @@ interface SettingsFormProps {
   mailKonfiguriert: boolean;
   /** Die letzten Zeilen des Versandbuchs. */
   letzterVersand: VersandZeile[];
+  /** Verteiler je Kreis-Art; fehlt eine Art, geht sie an alle, die es betrifft. */
+  mailVerteiler: Partial<Record<MailArt, string[]>>;
+  /** Rollen und aktive Personen als Auswahl (`rolle:…`, `person:…`). */
+  verteilerWahl: Array<{value: string; label: string}>;
   /** Die datierte Satztabelle, Beträge als Euro-Text fürs Feld. */
   spesenStufen: Array<{ab: string; halb: string; voll: string}>;
 }
@@ -64,6 +68,7 @@ export function SettingsForm(props: SettingsFormProps) {
   const [land, setLand] = useState(props.bundesland);
   const [mailAn, setMailAn] = useState(props.mailAktiv);
   const [absender, setAbsender] = useState(props.mailAbsender);
+  const [verteiler, setVerteiler] = useState(props.mailVerteiler);
   const [stufen, setStufen] = useState(props.spesenStufen);
   const [isSaved, setSaved] = useState(false);
   const [state, formAction, isSaving] = useActionState(sicheresFormular(settingsSaveAction), INITIAL);
@@ -218,6 +223,33 @@ export function SettingsForm(props: SettingsFormProps) {
               description="Die Domain muss bei Resend verifiziert sein, sonst wird jede Nachricht abgewiesen. Vorgabe ist hub.med-arbeiter.de."
               width="100%"
             />
+
+            <VStack gap={2}>
+              <VStack gap={0.5}>
+                <Heading level={3}>Verteiler</Heading>
+                <Text type="supporting" color="secondary">
+                  Nachrichten an den Prüfkreis gehen ohne Auswahl an alle, die prüfen dürfen. Mit Auswahl nur an
+                  die gewählten Rollen und Personen – wer das Prüfrecht nicht trägt, bekommt sie auch dann nicht.
+                  Jubiläum und Geburtstag gehen immer an das ganze Team. Die persönliche Abbestellung gilt weiterhin.
+                </Text>
+              </VStack>
+              {VERTEILBARE_ARTEN.map((art) => (
+                <MultiSelector
+                  key={art}
+                  label={MAIL_ARTEN[art].label}
+                  description={MAIL_ARTEN[art].beschreibung}
+                  options={props.verteilerWahl}
+                  value={verteiler[art] ?? []}
+                  onChange={edit((wahl: string[]) => setVerteiler({...verteiler, [art]: wahl}))}
+                  placeholder="Alle Prüfenden"
+                  triggerDisplay="badges"
+                  hasSearch
+                  searchPlaceholder="Rolle oder Person suchen"
+                  width="100%"
+                />
+              ))}
+              <input type="hidden" name="mailVerteiler" value={JSON.stringify(verteiler)} />
+            </VStack>
 
             {props.letzterVersand.length > 0 && (
               <VStack gap={1}>

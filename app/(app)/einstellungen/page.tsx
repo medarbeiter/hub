@@ -1,6 +1,8 @@
 import {Heading, HStack, Text, VStack} from '@astryxdesign/core';
 import {requireRecht} from '@/lib/auth';
-import {absenderAdresse, autoCloseCutoffMin, getSetting, mailAktiv, mergeWindowMin, spesenSaetze} from '@/lib/settings';
+import {absenderAdresse, alleVerteiler, autoCloseCutoffMin, getSetting, mailAktiv, mergeWindowMin, spesenSaetze} from '@/lib/settings';
+import {alleRollen} from '@/lib/rollen';
+import {allUsers} from '@/lib/users';
 import {letzterVersand, mailKonfiguriert} from '@/lib/mail-buch';
 import {fmtEuroPlain, fmtTime} from '@/lib/format';
 import {SettingsForm} from '@/components/settings-form';
@@ -34,6 +36,11 @@ export default async function EinstellungenPage() {
         /* Ob ein Schlüssel hinterlegt ist, weiß nur der Server — der Browser
            bekommt die Tatsache, nie den Schlüssel. */
         mailKonfiguriert={mailKonfiguriert()}
+        mailVerteiler={alleVerteiler()}
+        verteilerWahl={[
+          ...alleRollen().map((r) => ({value: `rolle:${r.schluessel}`, label: `Rolle: ${r.label}`})),
+          ...allUsers().filter((u) => u.active).map((u) => ({value: `person:${u.id}`, label: u.name})),
+        ]}
         letzterVersand={letzterVersand(5)}
         spesenStufen={saetze.map((s) => ({
           ab: s.ab,
