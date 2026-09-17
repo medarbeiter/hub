@@ -19,15 +19,13 @@ export type IssueKind =
   | 'fehlt'
   /** Longer than any plausible shift — almost certainly a forgotten clock-out. */
   | 'unplausibel'
-  /** ArbZG §3: more than 10 hours. */
-  | 'hoechstzeit'
   /** ArbZG §4: statutory break missing. */
   | 'pause'
   /** ArbZG §5: less than 11 hours between two shifts. */
   | 'ruhezeit';
 
 /** Most urgent first — this is the order the fix flow walks. */
-const PRIORITY: IssueKind[] = ['offen', 'unbestaetigt', 'unplausibel', 'fehlt', 'hoechstzeit', 'ruhezeit', 'pause'];
+const PRIORITY: IssueKind[] = ['offen', 'unbestaetigt', 'unplausibel', 'fehlt', 'ruhezeit', 'pause'];
 
 /** Kinds that make the day uncountable, as opposed to a compliance note. */
 const NEEDS_CORRECTION: ReadonlySet<IssueKind> = new Set<IssueKind>(['offen', 'unbestaetigt', 'unplausibel', 'fehlt']);
@@ -88,10 +86,11 @@ export function dayIssues(day: DayInput): Issue[] {
   if (hasOpen) return issues;
 
   const check = checkDay(day.segments, day.date);
+  // Die Tageshöchstarbeitszeit (§3 ArbZG) wird hier bewusst nicht mehr
+  // gemeldet. Was bleibt, ist der unplausible Tag: er ist keine Rechtsfrage,
+  // sondern ein vergessenes Ausstempeln, und ohne ihn wäre der Tag falsch.
   if (check.implausible) {
     add('unplausibel', `${fmtDuration(check.workedMin)} Std. erfasst – bitte prüfen.`);
-  } else if (check.capExceeded) {
-    add('hoechstzeit', `${fmtDuration(check.workedMin)} Std. – über der Höchstarbeitszeit von 10 Std. (§3 ArbZG).`);
   }
   if (check.deficitMin > 0) {
     add(

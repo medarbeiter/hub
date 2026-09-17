@@ -126,21 +126,18 @@ export function ClockBar() {
     return () => clearTimeout(zeit);
   }, [clock.stempelungen]);
 
-  // Advisory only. The cap is named before it is crossed, and stated plainly
-  // after — but nothing here stops the clock or refuses a record.
+  // Advisory only: nothing here stops the clock or refuses a record. Die
+  // Tageshöchstarbeitszeit (§3 ArbZG) wird bewusst nicht gemeldet — gerechnet
+  // wird sie in lib/arbzg.ts weiterhin, sie steht nur nirgends mehr im Bild.
   const c = clock.compliance;
   const hint =
     clock.status === 'aus'
       ? null
-      : c.capExceeded
-        ? 'Über 10 Std. – Höchstarbeitszeit überschritten (§3 ArbZG)'
-        : c.capApproaching
-          ? 'Bald 10 Std. – das ist die Höchstarbeitszeit (§3 ArbZG)'
-          : c.deficitMin > 0 && c.requiredMin > 0
-            ? `Pause: noch ${c.deficitMin} Min. gesetzlich nötig`
-            : c.dueSoon
-              ? 'Ab 6 Std. Arbeit sind 30 Min. Pause Pflicht'
-              : null;
+      : c.deficitMin > 0 && c.requiredMin > 0
+        ? `Pause: noch ${c.deficitMin} Min. gesetzlich nötig`
+        : c.dueSoon
+          ? 'Ab 6 Std. Arbeit sind 30 Min. Pause Pflicht'
+          : null;
 
   // Kantengetrieben: die Meldung steht neu, wenn sich der Text ändert (ein
   // neuer Zustand oder eine neue Minute im Countdown), und ersetzt sich dabei

@@ -58,19 +58,20 @@ describe('dayIssues', () => {
     expect(pause!.message).toContain('§4');
   });
 
-  test('over ten hours breaches the daily cap', () => {
+  test('over ten hours is no longer flagged on its own', () => {
     const issues = dayIssues({
       date: FRIDAY,
       segments: [seg('arbeit', 360, 720), seg('pause', 720, 765), seg('arbeit', 765, 1110)],
       sollMin: 480,
     });
-    expect(kinds(issues)).toContain('hoechstzeit');
+    // §3 ArbZG wird nicht mehr gemeldet; die Pausenregel (§4) gilt weiter.
+    expect(kinds(issues)).not.toContain('pause');
+    expect(issues.every((i) => i.needsCorrection === false)).toBe(true);
   });
 
   test('beyond fourteen hours it is implausible, not merely long', () => {
     const issues = dayIssues({date: FRIDAY, segments: [seg('arbeit', 300, 1260)], sollMin: 480});
     expect(kinds(issues)).toContain('unplausibel');
-    expect(kinds(issues)).not.toContain('hoechstzeit');
     expect(issues.find((i) => i.kind === 'unplausibel')!.needsCorrection).toBe(true);
   });
 
